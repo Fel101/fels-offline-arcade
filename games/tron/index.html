@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tron — Offline Arcade</title>
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+  <div class="game-shell">
+    <header class="game-header">
+      <a class="back-btn" href="../index.html">← Back to Games</a>
+      <h1>Tron</h1>
+    </header>
+    <main class="game-area">
+      <div class="status-bar">
+        <div class="status-bar__item"><span class="status-bar__label">Wins</span><span id="score" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Best</span><span id="best" class="status-bar__value">0</span></div>
+      </div>
+      <canvas id="game" width="480" height="480"></canvas>
+      <div class="game-controls">
+        <button id="restart" class="btn">Restart</button>
+      </div>
+      <p class="game-info__hint">Arrow keys or WASD to steer. Don't hit a wall or a trail.</p>
+    </main>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>

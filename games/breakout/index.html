@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Breakout — Offline Arcade</title>
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+  <div class="game-shell">
+    <header class="game-header">
+      <a class="back-btn" href="../index.html">← Back to Games</a>
+      <h1>Breakout</h1>
+    </header>
+    <main class="game-area">
+      <div class="status-bar">
+        <div class="status-bar__item"><span class="status-bar__label">Score</span><span id="score" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Lives</span><span id="lives" class="status-bar__value">3</span></div>
+      </div>
+      <canvas id="game" width="480" height="480"></canvas>
+      <div class="game-controls">
+        <button id="launch" class="btn">Launch ball</button>
+      </div>
+      <p class="game-info__hint">Move your mouse (or ◀ ▶) to control the paddle.</p>
+    </main>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>

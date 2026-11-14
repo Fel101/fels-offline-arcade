@@ -1,0 +1,308 @@
+/* ============================================================
+   Offline Arcade — shared styles
+   Pure CSS, no dependencies. Works fully offline via file://
+   ============================================================ */
+
+:root {
+  --bg: #0f1020;
+  --bg-soft: #1a1c33;
+  --panel: #232645;
+  --accent: #58e0c9;
+  --accent-2: #ffcc4d;
+  --text: #eef0ff;
+  --muted: #9aa0c8;
+  --danger: #ff6b6b;
+  --radius: 14px;
+  --font: "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: radial-gradient(circle at 50% 0%, #1c1e3a 0%, var(--bg) 60%);
+  color: var(--text);
+  font-family: var(--font);
+  min-height: 100vh;
+}
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ---------- Portal home ---------- */
+.portal {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 48px 24px 72px;
+}
+
+.portal__hero {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.portal__logo {
+  font-size: 3rem;
+  font-weight: 800;
+  letter-spacing: -1px;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  margin: 0 0 8px;
+}
+
+.portal__tagline {
+  color: var(--muted);
+  font-size: 1.05rem;
+  margin: 0;
+}
+
+.portal__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 18px;
+}
+
+.game-card {
+  display: block;
+  background: var(--panel);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius);
+  padding: 22px 18px;
+  text-align: center;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.game-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--accent);
+  box-shadow: 0 10px 30px rgba(88, 224, 201, 0.15);
+  text-decoration: none;
+}
+
+.game-card__emoji {
+  font-size: 2.6rem;
+  display: block;
+  margin-bottom: 10px;
+}
+
+.game-card__name {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text);
+  text-transform: capitalize;
+}
+
+.game-card__desc {
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin-top: 6px;
+  line-height: 1.35;
+}
+
+.portal__footer {
+  text-align: center;
+  margin-top: 48px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+/* ---------- Game shell (used by every game) ---------- */
+.game-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.game-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 24px;
+  background: rgba(0, 0, 0, 0.25);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.game-header h1 {
+  font-size: 1.3rem;
+  margin: 0;
+  text-transform: capitalize;
+}
+
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  background: var(--bg-soft);
+  color: var(--text);
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.back-btn:hover { background: var(--panel); text-decoration: none; }
+
+.game-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  gap: 16px;
+}
+
+.game-info {
+  text-align: center;
+}
+.game-info__title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0 0 6px;
+}
+.game-info__hint {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+/* Score / status bar */
+.status-bar {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  font-variant-numeric: tabular-nums;
+}
+.status-bar__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 60px;
+}
+.status-bar__label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--muted);
+}
+.status-bar__value {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--accent-2);
+}
+
+/* Buttons */
+.btn {
+  background: var(--accent);
+  color: #06231f;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+}
+.btn:hover { filter: brightness(1.08); }
+.btn--ghost {
+  background: var(--bg-soft);
+  color: var(--text);
+}
+
+/* Canvas games */
+canvas {
+  background: #0a0b18;
+  border-radius: var(--radius);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  max-width: 100%;
+  touch-action: none;
+}
+
+.game-controls {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* Overlay message (game over / start) */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 9, 22, 0.82);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+.overlay__box {
+  background: var(--panel);
+  padding: 36px 44px;
+  border-radius: var(--radius);
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.overlay__box h2 { margin: 0 0 10px; font-size: 1.8rem; }
+.overlay__box p { color: var(--muted); margin: 0 0 20px; }
+
+/* Grid-based board games (Tic-Tac-Toe, Connect Four, Memory, etc.) */
+.board {
+  display: grid;
+  gap: 6px;
+  background: var(--bg-soft);
+  padding: 6px;
+  border-radius: var(--radius);
+}
+
+.cell {
+  background: var(--panel);
+  border: none;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  cursor: pointer;
+  border-radius: 10px;
+  transition: background 0.12s ease;
+}
+.cell:hover:not(:disabled) { background: #2c3057; }
+.cell:disabled { cursor: default; }
+
+/* Sudoku box separators */
+.box-right { border-left: 2px solid var(--accent); }
+.box-bottom { border-bottom: 2px solid var(--accent); }
+/* Number puzzle tiles (2048, Sudoku) */
+.tile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  border-radius: 10px;
+  background: #303456;
+  color: var(--text);
+}
+
+/* Mobile D-pad for touch arcade games */
+.dpad {
+  display: grid;
+  grid-template-columns: repeat(3, 64px);
+  grid-template-rows: repeat(3, 64px);
+  gap: 6px;
+}
+.dpad button {
+  background: var(--panel);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text);
+  font-size: 1.4rem;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.dpad button:active { background: var(--accent); color: #06231f; }
+.dpad__spacer { visibility: hidden; }
+
+@media (max-width: 520px) {
+  .portal__logo { font-size: 2.2rem; }
+  .portal__grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+}

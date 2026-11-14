@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Connect Four — Offline Arcade</title>
+  <link rel="stylesheet" href="../css/styles.css">
+</head>
+<body>
+  <div class="game-shell">
+    <header class="game-header">
+      <a class="back-btn" href="../index.html">← Back to Games</a>
+      <h1>Connect Four</h1>
+    </header>
+    <main class="game-area">
+      <div class="status-bar">
+        <div class="status-bar__item"><span class="status-bar__label">Turn</span><span id="turn" class="status-bar__value" style="font-size:1.1rem;">You</span></div>
+      </div>
+      <div id="board" class="board" style="grid-template-columns:repeat(7,1fr);"></div>
+      <div class="game-controls">
+        <button id="new-game" class="btn">New Game</button>
+        <select id="ai-diff" class="btn btn--ghost" style="padding:8px 12px;">
+          <option value="4">Easy</option>
+          <option value="6" selected>Medium</option>
+          <option value="8">Hard</option>
+        </select>
+      </div>
+      <p class="game-info__hint">Click a column to drop your disc (🔴). Get four in a row.</p>
+    </main>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>

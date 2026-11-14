@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Solitaire — Offline Arcade</title>
+  <link rel="stylesheet" href="../css/styles.css">
+  <style>
+    .sol-top, .sol-tableau { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+    .sol-spacer { width: 40px; }
+    .sol-pile { position: relative; }
+    .slot {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 66px; height: 94px; border-radius: 10px;
+      background: rgba(255,255,255,0.04); border: 2px dashed rgba(255,255,255,0.14);
+      position: relative; cursor: pointer;
+    }
+    .slot__label { color: var(--muted); font-size: 1.6rem; }
+    .sol-col { min-width: 66px; min-height: 94px; border-radius: 10px;
+      background: rgba(255,255,255,0.03); border: 2px dashed rgba(255,255,255,0.10);
+      display: flex; flex-direction: column; align-items: center; padding-top: 4px;
+      position: relative; }
+    .card {
+      width: 66px; height: 94px; border-radius: 10px; background: #f7f7ff; color: #1a1c33;
+      font-weight: 800; cursor: pointer; border: 1px solid rgba(0,0,0,0.15);
+      display: flex; flex-direction: column; justify-content: space-between; padding: 6px 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.35); position: relative; user-select: none;
+    }
+    .card--red { color: #d63a4a; }
+    .card--black { color: #1a1c33; }
+    .card--down { background: repeating-linear-gradient(45deg, #2b3f9e, #2b3f9e 6px, #23307a 6px, #23307a 12px); border-color:#1c2a7a; }
+    .card--down::after { content: "✦"; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color: rgba(255,255,255,0.35); font-size:1.6rem; }
+    .rank { font-size: 1.15rem; line-height: 1; }
+    .suit-big { font-size: 1.5rem; }
+    .suit-small { position:absolute; bottom:6px; right:8px; font-size:0.95rem; }
+    .sol-col .card { margin-top: -74px; }
+    .sol-col .card:first-child { margin-top: 0; }
+    .hl { box-shadow: 0 0 0 3px var(--accent) !important; }
+    .sel { box-shadow: 0 0 0 3px var(--accent-2) !important; }
+    @media (max-width: 560px) {
+      .card, .slot, .sol-col { width: 54px; height: 78px; }
+      .rank { font-size: 0.95rem; } .suit-big { font-size: 1.2rem; }
+      .sol-col .card { margin-top: -62px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="game-shell">
+    <header class="game-header">
+      <a class="back-btn" href="../index.html">← Back to Games</a>
+      <h1>Solitaire</h1>
+    </header>
+    <main class="game-area">
+      <div class="status-bar">
+        <div class="status-bar__item"><span class="status-bar__label">Moves</span><span id="moves" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Wins</span><span id="wins" class="status-bar__value">0</span></div>
+      </div>
+      <div class="sol-top">
+        <div id="stock" class="slot"><span class="slot__label">↻</span></div>
+        <div id="waste" class="sol-pile"></div>
+        <div class="sol-spacer"></div>
+        <div id="foundations" class="sol-top" style="gap:10px;"></div>
+      </div>
+      <div id="tableau" class="sol-tableau"></div>
+      <div class="game-controls">
+        <button id="new-game" class="btn">New Game</button>
+      </div>
+      <p class="game-info__hint">Click a card to move it. Send cards to the foundations (A→K by suit). Double-click to fan a card home.</p>
+    </main>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>
