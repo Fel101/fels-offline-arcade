@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jumble — Offline Arcade</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+  <style>
+    .jumble {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+    .scramble {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .scramble__tile {
+      width: 62px;
+      height: 62px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.9rem;
+      font-weight: 900;
+      border-radius: 14px;
+      color: #04312a;
+      background: linear-gradient(180deg, #ffd94d 0%, #f2b53a 100%);
+      border: 1px solid rgba(0, 0, 0, 0.25);
+      box-shadow: 0 4px 0 #a8781e, 0 10px 22px rgba(255, 217, 77, 0.35), inset 0 1px 0 rgba(255,255,255,0.7);
+      animation: tileDrop 0.4s var(--ease-pop) backwards;
+      user-select: none;
+    }
+    @keyframes tileDrop {
+      from { transform: translateY(-28px) rotate(-8deg); opacity: 0; }
+      to   { transform: none; opacity: 1; }
+    }
+    .jumble__clue {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--accent-2);
+      margin: 0;
+      text-align: center;
+    }
+    .answer-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    .answer-box {
+      width: 54px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.9rem;
+      font-weight: 900;
+      text-transform: uppercase;
+      color: var(--text);
+      background: linear-gradient(180deg, #2d3058 0%, #22264a 100%);
+      border: 2px dashed rgba(255, 255, 255, 0.22);
+      border-radius: 13px;
+      cursor: pointer;
+      font-family: inherit;
+      box-shadow: inset 0 -3px 0 rgba(0,0,0,0.22);
+      transition: border-color 0.15s ease, transform 0.15s ease, background 0.15s ease;
+    }
+    .answer-box.filled { border-style: solid; border-color: var(--accent); }
+    .answer-box--selected {
+      border: 2px solid var(--accent-2) !important;
+      box-shadow: 0 0 0 3px rgba(255, 217, 77, 0.35), inset 0 -3px 0 rgba(0,0,0,0.22);
+      transform: translateY(-4px);
+    }
+    .answer-box--locked {
+      background: linear-gradient(180deg, #1f4a3f 0%, #17352d 100%);
+      border: 2px solid #3aa981;
+      cursor: default;
+    }
+    .answer-box--correct {
+      background: linear-gradient(180deg, #3aa981 0%, #2b8a64 100%);
+      border: 2px solid #3aa981;
+      color: #06231f;
+      animation: correctPop 0.5s var(--ease-pop);
+    }
+    @keyframes correctPop {
+      0%   { transform: scale(0.6); filter: brightness(2); }
+      50%  { transform: scale(1.25); }
+      100% { transform: scale(1); }
+    }
+    .answer-row--wrong .answer-box {
+      border-color: var(--danger) !important;
+      animation: shakeRow 0.45s ease;
+    }
+    @keyframes shakeRow {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-12px); }
+      40% { transform: translateX(12px); }
+      60% { transform: translateX(-8px); }
+      80% { transform: translateX(8px); }
+    }
+    .keyboard {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      align-items: center;
+    }
+    .keyboard__row { display: flex; gap: 6px; }
+    .key {
+      min-width: 34px;
+      height: 46px;
+      padding: 0 8px;
+      background: #303456;
+      color: var(--text);
+      border: none;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      text-transform: uppercase;
+    }
+    .key:hover { filter: brightness(1.2); }
+    .key--wide { min-width: 58px; font-size: 0.7rem; }
+    @media (max-width: 520px) {
+      .scramble__tile { width: 46px; height: 46px; font-size: 1.4rem; }
+      .answer-box { width: 40px; height: 50px; font-size: 1.4rem; }
+      .keyboard__row { gap: 4px; }
+      .key { min-width: 27px; height: 42px; padding: 0 5px; font-size: 0.72rem; }
+      .key--wide { min-width: 44px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="game-shell">
+    <header class="game-header">
+      <a class="back-btn" href="../../index.html">← Back to Games</a>
+      <h1>Jumble</h1>
+    </header>
+    <main class="game-area">
+      <div class="status-bar">
+        <div class="status-bar__item"><span class="status-bar__label">Wins</span><span id="wins" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Streak</span><span id="streak" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Best Streak</span><span id="best-streak" class="status-bar__value">0</span></div>
+      </div>
+      <div class="jumble">
+        <div id="scramble" class="scramble"></div>
+        <p id="clue" class="jumble__clue"></p>
+        <div id="answer" class="answer-row"></div>
+        <p id="attempts" class="game-info__hint">Attempts: 0</p>
+      </div>
+      <div id="keyboard" class="keyboard"></div>
+      <div class="game-controls">
+        <button id="hint-btn" class="btn btn--ghost">💡 Hint</button>
+        <button id="clear-btn" class="btn btn--ghost">Clear</button>
+        <button id="new-word" class="btn">New Word</button>
+      </div>
+      <p class="game-info__hint">Unscramble the letters to answer the clue. Tap a box to select it, or just type!</p>
+    </main>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Word Square — Offline Arcade</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+  <style>
+    .ws-board {
+      display: grid;
+      grid-template-columns: repeat(5, 64px);
+      grid-template-rows: repeat(5, 64px);
+      gap: 8px;
+      padding: 12px;
+      border-radius: 22px;
+      background: linear-gradient(170deg, rgba(255,255,255,0.13), rgba(255,255,255,0.05));
+      border: 1px solid var(--glass-border);
+      box-shadow: 0 20px 44px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.18);
+    }
+    .ws-cell {
+      background: linear-gradient(180deg, #2d3058 0%, #22264a 100%);
+      border: 2px solid rgba(255,255,255,0.09);
+      border-radius: 13px;
+      color: var(--text);
+      font-size: 1.7rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      cursor: pointer;
+      font-family: inherit;
+      padding: 0;
+      box-shadow: inset 0 -3px 0 rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.1);
+      transition: box-shadow 0.18s ease, border-color 0.18s ease, transform 0.12s ease, background 0.18s ease;
+    }
+    .ws-cell:hover { background: linear-gradient(180deg, #383c68 0%, #2a2d54 100%); }
+    .ws-cell.selected {
+      border-color: var(--accent-2);
+      box-shadow: 0 0 0 1px var(--accent-2), 0 0 16px rgba(255, 217, 77, 0.45), inset 0 1px 0 rgba(255,255,255,0.15);
+      transform: translateY(-2px);
+    }
+    .ws-cell.locked {
+      color: var(--accent);
+      border-color: rgba(77, 227, 195, 0.55);
+      cursor: default;
+    }
+    .ws-cell.valid {
+      border-color: var(--accent);
+      background: linear-gradient(180deg, #24544a 0%, #1c423a 100%);
+      box-shadow: 0 0 14px rgba(77, 227, 195, 0.45), inset 0 0 10px rgba(77, 227, 195, 0.28);
+    }
+    .ws-cell.valid.selected {
+      box-shadow: 0 0 0 1px var(--accent-2), 0 0 18px rgba(77, 227, 195, 0.6), inset 0 0 10px rgba(77, 227, 195, 0.3);
+    }
+    @media (max-width: 520px) {
+      .ws-board { grid-template-columns: repeat(5, 52px); grid-template-rows: repeat(5, 52px); gap: 6px; }
+      .ws-cell { font-size: 1.35rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="game-shell">
+    <header class="game-header">
+      <a class="back-btn" href="../../index.html">← Back to Games</a>
+      <h1>Word Square</h1>
+    </header>
+    <main class="game-area">
+      <div class="status-bar">
+        <div class="status-bar__item"><span class="status-bar__label">Wins</span><span id="wins" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Time</span><span id="time" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Puzzle</span><span id="puzzle" class="status-bar__value" style="font-size:1.1rem;">1 / 13</span></div>
+      </div>
+      <div id="board" class="ws-board"></div>
+      <div class="game-controls">
+        <button id="hint" class="btn btn--ghost">Hint</button>
+        <button id="reset" class="btn btn--ghost">Reset</button>
+        <button id="new-puzzle" class="btn">New Puzzle</button>
+      </div>
+      <p class="game-info__hint">Every row and every column must spell a 5-letter word. Click a cell to select, type to fill, arrows to move.</p>
+    </main>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>

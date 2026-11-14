@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mastermind — Offline Arcade</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+  <style>
+    main.game-area { justify-content: flex-start; padding-top: 18px; gap: 12px; }
+    .mm-board { display: flex; flex-direction: column; gap: 5px; }
+    .mm-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 4px 12px; border-radius: 14px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid transparent;
+      transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+    }
+    .mm-row--current {
+      background: rgba(77, 227, 195, 0.07);
+      border-color: rgba(77, 227, 195, 0.5);
+      box-shadow: 0 0 16px rgba(77, 227, 195, 0.14);
+    }
+    .mm-row__num { width: 18px; font-size: 0.72rem; color: var(--muted); font-weight: 700; }
+    .mm-pegs { display: flex; gap: 8px; }
+    .mm-peg {
+      width: 30px; height: 30px; border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.18);
+      box-shadow: inset 0 2px 2px rgba(255, 255, 255, 0.4), inset 0 -3px 4px rgba(0, 0, 0, 0.35);
+    }
+    .mm-peg--empty { background: rgba(255, 255, 255, 0.05); border-style: dashed; border-color: rgba(255, 255, 255, 0.28); box-shadow: none; }
+    .mm-peg--filled { cursor: pointer; border-color: rgba(255, 255, 255, 0.38); transition: transform 0.12s ease; }
+    .mm-peg--filled:hover { transform: scale(1.14); }
+    .mm-feedback { display: grid; grid-template-rows: repeat(2, 13px); gap: 4px; margin-left: 2px; }
+    .mm-fb {
+      width: 13px; height: 13px; border-radius: 50%;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+    }
+    .mm-fb--black { background: radial-gradient(circle at 35% 35%, #7d7d7d, #0d0d0d 72%); border-color: rgba(255, 255, 255, 0.45); }
+    .mm-fb--white { background: radial-gradient(circle at 35% 35%, #ffffff, #c9c9c9 75%); }
+    .mm-palette {
+      display: flex; gap: 12px; padding: 10px 18px; border-radius: 999px;
+      background: rgba(255, 255, 255, 0.05); border: 1px solid var(--glass-border);
+    }
+    .mm-color {
+      width: 42px; height: 42px; border-radius: 50%; cursor: pointer;
+      border: 2px solid rgba(255, 255, 255, 0.4);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.45), inset 0 2px 2px rgba(255, 255, 255, 0.5), inset 0 -4px 6px rgba(0, 0, 0, 0.35);
+      transition: transform 0.12s var(--ease-pop);
+    }
+    .mm-color:hover { transform: scale(1.18); }
+    .mm-reveal { display: flex; gap: 6px; justify-content: center; margin: 4px 0 16px; }
+    .mm-reveal .mm-peg { width: 26px; height: 26px; }
+    .btn:disabled { opacity: 0.4; pointer-events: none; }
+  </style>
+</head>
+<body>
+  <div class="game-shell">
+    <header class="game-header">
+      <a class="back-btn" href="../../index.html">← Back to Games</a>
+      <h1>Mastermind</h1>
+    </header>
+    <main class="game-area">
+      <div class="status-bar">
+        <div class="status-bar__item"><span class="status-bar__label">Wins</span><span id="wins" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Streak</span><span id="streak" class="status-bar__value">0</span></div>
+      </div>
+      <div id="board" class="mm-board" aria-label="Guess board"></div>
+      <div id="palette" class="mm-palette" aria-label="Color palette"></div>
+      <div class="game-controls">
+        <button id="guess-btn" class="btn">Guess!</button>
+        <button id="new-code" class="btn btn--ghost">New Code</button>
+        <select id="difficulty" class="btn btn--ghost" style="padding:8px 12px;" aria-label="Difficulty">
+          <option value="easy">Easy · 4 pegs · 4 colors</option>
+          <option value="normal" selected>Normal · 4 pegs · 6 colors</option>
+          <option value="hard">Hard · 5 pegs · 6 colors</option>
+        </select>
+      </div>
+      <p class="game-info__hint" id="hint">Black = right color, right spot · White = right color, wrong spot. Click a filled peg to undo.</p>
+    </main>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>

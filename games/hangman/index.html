@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hangman — Offline Arcade</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+  <style>
+    .hangman__stage {
+      display: flex;
+      gap: 26px;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .hangman__panel {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      align-items: center;
+      min-width: 230px;
+    }
+    .category {
+      color: var(--accent-2);
+      font-weight: 800;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      font-size: 0.85rem;
+      padding: 8px 20px;
+      border: 1px dashed rgba(255, 255, 255, 0.28);
+      border-radius: 999px;
+      background: var(--glass);
+    }
+    .word {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+      max-width: 380px;
+    }
+    .slot {
+      width: 34px;
+      height: 50px;
+      border-bottom: 4px solid var(--accent);
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      font-size: 1.9rem;
+      font-weight: 900;
+      color: var(--accent);
+      padding-bottom: 2px;
+      user-select: none;
+    }
+    .slot--missed { color: var(--danger); border-bottom-color: var(--danger); }
+    .keyboard {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      align-items: center;
+    }
+    .key-row { display: flex; gap: 7px; }
+    .key {
+      width: 40px;
+      height: 50px;
+      background: #303456;
+      color: var(--text);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      text-transform: uppercase;
+      transition: filter 0.15s ease, background 0.15s ease;
+    }
+    .key:hover:not(:disabled) { filter: brightness(1.3); }
+    .key:disabled { cursor: default; }
+    .key--good {
+      background: #1e5c46;
+      border-color: #3aa981;
+      color: #7dedb9;
+      box-shadow: inset 0 0 0 1px #3aa981;
+    }
+    .key--bad {
+      background: #5a2330;
+      border-color: #c0392b;
+      color: #ff9d9d;
+      box-shadow: inset 0 0 0 1px #c0392b;
+    }
+    @media (max-width: 520px) {
+      .key { width: 30px; height: 42px; font-size: 0.78rem; }
+      .key-row { gap: 4px; }
+      .slot { width: 26px; height: 42px; font-size: 1.4rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="game-shell">
+    <header class="game-header">
+      <a class="back-btn" href="../../index.html">← Back to Games</a>
+      <h1>Hangman</h1>
+    </header>
+    <main class="game-area">
+      <div class="status-bar">
+        <div class="status-bar__item"><span class="status-bar__label">Wins</span><span id="wins" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Streak</span><span id="streak" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Lives</span><span id="lives" class="status-bar__value">6</span></div>
+      </div>
+      <div class="hangman__stage">
+        <canvas id="gallows" width="300" height="240" aria-label="Hangman gallows drawing"></canvas>
+        <div class="hangman__panel">
+          <div class="category">Category: <span id="category">Animals</span></div>
+          <div id="word" class="word" aria-label="Word to guess"></div>
+        </div>
+      </div>
+      <div id="keyboard" class="keyboard" aria-label="On-screen keyboard"></div>
+      <div class="game-controls">
+        <button id="new-word" class="btn">New Word</button>
+      </div>
+      <p class="game-info__hint">Guess the word one letter at a time — six wrong guesses and it's game over. You can use your physical keyboard too.</p>
+    </main>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>

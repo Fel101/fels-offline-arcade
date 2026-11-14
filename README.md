@@ -9,7 +9,7 @@ Just open `index.html` in any modern browser and pick a game.
 Open `index.html` in your browser (double-click it, or drag it into a tab). That's it.
 No Node, no npm, nothing to install. Works from a local folder or a USB stick.
 
-## Games (30)
+## Games (40)
 
 | Game | Type | Play |
 |------|------|------|
@@ -43,6 +43,16 @@ No Node, no npm, nothing to install. Works from a local folder or a USB stick.
 | 🎲 Yahtzee | Dice | Roll and re-roll — beat your best total |
 | 🏗️ Stack | Arcade | Drop blocks on the tower — how high? |
 | 🐤 Flappy | Arcade | Tap to flap through the endless pipes |
+| 🔍 Word Search | Word | Find the hidden themed words |
+| 🪢 Hangman | Word | Guess the word before the gallows completes |
+| 🔀 Jumble | Word | Unscramble the letters from the clue |
+| 🪜 Word Ladder | Word | Change one letter at a time |
+| 🕵️ Cryptogram | Word | Decode the secret message |
+| 🔠 Word Square | Word | Every row and column is a word |
+| 🎯 Mastermind | Logic | Crack the color code |
+| 🗼 Tower of Hanoi | Puzzle | Move the tower, ring by ring |
+| 🟢 Peg Solitaire | Puzzle | Jump and remove — leave one peg |
+| 📦 Sokoban | Puzzle | Push every box onto a target |
 
 ## Structure
 
@@ -60,7 +70,7 @@ games/
 Each game is **isolated** in its own folder with a "← Back to Games" button, so games
 never interfere with each other.
 
-## Adding a new game (game #31+)
+## Adding a new game (game #41+)
 
 1. Create `games/<name>/index.html` and `games/<name>/script.js`.
    Copy any existing game's `index.html` as a starting point — it already has the

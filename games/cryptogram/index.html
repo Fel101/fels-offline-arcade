@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cryptogram — Offline Arcade</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+  <style>
+    .crypto-board {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px 22px;
+      justify-content: center;
+      max-width: 980px;
+    }
+    .crypto-word { display: flex; gap: 6px; }
+    .crypto-cell {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    .crypto-cipher {
+      font-weight: 800;
+      font-size: 1.05rem;
+      color: var(--muted);
+      letter-spacing: 1px;
+      user-select: none;
+    }
+    .crypto-slot {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      border: 2px solid rgba(255, 255, 255, 0.14);
+      background: var(--panel);
+      color: var(--text);
+      font-size: 1.15rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      cursor: pointer;
+      font-family: inherit;
+      padding: 0;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.12s ease;
+    }
+    .crypto-slot:hover { border-color: var(--accent); }
+    .crypto-slot.selected {
+      border-color: var(--accent-2);
+      box-shadow: 0 0 0 1px var(--accent-2), 0 0 14px rgba(255, 217, 77, 0.4);
+      transform: translateY(-2px);
+    }
+    .crypto-slot.locked {
+      background: linear-gradient(180deg, #2c5c50, #21463d);
+      border-color: var(--accent);
+      color: var(--accent);
+      cursor: default;
+    }
+    .keyboard {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      align-items: center;
+    }
+    .keyboard__row { display: flex; gap: 6px; }
+    .key {
+      min-width: 34px;
+      height: 46px;
+      padding: 0 8px;
+      background: #303456;
+      color: var(--text);
+      border: none;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      text-transform: uppercase;
+    }
+    .key:hover { filter: brightness(1.2); }
+    .key--wide { min-width: 58px; font-size: 0.7rem; }
+    .source-line { font-style: italic; }
+    @media (max-width: 520px) {
+      .crypto-slot { width: 26px; height: 26px; font-size: 0.9rem; }
+      .crypto-cipher { font-size: 0.85rem; }
+      .crypto-word { gap: 4px; }
+      .crypto-board { gap: 12px 14px; }
+      .key { min-width: 26px; height: 40px; padding: 0 5px; font-size: 0.7rem; }
+      .key--wide { min-width: 44px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="game-shell">
+    <header class="game-header">
+      <a class="back-btn" href="../../index.html">← Back to Games</a>
+      <h1>Cryptogram</h1>
+    </header>
+    <main class="game-area">
+      <div class="status-bar">
+        <div class="status-bar__item"><span class="status-bar__label">Wins</span><span id="wins" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Time</span><span id="time" class="status-bar__value">0</span></div>
+      </div>
+      <p class="game-info__hint source-line">source: <span id="source">proverb</span></p>
+      <div id="board" class="crypto-board"></div>
+      <div id="keyboard" class="keyboard"></div>
+      <div class="game-controls">
+        <button id="hint" class="btn btn--ghost">Hint</button>
+        <button id="reset" class="btn btn--ghost">Reset</button>
+        <button id="new-puzzle" class="btn">New Puzzle</button>
+      </div>
+      <p class="game-info__hint">Click a box, then type a letter. Every matching cipher letter fills in at once.</p>
+    </main>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>

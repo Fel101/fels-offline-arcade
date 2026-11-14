@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Word Search — Offline Arcade</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+  <style>
+    .ws-wrap {
+      display: flex;
+      gap: 22px;
+      align-items: flex-start;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .ws-board {
+      grid-template-columns: repeat(12, 38px);
+      gap: 3px;
+      padding: 6px;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+    .ws-cell {
+      width: 38px;
+      height: 38px;
+      font-size: 1.05rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      border-radius: 8px;
+      font-family: inherit;
+      padding: 0;
+    }
+    .ws-cell.sel {
+      background: linear-gradient(180deg, #ffd94d, #e8b83a);
+      color: #3a2b00;
+      border-color: #ffd94d;
+      filter: brightness(1.05);
+    }
+    .ws-cell.found {
+      background: linear-gradient(180deg, #5df0cd 0%, #2fd0ab 100%);
+      color: #04312a;
+      border-color: #4de3c3;
+      box-shadow: 0 0 14px rgba(77, 227, 195, 0.45);
+    }
+    .ws-cell.bad {
+      background: linear-gradient(180deg, #ff7b7b, #e04b4b);
+      color: #fff;
+      border-color: var(--danger);
+    }
+    .ws-side {
+      min-width: 180px;
+      max-width: 280px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .ws-side__title {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 1.6px;
+      color: var(--muted);
+      font-weight: 700;
+      margin: 0;
+      text-align: center;
+    }
+    .ws-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+    }
+    .ws-chip {
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      font-size: 0.85rem;
+      font-weight: 800;
+      letter-spacing: 1px;
+      color: var(--text);
+    }
+    .ws-chip--found {
+      color: #04312a;
+      background: linear-gradient(180deg, #5df0cd, #2fd0ab);
+      border-color: var(--accent);
+      text-decoration: line-through;
+      opacity: 0.75;
+    }
+    @media (max-width: 520px) {
+      .ws-board { grid-template-columns: repeat(12, 25px); gap: 2px; padding: 4px; }
+      .ws-cell { width: 25px; height: 25px; font-size: 0.7rem; border-radius: 5px; }
+      .ws-side { max-width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="game-shell">
+    <header class="game-header">
+      <a class="back-btn" href="../../index.html">← Back to Games</a>
+      <h1>Word Search</h1>
+    </header>
+    <main class="game-area">
+      <div class="status-bar">
+        <div class="status-bar__item"><span class="status-bar__label">Found</span><span id="found" class="status-bar__value">0/7</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Time</span><span id="time" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Wins</span><span id="wins" class="status-bar__value">0</span></div>
+      </div>
+      <div class="ws-wrap">
+        <div id="board" class="board ws-board" aria-label="Word search grid"></div>
+        <div class="ws-side">
+          <p class="ws-side__title">Find these words</p>
+          <div id="word-list" class="ws-chips"></div>
+        </div>
+      </div>
+      <div class="game-controls">
+        <button id="new-game" class="btn">New Game</button>
+        <select id="theme" class="btn btn--ghost" style="padding:8px 12px;">
+          <option value="Animals" selected>Animals</option>
+          <option value="Space">Space</option>
+          <option value="Ocean">Ocean</option>
+          <option value="Food">Food</option>
+          <option value="Sports">Sports</option>
+          <option value="Dinosaurs">Dinosaurs</option>
+        </select>
+        <select id="difficulty" class="btn btn--ghost" style="padding:8px 12px;">
+          <option value="easy">Easy (5 words)</option>
+          <option value="normal" selected>Normal (7 words)</option>
+          <option value="hard">Hard (9 words)</option>
+        </select>
+      </div>
+      <p class="game-info__hint">Click the first letter of a word, then click its last letter — any direction, even diagonal and backwards.</p>
+    </main>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>
