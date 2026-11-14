@@ -21,15 +21,17 @@
       display: flex; flex-direction: column; align-items: center; padding-top: 4px;
       position: relative; }
     .card {
-      width: 66px; height: 94px; border-radius: 10px; background: #f7f7ff; color: #1a1c33;
-      font-weight: 800; cursor: pointer; border: 1px solid rgba(0,0,0,0.15);
+      width: 66px; height: 94px; border-radius: 12px; background: linear-gradient(165deg, #ffffff 0%, #eef0fa 100%); color: #1a1c33;
+      font-weight: 800; cursor: pointer; border: 1px solid rgba(0,0,0,0.18);
       display: flex; flex-direction: column; justify-content: space-between; padding: 6px 8px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.35); position: relative; user-select: none;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.38), inset 0 1px 0 #fff; position: relative; user-select: none;
+      transition: transform 0.15s ease;
     }
+    .card:hover:not(.card--down) { transform: translateY(-4px); }
     .card--red { color: #d63a4a; }
     .card--black { color: #1a1c33; }
-    .card--down { background: repeating-linear-gradient(45deg, #2b3f9e, #2b3f9e 6px, #23307a 6px, #23307a 12px); border-color:#1c2a7a; }
-    .card--down::after { content: "✦"; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color: rgba(255,255,255,0.35); font-size:1.6rem; }
+    .card--down { background: repeating-linear-gradient(45deg, #2c3057 0 8px, #232645 8px 16px); border-color: #232645; box-shadow: 0 4px 10px rgba(0,0,0,0.4), inset 0 0 0 3px #f8f8f4, inset 0 0 0 6px #ff6b6b; }
+    .card--down::after { content: ""; }
     .rank { font-size: 1.15rem; line-height: 1; }
     .suit-big { font-size: 1.5rem; }
     .suit-small { position:absolute; bottom:6px; right:8px; font-size:0.95rem; }

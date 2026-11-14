@@ -271,12 +271,12 @@
         cell.style.width = "100%";
         cell.style.aspectRatio = "1";
         cell.style.fontSize = "2.4rem";
-        cell.style.background = (r + c) % 2 === 0 ? "#3a3e63" : "#262a4d";
+        cell.style.background = (r + c) % 2 === 0 ? "#f6d7a6" : "#c08247";
         const p = board[r][c];
         if (p) {
           cell.textContent = GLYPH[p.c][p.t];
-          cell.style.color = p.c === "w" ? "#ffffff" : "#b6bade";
-          cell.style.textShadow = p.c === "w" ? "0 0 3px #12132a, 0 1px 2px #000" : "0 0 2px #0a0b18";
+          cell.style.color = p.c === "w" ? "#fffdf4" : "#2b1d12";
+          cell.style.textShadow = p.c === "w" ? "0 1px 1px rgba(60,30,0,.45), 0 0 8px rgba(255,255,255,.35)" : "0 1px 1px rgba(255,255,255,.3)";
         }
         if (selected && selected.r === r && selected.c === c) cell.style.boxShadow = "inset 0 0 0 3px var(--accent-2)";
         const isTarget = targets.some(t => t.tr === r && t.tc === c);

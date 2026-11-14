@@ -11,28 +11,29 @@
       grid-template-columns: repeat(2, 150px);
       grid-template-rows: repeat(2, 150px);
       gap: 14px;
-      background: var(--bg-soft);
-      padding: 14px;
-      border-radius: var(--radius);
+      background: linear-gradient(170deg, #2b2d58 0%, #191b38 100%);
+      border: 1px solid rgba(255,255,255,0.12);
+      box-shadow: inset 0 3px 10px rgba(0,0,0,0.55), 0 22px 44px rgba(0,0,0,0.45), 0 0 50px rgba(77, 227, 195, 0.1);
+      padding: 16px;
+      border-radius: 26px;
     }
     .pad {
       border: none;
       border-radius: 20px;
       cursor: pointer;
-      opacity: 0.55;
-      filter: brightness(0.75);
-      transition: transform 0.1s ease, filter 0.1s ease, box-shadow 0.1s ease, opacity 0.1s ease;
+      box-shadow: inset 0 -7px 0 rgba(0,0,0,0.32), inset 0 5px 8px rgba(255,255,255,0.4), 0 10px 24px rgba(0,0,0,0.42);
+      filter: saturate(0.85) brightness(0.82);
+      transition: transform 0.1s ease, filter 0.1s ease, box-shadow 0.1s ease;
       -webkit-tap-highlight-color: transparent;
     }
-    .pad--green  { background: #2ee06f; border-bottom-right-radius: 6px; }
-    .pad--red    { background: #ff5252; border-bottom-left-radius: 6px; }
-    .pad--yellow { background: #ffd32a; border-top-right-radius: 6px; }
-    .pad--blue   { background: #3d8bff; border-top-left-radius: 6px; }
+    .pad--green  { background: radial-gradient(circle at 38% 32%, #6fffa0 0%, #17c164 62%, #0d8a44 100%); border-bottom-right-radius: 6px; }
+    .pad--red    { background: radial-gradient(circle at 38% 32%, #ff9a9a 0%, #f04444 62%, #b02020 100%); border-bottom-left-radius: 6px; }
+    .pad--yellow { background: radial-gradient(circle at 38% 32%, #ffe873 0%, #fabd2f 62%, #cf9a06 100%); border-top-right-radius: 6px; }
+    .pad--blue   { background: radial-gradient(circle at 38% 32%, #7ab8ff 0%, #2f7de9 62%, #1d54ad 100%); border-top-left-radius: 6px; }
     .pad.active {
-      opacity: 1;
-      filter: brightness(1.45);
-      transform: scale(1.07);
-      box-shadow: 0 0 42px rgba(255, 255, 255, 0.35), 0 0 22px rgba(255, 255, 255, 0.25);
+      filter: saturate(1.25) brightness(1.35);
+      transform: scale(1.08);
+      box-shadow: inset 0 -7px 0 rgba(0,0,0,0.32), inset 0 5px 8px rgba(255,255,255,0.55), 0 0 48px rgba(255,255,255,0.4), 0 10px 24px rgba(0,0,0,0.42);
       z-index: 1;
     }
     .pad:disabled { cursor: default; }

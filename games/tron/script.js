@@ -36,6 +36,8 @@
     gameOver = false;
     running = true;
     acc = 0; lastTs = 0;
+    ctx.fillStyle = "#0a0b18";
+    ctx.fillRect(0, 0, W, H);
     player = { x: 3 * CELL, y: Math.floor(SIZE / 2) * CELL, dir: "right", dead: false };
     enemy = { x: (SIZE - 4) * CELL, y: Math.floor(SIZE / 2) * CELL, dir: "left", dead: false };
     drawCell(player.x, player.y, 1);

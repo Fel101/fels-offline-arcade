@@ -148,7 +148,7 @@
       cell.style.padding = "0";
       cell.style.fontSize = "2.2rem";
       const dark = isDark(r, c);
-      cell.style.background = dark ? "#25284a" : "#4a4e7a";
+      cell.style.background = dark ? "#1f7a49" : "#35a866";
       if (!dark) { cell.disabled = true; cell.style.cursor = "default"; }
       const p = board[r][c];
       if (p) {

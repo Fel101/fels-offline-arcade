@@ -42,18 +42,15 @@
 
   function renderCard(card, hidden) {
     const el = document.createElement("div");
-    el.className = "tile card";
-    el.style.width = "56px";
-    el.style.height = "80px";
-    el.style.fontSize = "1.1rem";
     if (hidden) {
-      el.textContent = "?";
-      el.style.background = "#42476e";
-      el.style.color = "#fff";
-    } else {
-      el.textContent = `${card.r}${card.s}`;
-      el.style.color = isRed(card) ? "#ff6b6b" : "#eee";
+      el.className = "bj-card bj-card--back";
+      el.setAttribute("aria-label", "Hidden card");
+      return el;
     }
+    el.className = "bj-card" + (isRed(card) ? " bj-card--red" : "");
+    el.innerHTML = `<span class="bj-corner bj-corner--tl">${card.r}<br><span class="bj-suit">${card.s}</span></span>`
+      + `<span class="bj-big">${card.s}</span>`
+      + `<span class="bj-corner bj-corner--br">${card.r}<br><span class="bj-suit">${card.s}</span></span>`;
     return el;
   }
 
@@ -87,7 +84,7 @@
     dealer = [deck.pop(), deck.pop()];
     phase = "player";
     resultEl.textContent = "";
-    render(true);
+    render(false);
     updateStats();
     betControls.style.display = "none";
     playControls.style.display = "flex";
@@ -98,7 +95,7 @@
   function hit() {
     if (phase !== "player") return;
     player.push(deck.pop());
-    render(true);
+    render(false);
     if (handValue(player) > 21) endRound("bust");
   }
 
