@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dots &amp; Boxes — Offline Arcade</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+  <style>
+    .dboard {
+      display: grid;
+      grid-template-columns: 18px 52px 18px 52px 18px 52px 18px 52px 18px;
+      grid-template-rows: 18px 52px 18px 52px 18px 52px 18px 52px 18px;
+      gap: 2px;
+      background: var(--bg-soft);
+      padding: 10px;
+      border-radius: var(--radius);
+    }
+    .dot { background: var(--text); border-radius: 50%; }
+    .line {
+      background: transparent; border: none; padding: 0;
+      display: flex; align-items: center; justify-content: center; cursor: pointer;
+    }
+    .line__bar {
+      background: var(--panel); border-radius: 3px;
+      transition: background 0.12s ease;
+    }
+    .line--h .line__bar { width: 100%; height: 6px; }
+    .line--v .line__bar { width: 6px; height: 100%; }
+    .line:hover:not(:disabled) .line__bar { background: var(--accent); }
+    .line:disabled { cursor: default; }
+    .line.claimed-you .line__bar { background: var(--accent); }
+    .line.claimed-cpu .line__bar { background: var(--accent-2); }
+    .box {
+      background: rgba(255, 255, 255, 0.02); border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 800; font-size: 1.3rem; color: transparent;
+    }
+    .box.filled-you { background: rgba(88, 224, 201, 0.22); color: var(--accent); }
+    .box.filled-cpu { background: rgba(255, 204, 77, 0.2); color: var(--accent-2); }
+  </style>
+</head>
+<body>
+  <div class="game-shell">
+    <header class="game-header">
+      <a class="back-btn" href="../../index.html">← Back to Games</a>
+      <h1>Dots &amp; Boxes</h1>
+    </header>
+    <main class="game-area">
+      <div class="status-bar">
+        <div class="status-bar__item"><span class="status-bar__label">You</span><span id="you-score" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">CPU</span><span id="cpu-score" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Wins</span><span id="wins" class="status-bar__value">0</span></div>
+      </div>
+      <p id="turn-label" class="game-info__title">Your line — draw any segment</p>
+      <div id="board" class="dboard" aria-label="Dots and Boxes board"></div>
+      <div class="game-controls">
+        <button id="new-game" class="btn">New Game</button>
+      </div>
+      <p class="game-info__hint">Click a line between two dots to draw it. Complete all 4 sides of a box to claim it and take another turn. Most boxes wins!</p>
+    </main>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>

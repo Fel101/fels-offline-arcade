@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Yahtzee — Offline Arcade</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+  <style>
+    .yz-layout {
+      display: flex;
+      gap: 28px;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: flex-start;
+      width: 100%;
+      max-width: 880px;
+    }
+    .yz-play {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+    .dice-row {
+      display: flex;
+      gap: 12px;
+    }
+    .die {
+      width: 86px;
+      height: 86px;
+      font-size: 3.6rem;
+      line-height: 1;
+      background: var(--panel);
+      color: var(--text);
+      border: 2px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+      -webkit-tap-highlight-color: transparent;
+      font-family: inherit;
+    }
+    .die:hover:not(:disabled) { border-color: var(--accent); }
+    .die:disabled { cursor: default; }
+    .die--empty { color: var(--muted); font-size: 2.4rem; }
+    .die.held {
+      border-color: var(--accent);
+      box-shadow: 0 0 18px rgba(88, 224, 201, 0.4);
+      transform: translateY(-8px);
+    }
+    .hold-tag {
+      font-size: 0.65rem;
+      letter-spacing: 1px;
+      font-weight: 800;
+      color: var(--accent);
+      min-height: 0.9rem;
+      text-transform: uppercase;
+    }
+    .die-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+    table.score-sheet {
+      width: 100%;
+      max-width: 400px;
+      border-collapse: collapse;
+      background: var(--panel);
+      border-radius: var(--radius);
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      font-size: 0.92rem;
+    }
+    .score-sheet th, .score-sheet td {
+      padding: 7px 12px;
+      text-align: left;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .score-sheet tr:last-child td { border-bottom: none; }
+    .sheet-section td {
+      background: var(--bg-soft);
+      color: var(--accent);
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      font-weight: 800;
+      padding: 6px 12px;
+    }
+    .score-btn {
+      min-width: 56px;
+      padding: 4px 10px;
+      border: none;
+      border-radius: 8px;
+      background: var(--bg-soft);
+      color: var(--accent-2);
+      font-weight: 800;
+      font-size: 0.95rem;
+      cursor: pointer;
+      font-variant-numeric: tabular-nums;
+      font-family: inherit;
+    }
+    .score-btn:hover:not(:disabled) { background: #2c3057; outline: 1px solid var(--accent); }
+    .score-btn:disabled { opacity: 0.4; cursor: default; }
+    .score-btn.scored {
+      background: transparent;
+      color: var(--text);
+      opacity: 1;
+      cursor: default;
+    }
+    .sheet-total td {
+      background: var(--bg-soft);
+      font-weight: 800;
+    }
+    .sheet-total .sheet-total__value { color: var(--accent-2); font-size: 1.1rem; }
+    .bonus-earned { color: var(--accent); font-weight: 800; }
+    @media (max-width: 700px) {
+      .die { width: 58px; height: 58px; font-size: 2.4rem; border-radius: 12px; }
+      .die--empty { font-size: 1.6rem; }
+      .dice-row { gap: 8px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="game-shell">
+    <header class="game-header">
+      <a class="back-btn" href="../../index.html">← Back to Games</a>
+      <h1>Yahtzee</h1>
+    </header>
+    <main class="game-area">
+      <div class="status-bar">
+        <div class="status-bar__item"><span class="status-bar__label">Turn</span><span id="turn" class="status-bar__value">1</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Best</span><span id="best" class="status-bar__value">0</span></div>
+      </div>
+      <div class="yz-layout">
+        <div class="yz-play">
+          <div id="dice-row" class="dice-row"></div>
+          <div class="game-controls">
+            <button id="roll" class="btn">Roll (3 left)</button>
+            <button id="new-game" class="btn btn--ghost">New Game</button>
+          </div>
+          <p class="game-info__hint">Roll up to 3 times. Click a die to hold it.<br>Then pick a category on the sheet to score.</p>
+        </div>
+        <table id="score-sheet" class="score-sheet">
+          <thead>
+            <tr><th colspan="2">Score Sheet</th></tr>
+          </thead>
+          <tbody id="sheet-body"></tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>15 Puzzle — Offline Arcade</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+  <style>
+    .puzzle-tile {
+      width: 72px;
+      height: 72px;
+      font-size: 1.6rem;
+      background: #3d4170;
+      color: #eef0ff;
+      border: none;
+      border-radius: 10px;
+      font-family: inherit;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      cursor: pointer;
+      transition: background 0.12s ease, transform 0.12s ease;
+    }
+    .puzzle-tile:hover { background: #4a4f88; transform: scale(1.04); }
+    .puzzle-blank {
+      width: 72px;
+      height: 72px;
+      border-radius: 10px;
+      background: #0a0b18;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+    }
+  </style>
+</head>
+<body>
+  <div class="game-shell">
+    <header class="game-header">
+      <a class="back-btn" href="../../index.html">← Back to Games</a>
+      <h1>15 Puzzle</h1>
+    </header>
+    <main class="game-area">
+      <div class="status-bar">
+        <div class="status-bar__item"><span class="status-bar__label">Moves</span><span id="moves" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Best</span><span id="best" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Wins</span><span id="wins" class="status-bar__value">0</span></div>
+      </div>
+      <div id="board" class="board" style="grid-template-columns:repeat(4,1fr);"></div>
+      <div class="game-controls">
+        <button id="new-game" class="btn">New Game</button>
+      </div>
+      <p class="game-info__hint">Slide tiles into the gap with clicks or arrow keys / WASD. Arrow keys slide a tile in that direction. Order 1–15!</p>
+    </main>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>

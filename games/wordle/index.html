@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Word Tile — Offline Arcade</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+  <style>
+    .wboard {
+      display: grid;
+      grid-template-rows: repeat(6, 58px);
+      gap: 6px;
+    }
+    .wrow {
+      display: grid;
+      grid-template-columns: repeat(5, 58px);
+      gap: 6px;
+    }
+    .wtile {
+      background: var(--panel);
+      border: 2px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.7rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      color: var(--text);
+      user-select: none;
+    }
+    .wtile.filled { border-color: var(--muted); }
+    .wtile.green { background: #3aa981; border-color: #3aa981; color: #06231f; }
+    .wtile.yellow { background: #d3a92c; border-color: #d3a92c; color: #06231f; }
+    .wtile.gray { background: #3a3d5e; border-color: #3a3d5e; color: var(--muted); }
+    .keyboard {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      align-items: center;
+    }
+    .keyboard__row { display: flex; gap: 6px; }
+    .key {
+      min-width: 34px;
+      height: 46px;
+      padding: 0 8px;
+      background: #303456;
+      color: var(--text);
+      border: none;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      text-transform: uppercase;
+    }
+    .key:hover { filter: brightness(1.2); }
+    .key--wide { min-width: 58px; font-size: 0.7rem; }
+    .key.green { background: #3aa981; color: #06231f; }
+    .key.yellow { background: #d3a92c; color: #06231f; }
+    .key.gray { background: #1a1c33; color: var(--muted); }
+    .toast {
+      position: fixed;
+      top: 70px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-8px);
+      background: var(--text);
+      color: var(--bg);
+      font-weight: 700;
+      padding: 10px 18px;
+      border-radius: 8px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      z-index: 60;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+  <div class="game-shell">
+    <header class="game-header">
+      <a class="back-btn" href="../../index.html">← Back to Games</a>
+      <h1>Word Tile</h1>
+    </header>
+    <main class="game-area">
+      <div class="status-bar">
+        <div class="status-bar__item"><span class="status-bar__label">Wins</span><span id="wins" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Streak</span><span id="streak" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Best Streak</span><span id="best" class="status-bar__value">0</span></div>
+      </div>
+      <div id="board" class="wboard"></div>
+      <div id="keyboard" class="keyboard"></div>
+      <div class="game-controls">
+        <button id="new-game" class="btn">New Game</button>
+      </div>
+      <p class="game-info__hint">Guess the 5-letter word in 6 tries. Green = right spot, yellow = wrong spot, gray = not in word.</p>
+    </main>
+    <div id="toast" class="toast">Not in word list</div>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>

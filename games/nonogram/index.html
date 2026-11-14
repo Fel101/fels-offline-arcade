@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nonogram — Offline Arcade</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+  <style>
+    .ngrid {
+      display: grid;
+      grid-template-columns: minmax(44px, auto) repeat(5, 54px);
+      grid-template-rows: minmax(44px, auto) repeat(5, 54px);
+      gap: 4px;
+    }
+    .ngrid__corner { background: transparent; }
+    .clue {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      color: var(--muted);
+      font-size: 0.8rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      background: var(--bg-soft);
+      border-radius: 8px;
+      padding: 2px 6px;
+    }
+    .clue--col { flex-direction: column; gap: 0; line-height: 1.1; }
+    .ncell {
+      width: 54px;
+      height: 54px;
+      background: var(--panel);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      color: var(--muted);
+      font-size: 1.5rem;
+      font-weight: 800;
+      cursor: pointer;
+      transition: background 0.12s ease;
+      padding: 0;
+    }
+    .ncell:hover { background: #2c3057; }
+    .ncell.filled { background: var(--accent); color: #06231f; border-color: var(--accent); }
+    .ncell.marked { color: var(--muted); font-size: 1.3rem; }
+    .solution-mini {
+      display: grid;
+      grid-template-columns: repeat(5, 22px);
+      grid-template-rows: repeat(5, 22px);
+      gap: 3px;
+      justify-content: center;
+      margin: 12px auto 4px;
+    }
+    .solution-mini div { border-radius: 4px; background: #303456; }
+    .solution-mini div.on { background: var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="game-shell">
+    <header class="game-header">
+      <a class="back-btn" href="../../index.html">← Back to Games</a>
+      <h1>Nonogram</h1>
+    </header>
+    <main class="game-area">
+      <div class="status-bar">
+        <div class="status-bar__item"><span class="status-bar__label">Puzzle</span><span id="puzzle-num" class="status-bar__value">1</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Moves</span><span id="moves" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Wins</span><span id="wins" class="status-bar__value">0</span></div>
+      </div>
+      <div id="ngrid" class="ngrid"></div>
+      <div class="game-controls">
+        <button id="new-puzzle" class="btn">New Puzzle</button>
+        <button id="reset" class="btn btn--ghost">Reset</button>
+      </div>
+      <p class="game-info__hint">Left click to fill a cell, right click to mark it empty (✕). Fill the cells to match the picture.</p>
+    </main>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flow — Offline Arcade</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+  <style>
+    .flow-cell {
+      position: relative;
+      width: 64px;
+      height: 64px;
+      border: none;
+      border-radius: 12px;
+      background: #12142a;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+      cursor: pointer;
+      transition: background 0.12s ease, box-shadow 0.12s ease;
+    }
+    .flow-cell.painted {
+      background: var(--c);
+      box-shadow: inset 0 -5px 10px rgba(0, 0, 0, 0.28), inset 0 3px 6px rgba(255, 255, 255, 0.25);
+    }
+    .flow-cell.dot::after {
+      content: "";
+      position: absolute;
+      inset: 24%;
+      border-radius: 50%;
+      background: var(--c);
+      box-shadow: 0 0 10px var(--c), inset 0 -3px 5px rgba(0, 0, 0, 0.3);
+      pointer-events: none;
+    }
+    .flow-cell.painted.dot::after {
+      background: rgba(255, 255, 255, 0.92);
+      box-shadow: none;
+    }
+    .flow-cell.locked.painted {
+      filter: saturate(0.85) brightness(0.95);
+    }
+    .flow-cell:hover { box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.18); }
+    .flow-cell.painted:hover { box-shadow: inset 0 -5px 10px rgba(0,0,0,0.28), inset 0 3px 6px rgba(255,255,255,0.25), 0 0 0 2px rgba(255,255,255,0.35); }
+    .level-select { padding: 8px 12px; }
+  </style>
+</head>
+<body>
+  <div class="game-shell">
+    <header class="game-header">
+      <a class="back-btn" href="../../index.html">← Back to Games</a>
+      <h1>Flow</h1>
+    </header>
+    <main class="game-area">
+      <div class="status-bar">
+        <div class="status-bar__item"><span class="status-bar__label">Level</span><span id="level-num" class="status-bar__value">1</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Wins</span><span id="wins" class="status-bar__value">0</span></div>
+      </div>
+      <div id="board" class="board" style="grid-template-columns:repeat(5,1fr);gap:8px;padding:8px;"></div>
+      <div class="game-controls">
+        <select id="level-select" class="btn btn--ghost level-select"></select>
+        <button id="reset-level" class="btn btn--ghost">Reset Level</button>
+      </div>
+      <p class="game-info__hint">Connect matching dots with pipes. Fill every cell — click a dot to start its pipe, then click adjacent cells. Click an endpoint again to clear its pipe.</p>
+    </main>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flappy — Offline Arcade</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+</head>
+<body>
+  <div class="game-shell">
+    <header class="game-header">
+      <a class="back-btn" href="../../index.html">← Back to Games</a>
+      <h1>Flappy</h1>
+    </header>
+    <main class="game-area">
+      <div class="status-bar">
+        <div class="status-bar__item"><span class="status-bar__label">Score</span><span id="score" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Best</span><span id="best" class="status-bar__value">0</span></div>
+      </div>
+      <canvas id="game" width="400" height="520"></canvas>
+      <div class="game-controls">
+        <button id="restart" class="btn">Restart</button>
+      </div>
+      <p class="game-info__hint">Space / click / tap to flap. Dodge the pipes!</p>
+    </main>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>

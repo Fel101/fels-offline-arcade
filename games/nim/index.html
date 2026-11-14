@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nim — Offline Arcade</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+  <style>
+    .pile {
+      display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
+      max-width: 420px; min-height: 70px; align-items: center;
+      background: var(--bg-soft); padding: 14px 18px; border-radius: var(--radius);
+    }
+    .token { font-size: 1.9rem; line-height: 1; transition: opacity 0.25s ease, transform 0.25s ease; }
+    .token.taken { opacity: 0.15; transform: scale(0.7); }
+    .mode-btn.active { background: var(--accent); color: #06231f; }
+  </style>
+</head>
+<body>
+  <div class="game-shell">
+    <header class="game-header">
+      <a class="back-btn" href="../../index.html">← Back to Games</a>
+      <h1>Nim</h1>
+    </header>
+    <main class="game-area">
+      <div class="status-bar">
+        <div class="status-bar__item"><span class="status-bar__label">Wins</span><span id="wins" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Losses</span><span id="losses" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Pile</span><span id="pile-count" class="status-bar__value">15</span></div>
+      </div>
+      <p id="turn-label" class="game-info__title">Your move — take 1 to 3</p>
+      <div id="pile" class="pile" aria-label="Counters remaining"></div>
+      <div class="game-controls">
+        <button id="take-1" class="btn">Take 1</button>
+        <button id="take-2" class="btn">Take 2</button>
+        <button id="take-3" class="btn">Take 3</button>
+      </div>
+      <div class="game-controls">
+        <button id="mode-normal" class="btn mode-btn active">Normal</button>
+        <button id="mode-misere" class="btn btn--ghost mode-btn">Misère</button>
+        <button id="new-game" class="btn btn--ghost">New Game</button>
+      </div>
+      <p class="game-info__hint">Normal: whoever takes the last counter wins. Misère: whoever takes the last counter loses. The CPU plays perfectly — leave multiples of 4 in Normal mode!</p>
+    </main>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>

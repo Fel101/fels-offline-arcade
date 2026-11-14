@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Checkers — Offline Arcade</title>
+  <link rel="stylesheet" href="../../css/styles.css">
+</head>
+<body>
+  <div class="game-shell">
+    <header class="game-header">
+      <a class="back-btn" href="../../index.html">← Back to Games</a>
+      <h1>Checkers</h1>
+    </header>
+    <main class="game-area">
+      <div class="status-bar">
+        <div class="status-bar__item"><span class="status-bar__label">Status</span><span id="status" class="status-bar__value" style="font-size:1rem;">Your move</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Wins</span><span id="wins" class="status-bar__value">0</span></div>
+      </div>
+      <div id="board" class="board" style="grid-template-columns:repeat(8,1fr); max-width:520px; width:100%;"></div>
+      <div class="game-controls">
+        <button id="new-game" class="btn">New Game</button>
+      </div>
+      <p class="game-info__hint">You are Red. Captures are mandatory.</p>
+    </main>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>

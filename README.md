@@ -9,7 +9,7 @@ Just open `index.html` in any modern browser and pick a game.
 Open `index.html` in your browser (double-click it, or drag it into a tab). That's it.
 No Node, no npm, nothing to install. Works from a local folder or a USB stick.
 
-## Games (16)
+## Games (30)
 
 | Game | Type | Play |
 |------|------|------|
@@ -29,6 +29,20 @@ No Node, no npm, nothing to install. Works from a local folder or a USB stick.
 | 🃏 Solitaire | Card | Klondike, click to move |
 | 💣 Minesweeper Variants | Logic | Classic flood-fill or Saturation mode |
 | 🏍️ Tron | Arcade | Light-cycle duel vs the computer |
+| 🔴 Checkers | Strategy | Mandatory captures vs the computer |
+| ⚫ Othello | Strategy | Flip discs to your color |
+| 🚢 Battleship | Strategy | Hunt and sink the enemy fleet |
+| 🪙 Nim | Strategy | Take 1–3 — perfect play vs the CPU |
+| 🔷 Dots & Boxes | Strategy | Draw lines, claim the most boxes |
+| 🧩 Nonogram | Logic | Solve the picture from the number clues |
+| 🔤 Word Tile | Word | Guess the 5-letter word in 6 tries |
+| 💡 Lights Out | Puzzle | Toggle the grid until all lights are off |
+| 🔢 15 Puzzle | Puzzle | Slide the tiles back into order |
+| 🌈 Flow | Puzzle | Connect matching pipes, fill every cell |
+| 🎶 Simon | Reflex | Repeat the growing color-tone sequence |
+| 🎲 Yahtzee | Dice | Roll and re-roll — beat your best total |
+| 🏗️ Stack | Arcade | Drop blocks on the tower — how high? |
+| 🐤 Flappy | Arcade | Tap to flap through the endless pipes |
 
 ## Structure
 
@@ -46,7 +60,7 @@ games/
 Each game is **isolated** in its own folder with a "← Back to Games" button, so games
 never interfere with each other.
 
-## Adding a new game (game #13+)
+## Adding a new game (game #31+)
 
 1. Create `games/<name>/index.html` and `games/<name>/script.js`.
    Copy any existing game's `index.html` as a starting point — it already has the
