@@ -54,7 +54,7 @@ never interfere with each other.
 2. In `index.html`, add one line to the `GAMES` array:
 
    ```js
-   { name: "chess", emoji: "♟️", desc: "...", url: "games/chess/" },
+   { name: "chess", emoji: "♟️", desc: "...", url: "games/chess/index.html" },
    ```
 
 That's all — it appears on the home page automatically.

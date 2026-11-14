@@ -77,6 +77,7 @@
     if (w) return endGame(w);
     if (board.every(x => x)) return endGame("draw");
     if (p === HUMAN) { currentTurn = AI; setTimeout(aiMove, 300); }
+    else currentTurn = HUMAN;
   }
 
   let currentTurn;
@@ -124,7 +125,7 @@
     overlay.innerHTML = `<div class="overlay__box"><h2>${title}</h2><p>${msg || ""}</p>
       <button class="btn" id="ov-restart">Play again</button></div>`;
     document.body.appendChild(overlay);
-    overlay.getElementById("ov-restart").addEventListener("click", reset);
+    overlay.querySelector("#ov-restart").addEventListener("click", reset);
   }
 
   function reset() {
@@ -133,6 +134,7 @@
     render();
     if (firstSel.value === "cpu") { currentTurn = AI; setTimeout(aiMove, 300); }
     else currentTurn = HUMAN;
+    if (overlay) overlay.remove();
   }
 
   document.getElementById("new-game").addEventListener("click", reset);

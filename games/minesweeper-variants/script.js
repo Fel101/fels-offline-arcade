@@ -29,6 +29,7 @@
     clearInterval(timerId);
     timeEl.textContent = "0";
     mineCountEl.textContent = cfg.mines;
+    if (overlay) overlay.remove();
     buildBoard();
   }
 
@@ -185,7 +186,7 @@
     overlay.innerHTML = `<div class="overlay__box"><h2>${title}</h2><p>${msg}</p>
       <button class="btn" id="ov-restart">Play again</button></div>`;
     document.body.appendChild(overlay);
-    overlay.getElementById("ov-restart").addEventListener("click", reset);
+    overlay.querySelector("#ov-restart").addEventListener("click", reset);
   }
 
   difficultySel.addEventListener("change", reset);

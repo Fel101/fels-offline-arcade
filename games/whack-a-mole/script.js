@@ -81,7 +81,7 @@
       <p>You whacked ${score} moles. Best: ${best}.</p>
       <button class="btn" id="ov-restart">Play again</button></div>`;
     document.body.appendChild(overlay);
-    overlay.getElementById("ov-restart").addEventListener("click", reset);
+    overlay.querySelector("#ov-restart").addEventListener("click", reset);
   }
 
   let overlay;

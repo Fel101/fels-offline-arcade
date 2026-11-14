@@ -140,7 +140,7 @@
       <p>${won ? "Clean run. Again?" : "Your cycle is scrap."}<br>Wins this session: ${wins}.</p>
       <button class="btn" id="ov-restart">Play again</button></div>`;
     document.body.appendChild(overlay);
-    overlay.getElementById("ov-restart").addEventListener("click", () => { overlay.remove(); reset(); });
+    overlay.querySelector("#ov-restart").addEventListener("click", () => { overlay.remove(); reset(); });
   }
 
   reset();

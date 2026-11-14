@@ -31,6 +31,7 @@
       boardEl.appendChild(card);
     });
     updateStats();
+    if (overlay) overlay.remove();
   }
 
   function flip(card) {
@@ -81,7 +82,7 @@
       <p>Solved in ${moves} moves.</p>
       <button class="btn" id="ov-restart">Play again</button></div>`;
     document.body.appendChild(overlay);
-    overlay.getElementById("ov-restart").addEventListener("click", reset);
+    overlay.querySelector("#ov-restart").addEventListener("click", reset);
   }
 
   document.getElementById("new-game").addEventListener("click", reset);

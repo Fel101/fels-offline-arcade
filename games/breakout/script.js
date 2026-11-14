@@ -138,7 +138,7 @@
     overlay.innerHTML = `<div class="overlay__box"><h2>${won ? "You clear it! 🎉" : "Game Over"}</h2>
       <p>Score: ${score}.</p><button class="btn" id="ov-restart">Play again</button></div>`;
     document.body.appendChild(overlay);
-    overlay.getElementById("ov-restart").addEventListener("click", () => { overlay.remove(); reset(); });
+    overlay.querySelector("#ov-restart").addEventListener("click", () => { overlay.remove(); reset(); });
   }
 
   function loop() { update(); draw(); requestAnimationFrame(loop); }

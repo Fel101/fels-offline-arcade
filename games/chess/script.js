@@ -17,10 +17,9 @@
   const DIRS = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
   const KNIGHTS = [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]];
 
-  let board, state, turn, selected, targets, gameOver, wins, bestLevel, depth;
+  let board, state, turn, selected, targets, gameOver, wins, depth;
 
   wins = store.get("chess-wins", 0);
-  bestLevel = store.get("chess-bestlevel", 3);
   winsEl.textContent = wins;
 
   const inBounds = (r, c) => r >= 0 && r < 8 && c >= 0 && c < 8;
@@ -158,7 +157,7 @@
             }
           }
         } else {
-          const steps = p.t === "b" ? DIRS : p.t === "r" ? [[-1,0],[1,0],[0,-1],[0,1]] : DIRS.concat([[-1,0],[1,0],[0,-1],[0,1]]);
+          const steps = p.t === "b" ? [[-1,-1],[-1,1],[1,-1],[1,1]] : p.t === "r" ? [[-1,0],[1,0],[0,-1],[0,1]] : DIRS;
           for (const [dr, dc] of steps) {
             let nr = r + dr, nc = c + dc;
             while (inBounds(nr, nc)) {
@@ -280,7 +279,7 @@
           cell.style.textShadow = p.c === "w" ? "0 0 3px #12132a, 0 1px 2px #000" : "0 0 2px #0a0b18";
         }
         if (selected && selected.r === r && selected.c === c) cell.style.boxShadow = "inset 0 0 0 3px var(--accent-2)";
-        const isTarget = targets.some(t => t.r === r && t.c === c);
+        const isTarget = targets.some(t => t.tr === r && t.tc === c);
         if (isTarget) cell.style.boxShadow = "inset 0 0 0 3px var(--accent)";
         if (kingInCheck && kingInCheck[0] === r && kingInCheck[1] === c) cell.style.background = "#ff6b6b";
         cell.addEventListener("click", () => onCellClick(r, c));
@@ -295,22 +294,20 @@
     if (gameOver || turn !== "w") return;
     const p = board[r][c];
     if (selected) {
-      const target = targets.find(t => t.r === r && t.c === c);
-      if (target) { doPlayerMove(selected, target); return; }
+      const move = targets.find(t => t.tr === r && t.tc === c);
+      if (move) { doPlayerMove(move); return; }
     }
     if (p && p.c === "w") {
       selected = { r, c };
-      targets = legalMoves(board, "w", state).filter(m => m.tr === r && m.tc === c);
+      targets = legalMoves(board, "w", state).filter(m => m.fr === r && m.fc === c);
     } else {
       selected = null; targets = [];
     }
     render();
   }
 
-  function doPlayerMove(from, to) {
-    const fromM = legalMoves(board, "w", state).find(m => m.tr === to.r && m.tc === to.c && m.fr === from.r && m.fc === from.c);
-    if (!fromM) { selected = null; targets = []; render(); return; }
-    applyFull(board, state, fromM);
+  function doPlayerMove(move) {
+    applyFull(board, state, move);
     selected = null; targets = [];
     turn = "b";
     afterMove();
@@ -319,7 +316,7 @@
   function afterMove() {
     render();
     const blackMoves = legalMoves(board, "b", state);
-    if (blackMoves.length === 0) return endOfGame();
+    if (blackMoves.length === 0) return endOfGame("b");
     setStatus("Thinking…");
     gameOver = "thinking"; // guard: block input while AI moves
     setTimeout(aiGo, 50);
@@ -332,22 +329,28 @@
     gameOver = false;
     render();
     const whiteMoves = legalMoves(board, "w", state);
-    if (whiteMoves.length === 0) return endOfGame();
+    if (whiteMoves.length === 0) return endOfGame("w");
     setStatus(inCheck(board, "w") ? "Check! Your move" : "Your move");
   }
 
-  function endOfGame() {
+  function endOfGame(loserColor) {
     gameOver = true;
-    const whiteInCheck = inCheck(board, "w");
-    if (whiteInCheck) {
-      setStatus("You lose ♚ Checkmate");
+    if (inCheck(board, loserColor)) {
+      if (loserColor === "b") {
+        wins++;
+        store.set("chess-wins", wins);
+        winsEl.textContent = wins;
+        setStatus("Checkmate — you win! 🎉");
+      } else {
+        setStatus("Checkmate — you lose");
+      }
     } else {
       setStatus("Stalemate — draw");
     }
   }
 
   document.getElementById("new-game").addEventListener("click", () => { setup(); winsEl.textContent = wins; render(); setStatus("Your move"); });
-  levelSel.addEventListener("change", () => { depth = Number(levelSel.value) || 3; if (!gameOver) { /* difficulty only applies next full game */ } });
+  levelSel.addEventListener("change", () => { depth = Number(levelSel.value) || 3; });
 
   setup();
   depth = Number(levelSel.value) || 3;

@@ -227,7 +227,7 @@
     overlay.innerHTML = `<div class="overlay__box"><h2>${title}</h2><p>${msg}</p>
       <button class="btn" id="ov-restart">Another puzzle</button></div>`;
     document.body.appendChild(overlay);
-    overlay.getElementById("ov-restart").addEventListener("click", newGame);
+    overlay.querySelector("#ov-restart").addEventListener("click", newGame);
   }
 
   // ---- Wire up ----
@@ -246,6 +246,7 @@
     selected = null;
     render();
     startTimer();
+    if (overlay) overlay.remove();
   }
 
   newGame();
