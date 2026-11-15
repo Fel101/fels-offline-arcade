@@ -7,75 +7,101 @@
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-  <main class="portal">
-    <section class="portal__hero">
-      <h1 class="portal__logo">🎮 Offline Arcade</h1>
-      <p class="portal__tagline">A bunch of games to play — no internet, no ads, just play.</p>
-    </section>
+  <div class="portal">
+    <main>
+      <section class="portal__hero">
+        <h1 class="portal__logo"><span aria-hidden="true">🎮</span> Offline Arcade</h1>
+        <p class="portal__tagline">A bunch of games to play — no internet, no ads, just play.</p>
+      </section>
 
-    <section id="grid" class="portal__grid" aria-label="Games"></section>
+      <noscript>
+        <p class="portal__tagline">JavaScript is disabled — enable it to load the game grid.</p>
+      </noscript>
+
+      <section id="grid" class="portal__grid" aria-label="Games"></section>
+    </main>
 
     <footer class="portal__footer">
-      40 games · runs entirely in your browser · open <code>index.html</code> and pick a game.
+      <span id="game-count">40 games</span> · runs entirely in your browser · pick a game and play.
     </footer>
-  </main>
+  </div>
 
   <script>
-    // Add a new game here — one line per entry. That's it.
-    const GAMES = [
-      { name: "snake",        emoji: "🐍", desc: "Eat, grow, don't hit yourself.", url: "games/snake/index.html" },
-      { name: "tetris",       emoji: "🧱", desc: "Stack falling blocks and clear lines.", url: "games/tetris/index.html" },
-      { name: "minesweeper",  emoji: "💣", desc: "Clear the board without detonating.", url: "games/minesweeper/index.html" },
-      { name: "sudoku",       emoji: "🔢", desc: "Fill the grid so every row, column and box counts.", url: "games/sudoku/index.html" },
-      { name: "2048",         emoji: "➡️", desc: "Slide tiles and merge to hit 2048.", url: "games/2048/index.html" },
-      { name: "memory",       emoji: "🃏", desc: "Flip cards and find the matching pairs.", url: "games/memory/index.html" },
-      { name: "connect-four", emoji: "🔴", desc: "Line up four discs — vs the computer.", url: "games/connect-four/index.html" },
-      { name: "tic-tac-toe",  emoji: "❌", desc: "Three in a row — vs an unbeatable AI.", url: "games/tic-tac-toe/index.html" },
-      { name: "pong",         emoji: "🏓", desc: "The classic two-paddle duel.", url: "games/pong/index.html" },
-      { name: "breakout",     emoji: "🧨", desc: "Bounce the ball and smash every brick.", url: "games/breakout/index.html" },
-      { name: "whack-a-mole", emoji: "🔨", desc: "Tap moles before they vanish.", url: "games/whack-a-mole/index.html" },
-      { name: "blackjack",    emoji: "♠️", desc: "Get to 21 without busting — beat the dealer.", url: "games/blackjack/index.html" },
-      { name: "chess",        emoji: "♟️", desc: "The classic strategy duel — vs an unbeatable-ish AI.", url: "games/chess/index.html" },
-      { name: "solitaire",    emoji: "🃏", desc: "Klondike: stack the suits A→K and clear the board.", url: "games/solitaire/index.html" },
-      { name: "minesweeper-variants", emoji: "💣", desc: "Classic flood-fill or Saturation mode.", url: "games/minesweeper-variants/index.html" },
-      { name: "tron",         emoji: "🏍️", desc: "Light-cycle duel — leave a trail, crash last.", url: "games/tron/index.html" },
-      { name: "checkers",     emoji: "🔴", desc: "Men jump, kings rule — beat the computer.", url: "games/checkers/index.html" },
-      { name: "othello",      emoji: "⚫", desc: "Flip discs to your color — outflank the AI.", url: "games/othello/index.html" },
-      { name: "battleship",   emoji: "🚢", desc: "Hunt and sink the enemy fleet at sea.", url: "games/battleship/index.html" },
-      { name: "nim",          emoji: "🪙", desc: "Take 1–3 counters — perfect play or lose.", url: "games/nim/index.html" },
-      { name: "dots-and-boxes", emoji: "🔷", desc: "Draw lines, trap boxes, beat the AI.", url: "games/dots-and-boxes/index.html" },
-      { name: "nonogram",     emoji: "🧩", desc: "Solve the picture from the number clues.", url: "games/nonogram/index.html" },
-      { name: "word tile",    emoji: "🔤", desc: "Guess the 5-letter word in 6 tries.", url: "games/wordle/index.html" },
-      { name: "lights-out",   emoji: "💡", desc: "Toggle the lights until they're all off.", url: "games/lights-out/index.html" },
-      { name: "fifteen-puzzle", emoji: "🔢", desc: "Slide the tiles back into order 1–15.", url: "games/fifteen-puzzle/index.html" },
-      { name: "flow",         emoji: "🌈", desc: "Connect the pipes — fill every cell.", url: "games/flow-puzzle/index.html" },
-      { name: "simon",        emoji: "🎶", desc: "Repeat the growing color-tone sequence.", url: "games/simon/index.html" },
-      { name: "yahtzee",      emoji: "🎲", desc: "Roll, hold, and score a 13-turn game.", url: "games/yahtzee/index.html" },
-      { name: "stack",        emoji: "🏗️", desc: "Drop blocks onto the tower — stack high.", url: "games/stack/index.html" },
-      { name: "flappy",       emoji: "🐤", desc: "Tap to flap through the endless pipes.", url: "games/flappy/index.html" },
-      { name: "word-search",  emoji: "🔍", desc: "Find the hidden words in a letter jungle.", url: "games/word-search/index.html" },
-      { name: "hangman",      emoji: "🪢", desc: "Guess the word before the drawing is done.", url: "games/hangman/index.html" },
-      { name: "jumble",       emoji: "🔀", desc: "Unscramble the letters using the clue.", url: "games/jumble/index.html" },
-      { name: "word-ladder",  emoji: "🪜", desc: "Change one letter at a time to reach the goal.", url: "games/word-ladder/index.html" },
-      { name: "cryptogram",   emoji: "🕵️", desc: "Decode the secret message, letter by letter.", url: "games/cryptogram/index.html" },
-      { name: "word square",  emoji: "🔠", desc: "Fill the grid — every row and column is a word.", url: "games/word-square/index.html" },
-      { name: "mastermind",   emoji: "🎯", desc: "Crack the secret color code by logic.", url: "games/mastermind/index.html" },
-      { name: "tower-of-hanoi", emoji: "🗼", desc: "Move the tower one ring at a time.", url: "games/tower-of-hanoi/index.html" },
-      { name: "peg-solitaire", emoji: "🟢", desc: "Jump and remove — leave one peg standing.", url: "games/peg-solitaire/index.html" },
-      { name: "sokoban",      emoji: "📦", desc: "Push every box onto a target.", url: "games/sokoban/index.html" },
-    ];
+    (() => {
+      "use strict";
 
-    const grid = document.getElementById("grid");
-    for (const g of GAMES) {
-      const card = document.createElement("a");
-      card.className = "game-card";
-      card.href = g.url;
-      card.innerHTML = `
-        <span class="game-card__emoji">${g.emoji}</span>
-        <span class="game-card__name">${g.name}</span>
-        <span class="game-card__desc">${g.desc}</span>`;
-      grid.appendChild(card);
-    }
+      // Add a new game here — one line per entry. That's it.
+      const GAMES = [
+        { name: "snake",        emoji: "🐍", desc: "Eat, grow, don't hit yourself.", url: "games/snake/index.html" },
+        { name: "tetris",       emoji: "🧱", desc: "Stack falling blocks and clear lines.", url: "games/tetris/index.html" },
+        { name: "minesweeper",  emoji: "💣", desc: "Clear the board without detonating.", url: "games/minesweeper/index.html" },
+        { name: "sudoku",       emoji: "🔢", desc: "Fill the grid so every row, column and box counts.", url: "games/sudoku/index.html" },
+        { name: "2048",         emoji: "➡️", desc: "Slide tiles and merge to hit 2048.", url: "games/2048/index.html" },
+        { name: "memory",       emoji: "🃏", desc: "Flip cards and find the matching pairs.", url: "games/memory/index.html" },
+        { name: "connect-four", emoji: "🔴", desc: "Line up four discs — vs the computer.", url: "games/connect-four/index.html" },
+        { name: "tic-tac-toe",  emoji: "❌", desc: "Three in a row — vs an unbeatable AI.", url: "games/tic-tac-toe/index.html" },
+        { name: "pong",         emoji: "🏓", desc: "The classic two-paddle duel.", url: "games/pong/index.html" },
+        { name: "breakout",     emoji: "🧨", desc: "Bounce the ball and smash every brick.", url: "games/breakout/index.html" },
+        { name: "whack-a-mole", emoji: "🔨", desc: "Tap moles before they vanish.", url: "games/whack-a-mole/index.html" },
+        { name: "blackjack",    emoji: "♠️", desc: "Get to 21 without busting — beat the dealer.", url: "games/blackjack/index.html" },
+        { name: "chess",        emoji: "♟️", desc: "The classic strategy duel — vs an unbeatable-ish AI.", url: "games/chess/index.html" },
+        { name: "solitaire",    emoji: "🃏", desc: "Klondike: stack the suits A→K and clear the board.", url: "games/solitaire/index.html" },
+        { name: "minesweeper-variants", emoji: "💣", desc: "Classic flood-fill or Saturation mode.", url: "games/minesweeper-variants/index.html" },
+        { name: "tron",         emoji: "🏍️", desc: "Light-cycle duel — leave a trail, crash last.", url: "games/tron/index.html" },
+        { name: "checkers",     emoji: "🔴", desc: "Men jump, kings rule — beat the computer.", url: "games/checkers/index.html" },
+        { name: "othello",      emoji: "⚫", desc: "Flip discs to your color — outflank the AI.", url: "games/othello/index.html" },
+        { name: "battleship",   emoji: "🚢", desc: "Hunt and sink the enemy fleet at sea.", url: "games/battleship/index.html" },
+        { name: "nim",          emoji: "🪙", desc: "Take 1–3 counters — perfect play or lose.", url: "games/nim/index.html" },
+        { name: "dots-and-boxes", emoji: "🔷", desc: "Draw lines, trap boxes, beat the AI.", url: "games/dots-and-boxes/index.html" },
+        { name: "nonogram",     emoji: "🧩", desc: "Solve the picture from the number clues.", url: "games/nonogram/index.html" },
+        { name: "word tile",    emoji: "🔤", desc: "Guess the 5-letter word in 6 tries.", url: "games/wordle/index.html" },
+        { name: "lights-out",   emoji: "💡", desc: "Toggle the lights until they're all off.", url: "games/lights-out/index.html" },
+        { name: "fifteen-puzzle", emoji: "🔢", desc: "Slide the tiles back into order 1–15.", url: "games/fifteen-puzzle/index.html" },
+        { name: "flow",         emoji: "🌈", desc: "Connect the pipes — fill every cell.", url: "games/flow-puzzle/index.html" },
+        { name: "simon",        emoji: "🎶", desc: "Repeat the growing color-tone sequence.", url: "games/simon/index.html" },
+        { name: "yahtzee",      emoji: "🎲", desc: "Roll, hold, and score a 13-turn game.", url: "games/yahtzee/index.html" },
+        { name: "stack",        emoji: "🏗️", desc: "Drop blocks onto the tower — stack high.", url: "games/stack/index.html" },
+        { name: "flappy",       emoji: "🐤", desc: "Tap to flap through the endless pipes.", url: "games/flappy/index.html" },
+        { name: "word-search",  emoji: "🔍", desc: "Find the hidden words in a letter jungle.", url: "games/word-search/index.html" },
+        { name: "hangman",      emoji: "🪢", desc: "Guess the word before the drawing is done.", url: "games/hangman/index.html" },
+        { name: "jumble",       emoji: "🔀", desc: "Unscramble the letters using the clue.", url: "games/jumble/index.html" },
+        { name: "word-ladder",  emoji: "🪜", desc: "Change one letter at a time to reach the goal.", url: "games/word-ladder/index.html" },
+        { name: "cryptogram",   emoji: "🕵️", desc: "Decode the secret message, letter by letter.", url: "games/cryptogram/index.html" },
+        { name: "word square",  emoji: "🔠", desc: "Fill the grid — every row and column is a word.", url: "games/word-square/index.html" },
+        { name: "mastermind",   emoji: "🎯", desc: "Crack the secret color code by logic.", url: "games/mastermind/index.html" },
+        { name: "tower-of-hanoi", emoji: "🗼", desc: "Move the tower one ring at a time.", url: "games/tower-of-hanoi/index.html" },
+        { name: "peg-solitaire", emoji: "🟢", desc: "Jump and remove — leave one peg standing.", url: "games/peg-solitaire/index.html" },
+        { name: "sokoban",      emoji: "📦", desc: "Push every box onto a target.", url: "games/sokoban/index.html" },
+      ];
+
+      const grid = document.getElementById("grid");
+      const frag = document.createDocumentFragment();
+
+      for (const g of GAMES) {
+        const card = document.createElement("a");
+        card.className = "game-card";
+        card.href = g.url;
+
+        const emoji = document.createElement("span");
+        emoji.className = "game-card__emoji";
+        emoji.textContent = g.emoji;
+        emoji.setAttribute("aria-hidden", "true");
+
+        const name = document.createElement("span");
+        name.className = "game-card__name";
+        name.textContent = g.name;
+
+        const desc = document.createElement("span");
+        desc.className = "game-card__desc";
+        desc.textContent = g.desc;
+
+        card.append(emoji, name, desc);
+        frag.append(card);
+      }
+
+      grid.append(frag);
+      document.getElementById("game-count").textContent = `${GAMES.length} games`;
+    })();
   </script>
 </body>
 </html>
