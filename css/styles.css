@@ -20,6 +20,7 @@
   --radius: 18px;
   --ease-pop: cubic-bezier(0.2, 1.5, 0.35, 1);
   --font: "Segoe UI Variable Display", "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -71,7 +72,6 @@ body::after {
 }
 
 a { color: var(--accent); text-decoration: none; }
-a:hover { text-decoration: none; }
 
 ::selection { background: var(--accent); color: #06231f; }
 :focus-visible { outline: 3px solid var(--accent-2); outline-offset: 2px; }
@@ -142,7 +142,8 @@ a:hover { text-decoration: none; }
   background: linear-gradient(90deg, transparent, rgba(255,255,255,0.5), transparent);
   opacity: 0.7;
 }
-.game-card:hover {
+.game-card:hover,
+.game-card:focus-visible {
   transform: translateY(-6px) scale(1.03);
   border-color: rgba(77, 227, 195, 0.65);
   box-shadow: 0 20px 44px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(77,227,195,0.25), 0 0 46px rgba(77, 227, 195, 0.22), inset 0 1px 0 rgba(255,255,255,0.22);
@@ -156,7 +157,8 @@ a:hover { text-decoration: none; }
   transition: transform 0.28s var(--ease-pop);
   filter: drop-shadow(0 4px 10px rgba(0,0,0,0.4));
 }
-.game-card:hover .game-card__emoji {
+.game-card:hover .game-card__emoji,
+.game-card:focus-visible .game-card__emoji {
   transform: scale(1.28) rotate(-6deg);
 }
 
@@ -439,6 +441,17 @@ canvas {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.16); border-radius: 8px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.28); }
+
+/* Fallback for browsers without background-clip: text */
+@supports not (background-clip: text) {
+  .portal__logo,
+  .game-header h1,
+  .overlay__box h2 {
+    background: none;
+    color: var(--text);
+    -webkit-text-fill-color: currentColor;
+  }
+}
 
 @media (max-width: 520px) {
   .portal__logo { font-size: 2.4rem; }
