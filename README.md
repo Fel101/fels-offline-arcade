@@ -18,7 +18,7 @@ No Node, no npm, nothing to install. Works from a local folder or a USB stick.
 | 💣 Minesweeper | Logic | Left-click reveal, right-click flag |
 | 🔢 Sudoku | Puzzle | Click a cell, type or use the numpad |
 | ➡️ 2048 | Puzzle | Arrows / WASD / swipe |
-| 🃏 Memory | Pattern | Click cards to flip and match |
+| 🧠 Memory | Pattern | Click cards to flip and match |
 | 🔴 Connect Four | Strategy | Click a column vs the computer |
 | ❌ Tic-Tac-Toe | Strategy | Unbeatable AI |
 | 🏓 Pong | Arcade | Mouse or ↑/↓ vs the computer |
@@ -27,9 +27,9 @@ No Node, no npm, nothing to install. Works from a local folder or a USB stick.
 | ♠️ Blackjack | Card | Bet, hit, stand vs the dealer |
 | ♟️ Chess | Strategy | Full rules — castling, en passant, promotion + AI |
 | 🃏 Solitaire | Card | Klondike, click to move |
-| 💣 Minesweeper Variants | Logic | Classic flood-fill or Saturation mode |
+| 🚩 Minesweeper Variants | Logic | Classic flood-fill or Saturation mode |
 | 🏍️ Tron | Arcade | Light-cycle duel vs the computer |
-| 🔴 Checkers | Strategy | Mandatory captures vs the computer |
+| 🟠 Checkers | Strategy | Mandatory captures vs the computer |
 | ⚫ Othello | Strategy | Flip discs to your color |
 | 🚢 Battleship | Strategy | Hunt and sink the enemy fleet |
 | 🪙 Nim | Strategy | Take 1–3 — perfect play vs the CPU |
@@ -37,7 +37,7 @@ No Node, no npm, nothing to install. Works from a local folder or a USB stick.
 | 🧩 Nonogram | Logic | Solve the picture from the number clues |
 | 🔤 Word Tile | Word | Guess the 5-letter word in 6 tries |
 | 💡 Lights Out | Puzzle | Toggle the grid until all lights are off |
-| 🔢 15 Puzzle | Puzzle | Slide the tiles back into order |
+| 🧮 15 Puzzle | Puzzle | Slide the tiles back into order |
 | 🌈 Flow | Puzzle | Connect matching pipes, fill every cell |
 | 🎶 Simon | Reflex | Repeat the growing color-tone sequence |
 | 🎲 Yahtzee | Dice | Roll and re-roll — beat your best total |

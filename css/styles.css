@@ -166,7 +166,6 @@ a { color: var(--accent); text-decoration: none; }
   font-size: 1.18rem;
   font-weight: 800;
   color: var(--text);
-  text-transform: capitalize;
   letter-spacing: 0.2px;
 }
 
