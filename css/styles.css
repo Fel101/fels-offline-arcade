@@ -44,7 +44,7 @@ body {
 
 [hidden] { display: none !important; }
 
-/* Aurora background: three drifting glow blobs + faint dot grid */
+/* Static aurora background: three glow blobs + faint dot grid. */
 body::before {
   content: "";
   position: fixed;
@@ -55,7 +55,6 @@ body::before {
     radial-gradient(42rem 42rem at 12% 8%,  rgba(128, 92, 255, 0.35), transparent 62%),
     radial-gradient(38rem 38rem at 92% 18%, rgba(77, 227, 195, 0.28), transparent 62%),
     radial-gradient(46rem 40rem at 50% 108%, rgba(255, 94, 168, 0.25), transparent 62%);
-  animation: auroraDrift 22s ease-in-out infinite alternate;
 }
 body::after {
   content: "";
@@ -65,10 +64,6 @@ body::after {
   pointer-events: none;
   background-image: radial-gradient(rgba(255, 255, 255, 0.055) 1.3px, transparent 1.3px);
   background-size: 26px 26px;
-}
-@keyframes auroraDrift {
-  from { transform: translate3d(0, 0, 0) scale(1); }
-  to   { transform: translate3d(4%, -3%, 0) scale(1.08); }
 }
 
 a { color: var(--accent); text-decoration: none; }
