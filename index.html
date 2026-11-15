@@ -22,7 +22,31 @@
         <p class="portal__tagline">JavaScript is disabled — enable it to load the game grid.</p>
       </noscript>
 
+      <section class="portal__toolbar" id="toolbar" aria-label="Search games" hidden>
+        <div class="portal__search">
+          <label class="visually-hidden" for="search">Search games</label>
+          <input id="search" type="search" placeholder="Search games…" autocomplete="off" spellcheck="false" enterkeyhint="search" aria-controls="grid">
+        </div>
+        <button type="button" id="random" class="btn btn--ghost">
+          <span aria-hidden="true">🎲</span> Random game
+        </button>
+      </section>
+
+      <div id="filters" class="portal__filters" role="group" aria-label="Filter games" hidden></div>
+
+      <p id="results" class="portal__results" role="status" aria-live="polite" hidden></p>
+
+      <section id="recent" class="portal__recent" aria-labelledby="recent-title" hidden>
+        <h2 id="recent-title" class="portal__section-title">Recently played</h2>
+        <div id="recent-list" class="portal__recent-list"></div>
+      </section>
+
       <section id="grid" class="portal__grid" aria-label="Games"></section>
+
+      <div id="empty" class="portal__empty" hidden>
+        <p id="empty-text">No games match your search or filter.</p>
+        <button type="button" id="clear" class="btn btn--ghost">Clear filters</button>
+      </div>
     </main>
 
     <footer class="portal__footer">
@@ -30,11 +54,16 @@
     </footer>
   </div>
 
+  <button type="button" id="to-top" class="to-top" aria-label="Back to top" hidden>
+    <span aria-hidden="true">↑</span>
+  </button>
+
   <script>
     (() => {
       "use strict";
 
-      // Add a new game here — one line per entry. That's it.
+      // Add a new game here — one line per entry. The footer count, category
+      // filters, and search all update automatically.
       const GAMES = [
         { name: "snake", display: "Snake", emoji: "🐍", category: "Arcade", desc: "Eat, grow, don't hit yourself.", url: "games/snake/index.html" },
         { name: "tetris", display: "Tetris", emoji: "🧱", category: "Puzzle", desc: "Stack falling blocks and clear lines.", url: "games/tetris/index.html" },
@@ -66,32 +95,83 @@
         { name: "yahtzee", display: "Yahtzee", emoji: "🎲", category: "Dice", desc: "Roll, hold, and score a 13-turn game.", url: "games/yahtzee/index.html" },
         { name: "stack", display: "Stack", emoji: "🏗️", category: "Arcade", desc: "Drop blocks onto the tower — stack high.", url: "games/stack/index.html" },
         { name: "flappy", display: "Flappy", emoji: "🐤", category: "Arcade", desc: "Tap to flap through the endless pipes.", url: "games/flappy/index.html" },
-        { name: "word-search", display: "Word Search", emoji: "🔍", category: "Word", desc: "Find the hidden words in a letter jungle.", url: "games/word-search/index.html" },
-        { name: "hangman", display: "Hangman", emoji: "🪢", category: "Word", desc: "Guess the word before the drawing is done.", url: "games/hangman/index.html" },
-        { name: "jumble", display: "Jumble", emoji: "🔀", category: "Word", desc: "Unscramble the letters using the clue.", url: "games/jumble/index.html" },
-        { name: "word-ladder", display: "Word Ladder", emoji: "🪜", category: "Word", desc: "Change one letter at a time to reach the goal.", url: "games/word-ladder/index.html" },
-        { name: "cryptogram", display: "Cryptogram", emoji: "🕵️", category: "Word", desc: "Decode the secret message, letter by letter.", url: "games/cryptogram/index.html" },
-        { name: "word square", display: "Word Square", emoji: "🔠", category: "Word", desc: "Fill the grid — every row and column is a word.", url: "games/word-square/index.html" },
-        { name: "mastermind", display: "Mastermind", emoji: "🎯", category: "Logic", desc: "Crack the secret color code by logic.", url: "games/mastermind/index.html" },
-        { name: "tower-of-hanoi", display: "Tower of Hanoi", emoji: "🗼", category: "Puzzle", desc: "Move the tower one ring at a time.", url: "games/tower-of-hanoi/index.html" },
-        { name: "peg-solitaire", display: "Peg Solitaire", emoji: "🟢", category: "Puzzle", desc: "Jump and remove — leave one peg standing.", url: "games/peg-solitaire/index.html" },
-        { name: "sokoban", display: "Sokoban", emoji: "📦", category: "Puzzle", desc: "Push every box onto a target.", url: "games/sokoban/index.html" },
+        { name: "word-search", display: "Word Search", emoji: "🔍", category: "Word", desc: "Find the hidden words in a letter jungle.", isNew: true, url: "games/word-search/index.html" },
+        { name: "hangman", display: "Hangman", emoji: "🪢", category: "Word", desc: "Guess the word before the drawing is done.", isNew: true, url: "games/hangman/index.html" },
+        { name: "jumble", display: "Jumble", emoji: "🔀", category: "Word", desc: "Unscramble the letters using the clue.", isNew: true, url: "games/jumble/index.html" },
+        { name: "word-ladder", display: "Word Ladder", emoji: "🪜", category: "Word", desc: "Change one letter at a time to reach the goal.", isNew: true, url: "games/word-ladder/index.html" },
+        { name: "cryptogram", display: "Cryptogram", emoji: "🕵️", category: "Word", desc: "Decode the secret message, letter by letter.", isNew: true, url: "games/cryptogram/index.html" },
+        { name: "word square", display: "Word Square", emoji: "🔠", category: "Word", desc: "Fill the grid — every row and column is a word.", isNew: true, url: "games/word-square/index.html" },
+        { name: "mastermind", display: "Mastermind", emoji: "🎯", category: "Logic", desc: "Crack the secret color code by logic.", isNew: true, url: "games/mastermind/index.html" },
+        { name: "tower-of-hanoi", display: "Tower of Hanoi", emoji: "🗼", category: "Puzzle", desc: "Move the tower one ring at a time.", isNew: true, url: "games/tower-of-hanoi/index.html" },
+        { name: "peg-solitaire", display: "Peg Solitaire", emoji: "🟢", category: "Puzzle", desc: "Jump and remove — leave one peg standing.", isNew: true, url: "games/peg-solitaire/index.html" },
+        { name: "sokoban", display: "Sokoban", emoji: "📦", category: "Puzzle", desc: "Push every box onto a target.", isNew: true, url: "games/sokoban/index.html" },
       ];
 
       const displayName = (g) =>
         g.display ||
         g.name
-          .split("-")
+          .split(/[-\s]+/)
           .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
           .join(" ");
 
+      const gameCountLabel = (n) => `${n} ${n === 1 ? "game" : "games"}`;
+
+      const closest = (target, selector) =>
+        target instanceof Element ? target.closest(selector) : null;
+
       const grid = document.getElementById("grid");
-      const frag = document.createDocumentFragment();
+      const toolbar = document.getElementById("toolbar");
+      const filtersEl = document.getElementById("filters");
+      const search = document.getElementById("search");
+      const randomBtn = document.getElementById("random");
+      const resultsEl = document.getElementById("results");
+      const emptyEl = document.getElementById("empty");
+      const emptyText = document.getElementById("empty-text");
+      const clearBtn = document.getElementById("clear");
+      const countEl = document.getElementById("game-count");
+      const recentEl = document.getElementById("recent");
+      const recentList = document.getElementById("recent-list");
+      const toTop = document.getElementById("to-top");
+
+      const STORAGE_KEYS = {
+        favorites: "offline-arcade:favorites:v1",
+        recent: "offline-arcade:recent:v1",
+      };
+
+      const store = {
+        get(key, fallback) {
+          try {
+            const raw = localStorage.getItem(key);
+            return raw ? JSON.parse(raw) : fallback;
+          } catch {
+            return fallback;
+          }
+        },
+        set(key, value) {
+          try {
+            localStorage.setItem(key, JSON.stringify(value));
+          } catch {
+            // Storage can be unavailable on file:// in some browsers.
+          }
+        },
+      };
+
+      const storedFavorites = store.get(STORAGE_KEYS.favorites, []);
+      const favorites = new Set(Array.isArray(storedFavorites) ? storedFavorites : []);
+      const state = { query: "", filter: "All" };
+      const cards = new Map();
+
+      // ---------- Build the card grid ----------
+      const cardFrag = document.createDocumentFragment();
 
       for (const g of GAMES) {
+        const wrap = document.createElement("div");
+        wrap.className = "game-card-wrap";
+
         const card = document.createElement("a");
         card.className = "game-card";
         card.href = g.url;
+        card.dataset.url = g.url;
 
         const emoji = document.createElement("span");
         emoji.className = "game-card__emoji";
@@ -107,11 +187,273 @@
         desc.textContent = g.desc;
 
         card.append(emoji, name, desc);
-        frag.append(card);
+
+        if (g.isNew) {
+          const badge = document.createElement("span");
+          badge.className = "badge";
+          badge.textContent = "New";
+          card.append(badge);
+        }
+
+        const fav = document.createElement("button");
+        fav.type = "button";
+        fav.className = "fav-btn";
+        fav.dataset.url = g.url;
+        fav.setAttribute("aria-pressed", String(favorites.has(g.url)));
+        fav.setAttribute("aria-label", favoriteLabel(g, favorites.has(g.url)));
+
+        const star = document.createElement("span");
+        star.setAttribute("aria-hidden", "true");
+        star.textContent = favorites.has(g.url) ? "★" : "☆";
+        fav.append(star);
+
+        wrap.append(card, fav);
+        cardFrag.append(wrap);
+
+        cards.set(g.url, { wrap, card, fav, game: g });
       }
 
-      grid.append(frag);
-      document.getElementById("game-count").textContent = `${GAMES.length} games`;
+      grid.append(cardFrag);
+
+      // ---------- Favorites ----------
+      function favoriteLabel(g, active) {
+        return active
+          ? `Remove ${displayName(g)} from favorites`
+          : `Add ${displayName(g)} to favorites`;
+      }
+
+      function syncFavoriteButton(entry) {
+        const active = favorites.has(entry.game.url);
+        entry.fav.setAttribute("aria-pressed", String(active));
+        entry.fav.setAttribute("aria-label", favoriteLabel(entry.game, active));
+        const star = entry.fav.firstElementChild;
+        if (star) star.textContent = active ? "★" : "☆";
+      }
+
+      grid.addEventListener("click", (event) => {
+        const button = closest(event.target, ".fav-btn");
+        if (!button) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        const url = button.dataset.url;
+        if (favorites.has(url)) favorites.delete(url);
+        else favorites.add(url);
+
+        store.set(STORAGE_KEYS.favorites, [...favorites]);
+
+        const entry = cards.get(url);
+        if (entry) syncFavoriteButton(entry);
+
+        if (state.filter === "Favorites") applyFilters();
+      });
+
+      // ---------- Category filters ----------
+      const filterValues = [
+        "All",
+        "Favorites",
+        ...Array.from(
+          new Set(GAMES.map((g) => g.category).filter(Boolean))
+        ).sort(),
+      ];
+
+      const filterFrag = document.createDocumentFragment();
+
+      for (const value of filterValues) {
+        const chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = "chip";
+        chip.dataset.filter = value;
+        chip.setAttribute("aria-pressed", String(value === state.filter));
+
+        if (value === "Favorites") {
+          const star = document.createElement("span");
+          star.setAttribute("aria-hidden", "true");
+          star.textContent = "★ ";
+          chip.append(star, document.createTextNode("Favorites"));
+        } else {
+          chip.textContent = value;
+        }
+
+        filterFrag.append(chip);
+      }
+
+      filtersEl.append(filterFrag);
+
+      filtersEl.addEventListener("click", (event) => {
+        const chip = closest(event.target, ".chip");
+        if (!chip) return;
+
+        state.filter = chip.dataset.filter;
+
+        for (const candidate of filtersEl.querySelectorAll(".chip")) {
+          candidate.setAttribute("aria-pressed", String(candidate === chip));
+        }
+
+        applyFilters();
+      });
+
+      // ---------- Search + filtering ----------
+      search.addEventListener("input", () => {
+        state.query = search.value.trim().toLowerCase();
+        applyFilters();
+      });
+
+      function matchesFilter(g) {
+        if (state.filter === "All") return true;
+        if (state.filter === "Favorites") return favorites.has(g.url);
+        return g.category === state.filter;
+      }
+
+      function applyFilters() {
+        let visible = 0;
+
+        for (const g of GAMES) {
+          const entry = cards.get(g.url);
+          const haystack = [g.name, displayName(g), g.desc, g.category, g.url]
+            .join(" ")
+            .toLowerCase();
+
+          const show =
+            (!state.query || haystack.includes(state.query)) && matchesFilter(g);
+
+          entry.wrap.hidden = !show;
+          if (show) visible++;
+        }
+
+        grid.hidden = visible === 0;
+        emptyEl.hidden = visible !== 0;
+        randomBtn.disabled = visible === 0;
+
+        if (visible === 0 && state.filter === "Favorites" && !state.query) {
+          emptyText.textContent =
+            "No favorites yet — tap the star on any game to add it.";
+        } else {
+          emptyText.textContent = "No games match your search or filter.";
+        }
+
+        resultsEl.textContent =
+          visible === GAMES.length
+            ? gameCountLabel(GAMES.length)
+            : `${visible} of ${GAMES.length} games`;
+      }
+
+      clearBtn.addEventListener("click", () => {
+        state.query = "";
+        state.filter = "All";
+        search.value = "";
+
+        for (const chip of filtersEl.querySelectorAll(".chip")) {
+          chip.setAttribute("aria-pressed", String(chip.dataset.filter === "All"));
+        }
+
+        applyFilters();
+        search.focus();
+      });
+
+      // ---------- Random game ----------
+      randomBtn.addEventListener("click", () => {
+        const visible = GAMES.filter((g) => !cards.get(g.url).wrap.hidden);
+        if (!visible.length) return;
+
+        const pick = visible[Math.floor(Math.random() * visible.length)];
+        recordRecent(pick.url);
+        window.location.href = pick.url;
+      });
+
+      // ---------- Recently played ----------
+      function readRecent() {
+        const value = store.get(STORAGE_KEYS.recent, []);
+        return Array.isArray(value) ? value : [];
+      }
+
+      function recordRecent(url) {
+        const list = readRecent().filter((item) => item !== url);
+        list.unshift(url);
+        store.set(STORAGE_KEYS.recent, list.slice(0, 6));
+      }
+
+      function renderRecent() {
+        const recent = readRecent()
+          .map((url) => GAMES.find((g) => g.url === url))
+          .filter(Boolean)
+          .slice(0, 4);
+
+        if (!recent.length) return;
+
+        for (const g of recent) {
+          const item = document.createElement("a");
+          item.className = "portal__recent-item";
+          item.href = g.url;
+          item.dataset.url = g.url;
+
+          const emoji = document.createElement("span");
+          emoji.className = "portal__recent-emoji";
+          emoji.textContent = g.emoji;
+          emoji.setAttribute("aria-hidden", "true");
+
+          const label = document.createElement("span");
+          label.textContent = displayName(g);
+
+          item.append(emoji, label);
+          recentList.append(item);
+        }
+
+        recentEl.hidden = false;
+      }
+
+      document.addEventListener("click", (event) => {
+        const link = closest(event.target, "a[data-url]");
+        if (!link) return;
+        recordRecent(link.dataset.url);
+      });
+
+      // ---------- Keyboard shortcuts ----------
+      document.addEventListener("keydown", (event) => {
+        const active = document.activeElement;
+        const isTyping =
+          active &&
+          (active.tagName === "INPUT" ||
+            active.tagName === "TEXTAREA" ||
+            active.isContentEditable);
+
+        if (event.key === "/" && !isTyping) {
+          event.preventDefault();
+          search.focus();
+        }
+
+        if (event.key === "Escape" && active === search) {
+          state.query = "";
+          search.value = "";
+          applyFilters();
+          search.blur();
+        }
+      });
+
+      // ---------- Back to top ----------
+      function updateBackToTop() {
+        toTop.hidden = window.scrollY < 400;
+      }
+
+      window.addEventListener("scroll", updateBackToTop, { passive: true });
+
+      toTop.addEventListener("click", () => {
+        const reduceMotion = window.matchMedia(
+          "(prefers-reduced-motion: reduce)"
+        ).matches;
+        window.scrollTo({ top: 0, behavior: reduceMotion ? "auto" : "smooth" });
+      });
+
+      // ---------- Initial paint ----------
+      countEl.textContent = gameCountLabel(GAMES.length);
+      applyFilters();
+      renderRecent();
+
+      toolbar.hidden = false;
+      filtersEl.hidden = false;
+      resultsEl.hidden = false;
+      updateBackToTop();
     })();
   </script>
 </body>
