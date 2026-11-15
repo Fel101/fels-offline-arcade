@@ -24,15 +24,24 @@
 
 * { box-sizing: border-box; }
 
+html {
+  background: var(--bg);
+}
+
 html, body {
   margin: 0;
   padding: 0;
-  background: var(--bg);
   color: var(--text);
   font-family: var(--font);
   min-height: 100vh;
   overflow-x: hidden;
 }
+
+body {
+  background: transparent;
+}
+
+[hidden] { display: none !important; }
 
 /* Aurora background: three drifting glow blobs + faint dot grid */
 body::before {
