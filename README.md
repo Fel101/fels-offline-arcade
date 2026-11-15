@@ -9,6 +9,16 @@ Just open `index.html` in any modern browser and pick a game.
 Open `index.html` in your browser (double-click it, or drag it into a tab). That's it.
 No Node, no npm, nothing to install. Works from a local folder or a USB stick.
 
+## Portal features
+
+- **Search** — filters by name, description, category, or URL slug. Press `/` to focus it.
+- **Category filters** — Arcade, Card, Dice, Logic, Pattern, Puzzle, Reflex, Strategy, Word.
+- **Favorites** — star any game; the "Favorites" filter shows your saved picks.
+- **Recently played** — the last few games you opened from the portal, stored locally.
+- **Random game** — jumps into a random game from the current filter.
+- **New badges** — games with `isNew: true` in the `GAMES` array get a "New" pill.
+- Keyboard: `/` focuses search, `Esc` clears it.
+
 ## Games (40)
 
 | Game | Type | Play |
@@ -75,17 +85,29 @@ never interfere with each other.
 1. Create `games/<name>/index.html` and `games/<name>/script.js`.
    Copy any existing game's `index.html` as a starting point — it already has the
    shared header, back button, status bar, canvas/board markup, and overlay styling.
-2. In `index.html`, add one line to the `GAMES` array:
+2. In `index.html`, add one entry to the `GAMES` array:
 
    ```js
-   { name: "chess", emoji: "♟️", desc: "...", url: "games/chess/index.html" },
+   {
+     name: "chess",
+     display: "Chess",
+     emoji: "♟️",
+     category: "Strategy",
+     desc: "Full rules — castling, en passant, promotion + AI",
+     url: "games/chess/index.html",
+     isNew: true, // optional — shows a "New" badge
+   },
    ```
 
-That's all — it appears on the home page automatically.
+   That's all — it appears on the home page automatically. The footer count, search,
+   and category filters update from the array. Use a unique emoji; if you add a new
+   category, its filter chip appears automatically.
 
 ## Notes
 
 - High scores / tallies use `localStorage`, wrapped in a safe helper so a blocked
   storage API (possible when opened over `file://` in some browsers) degrades to a
   reset score instead of breaking the game.
+- Favorites and recently played use the same safe `localStorage` wrapper; if storage
+  is blocked, the portal still works and those features simply stay empty.
 - Pure HTML/CSS/JS — no dependencies, so it stays fast and future-proof offline.
