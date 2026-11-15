@@ -88,23 +88,18 @@ a { color: var(--accent); text-decoration: none; }
   margin-bottom: 44px;
 }
 
+/* Static by design: no auto-playing logo animation. */
 .portal__logo {
   font-size: 3.6rem;
   font-weight: 900;
   letter-spacing: -1.5px;
   line-height: 1.08;
   background: linear-gradient(95deg, #4de3c3 0%, #54d3ff 32%, #ffd94d 62%, #ff5ea8 100%);
-  background-size: 180% 100%;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
   margin: 0 0 12px;
-  animation: logoSheen 6s linear infinite;
   filter: drop-shadow(0 4px 28px rgba(84, 211, 255, 0.35));
-}
-@keyframes logoSheen {
-  from { background-position: 0% 50%; }
-  to   { background-position: 180% 50%; }
 }
 
 .portal__tagline {
