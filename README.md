@@ -69,8 +69,8 @@ No Node, no npm, nothing to install. Works from a local folder or a USB stick.
 | 🕵️ Cryptogram | Word | Decode the secret message |
 | 🔠 Word Square | Word | Every row and column is a word |
 | 🎯 Mastermind | Logic | Crack the color code |
-| 🗼 Tower of Hanoi | Puzzle | Move the tower, ring by ring |
-| 🟢 Peg Solitaire | Puzzle | Jump and remove — leave one peg |
+| 🗼 Tower of Hanoi | Puzzle | Move the tower, ring by ring — 14 badges |
+| 🟢 Peg Solitaire | Puzzle | Jump and remove, leave one peg — 14 badges |
 | 📦 Sokoban | Puzzle | Push every box onto a target |
 
 ## Structure
