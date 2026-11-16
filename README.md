@@ -52,7 +52,7 @@ No Node, no npm, nothing to install. Works from a local folder or a USB stick.
 | 🔷 Dots & Boxes | Strategy | Draw lines, claim the most boxes |
 | 🧩 Nonogram | Logic | Solve the picture from the number clues |
 | 🌀 Grand Tour | Logic | One loop through every dot — 4 difficulties, 24 badges |
-| 🔤 Word Tile | Word | Guess the 5-letter word in 6 tries |
+| 🔤 Word Tile | Word | Guess the 5-letter word in 6 tries — 14 badges |
 | 💡 Lights Out | Puzzle | One click toggles a cross — 3 sizes, 24 badges |
 | 🧮 15 Puzzle | Puzzle | Slide into order — 3 sizes, hints, 24 badges |
 | 🌈 Flow | Puzzle | Connect matching pipes, fill every cell |

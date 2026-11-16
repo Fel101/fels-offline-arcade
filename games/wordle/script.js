@@ -1,18 +1,47 @@
 // Word Tile — offline Wordle-style word game. Pure vanilla JS, word list inline.
+// Shared plumbing (storage, audio, toasts, overlay, confetti, badges, modal)
+// comes from ../../js/arcade-core.js.
 (() => {
-  const boardEl = document.getElementById("board");
-  const keyboardEl = document.getElementById("keyboard");
-  const winsEl = document.getElementById("wins");
-  const streakEl = document.getElementById("streak");
-  const bestEl = document.getElementById("best");
-  const toastEl = document.getElementById("toast");
+  "use strict";
 
-  // Safe storage wrapper — file:// can block localStorage in some browsers.
-  const store = {
-    get(k, d = 0) { try { return Number(localStorage.getItem(k)) || d; } catch { return d; } },
-    set(k, v) { try { localStorage.setItem(k, v); } catch {} },
-  };
+  const {
+    store,
+    keys: makeKeys,
+    audio,
+    toast,
+    overlay,
+    confetti,
+    badges: badgesApi,
+    modal: modalApi,
+    dom,
+  } = window.Arcade;
 
+  const sfx = audio.sfx;
+  const showOverlay = overlay.show;
+  const hideOverlay = overlay.hide;
+
+  // ---------- DOM ----------
+  const boardEl = dom.byId("board");
+  const keyboardEl = dom.byId("keyboard");
+  const winsEl = dom.byId("wins");
+  const streakEl = dom.byId("streak");
+  const bestEl = dom.byId("best");
+  const newGameBtn = dom.byId("new-game");
+  const hintEl = dom.byId("hint");
+
+  const badgesBtn = dom.byId("badges-btn");
+  const badgeCountEl = dom.byId("badge-count");
+  const soundBtn = dom.byId("sound-btn");
+  const soundIconEl = dom.byId("sound-icon");
+
+  const achvModal = dom.byId("achv-modal");
+  const achvGrid = dom.byId("achv-grid");
+  const achvCountEl = dom.byId("achv-count");
+  const achvRecordsEl = dom.byId("achv-records");
+
+  toast.bind(dom.byId("toasts"));
+
+  // ---------- Constants ----------
   const WORDS = [
     "ABOUT","ABOVE","ABUSE","ACTOR","ACUTE","ADMIT","ADOPT","ADORE","ADULT","AFTER",
     "AGAIN","AGENT","AGREE","AHEAD","ALARM","ALBUM","ALERT","ALIKE","ALIVE","ALLOW",
@@ -101,22 +130,152 @@
   const MAX_ROWS = 6, WORD_LEN = 5;
   const KEY_ROWS = ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"];
   const RANK = { gray: 1, yellow: 2, green: 3 };
+  const FAST_GUESSES = 4; // a win in <= 4 guesses counts as a "fast" win
+  const HINT_DEFAULT = "Guess the 5-letter word in 6 tries. Green = right spot, yellow = wrong spot, gray = not in word. Esc pauses.";
 
+  const K = makeKeys("wordle");
+
+  // ---------- Persistent stats ----------
+  const DEFAULT_STATS = {
+    games: 0,
+    wins: 0,
+    losses: 0,
+    streak: 0,
+    bestStreak: 0,
+    winsIn2: 0,
+    winsIn3: 0,
+    winsOnSix: 0,
+    fastWins: 0,
+    comebackWins: 0,
+    totalGuesses: 0,
+    prevOutcome: "",
+  };
+
+  const storedStats = store.json(K.stats, null);
+  const stats = Object.assign(
+    {},
+    DEFAULT_STATS,
+    storedStats && typeof storedStats === "object" && !Array.isArray(storedStats) ? storedStats : {}
+  );
+  for (const key of Object.keys(DEFAULT_STATS)) {
+    if (typeof DEFAULT_STATS[key] === "number" && !Number.isFinite(stats[key])) {
+      stats[key] = DEFAULT_STATS[key];
+    }
+  }
+  if (stats.prevOutcome !== "win" && stats.prevOutcome !== "loss") stats.prevOutcome = "";
+
+  function saveStats() {
+    store.jsonSet(K.stats, stats);
+  }
+
+  // Carry the pre-core counters (wordle-wins / -streak / -best-streak) over.
+  function migrateLegacy() {
+    const legacy = [
+      ["wordle-wins", "wins"],
+      ["wordle-streak", "streak"],
+      ["wordle-best-streak", "bestStreak"],
+    ];
+    for (const [oldKey, statKey] of legacy) {
+      const raw = store.get(oldKey, null);
+      if (raw !== null && raw !== undefined) {
+        const n = Number(raw);
+        if (Number.isFinite(n) && n > stats[statKey]) stats[statKey] = n;
+        store.remove(oldKey);
+      }
+    }
+    saveStats();
+  }
+
+  // ---------- Achievements ----------
+  const ACHIEVEMENTS = [
+    { id: "first", icon: "🎯", name: "First Win", desc: "Solve your first word.", stat: "wins", goal: 1 },
+    { id: "win5", icon: "🔁", name: "Regular", desc: "Solve 5 words.", stat: "wins", goal: 5 },
+    { id: "win10", icon: "👑", name: "Champion", desc: "Solve 10 words.", stat: "wins", goal: 10 },
+    { id: "streak2", icon: "🔥", name: "Two in a Row", desc: "Solve 2 words in a row.", stat: "bestStreak", goal: 2 },
+    { id: "streak3", icon: "🎩", name: "Hat Trick", desc: "Solve 3 words in a row.", stat: "bestStreak", goal: 3 },
+    { id: "streak5", icon: "🚀", name: "Unstoppable", desc: "Solve 5 words in a row.", stat: "bestStreak", goal: 5 },
+    { id: "winIn3", icon: "🎯", name: "Sharp", desc: "Solve a word in 3 guesses or fewer.", stat: "winsIn3", goal: 1 },
+    { id: "winIn2", icon: "🍀", name: "Two-Shot", desc: "Solve a word in 2 guesses.", stat: "winsIn2", goal: 1 },
+    { id: "winIn6", icon: "😅", name: "Clutch", desc: "Solve a word on the sixth and final guess.", stat: "winsOnSix", goal: 1 },
+    { id: "fast5", icon: "💨", name: "Lightning", desc: `Solve 5 words within ${FAST_GUESSES} guesses.`, stat: "fastWins", goal: 5 },
+    { id: "comeback", icon: "💪", name: "Comeback", desc: "Win the game right after a loss.", stat: "comebackWins", goal: 1 },
+    { id: "guesses100", icon: "🔤", name: "Wordsmith", desc: "Make 100 guesses in total.", stat: "totalGuesses", goal: 100 },
+    { id: "games20", icon: "🎮", name: "Dedicated", desc: "Play 20 games.", stat: "games", goal: 20 },
+    { id: "losses10", icon: "🧠", name: "Persistence", desc: "Lose 10 games — keep trying!", stat: "losses", goal: 10 },
+  ];
+
+  // ---------- Badges UI ----------
+  function updateBadgeCount() {
+    badgeCountEl.textContent = achv.count();
+    badgesBtn.setAttribute(
+      "aria-label",
+      `Badges and achievements: ${achv.count()} of ${achv.total()} unlocked`
+    );
+  }
+
+  const achv = badgesApi.create(ACHIEVEMENTS, {
+    storageKey: K.achv,
+    getStat: (key) => (typeof stats[key] === "number" ? stats[key] : 0),
+    onUnlock: () => {
+      updateBadgeCount();
+      saveStats();
+    },
+    onRender: () => {
+      if (!achvModal.hidden) renderAchvGrid();
+    },
+  });
+
+  function checkAchievements() {
+    achv.check();
+  }
+
+  function renderAchvGrid() {
+    achv.render(achvGrid, {
+      countEl: achvCountEl,
+      recordsEl: achvRecordsEl,
+      records: () => [
+        ["Solved", stats.wins],
+        ["Losses", stats.losses],
+        ["Best streak", stats.bestStreak],
+        ["Guesses made", stats.totalGuesses],
+        ["Solved in 3", stats.winsIn3],
+      ],
+    });
+  }
+
+  const achvModalCtl = modalApi.create(achvModal, {
+    onOpen: () => {
+      renderAchvGrid();
+    },
+    onClose: () => {
+      const target = overlay.isOpen() ? document.querySelector(".overlay .btn") : badgesBtn;
+      if (target && target.focus) target.focus();
+    },
+  });
+
+  function openAchv() {
+    achvModalCtl.open();
+  }
+
+  function closeAchv() {
+    achvModalCtl.close();
+  }
+
+  // ---------- Audio ----------
+  audio.bindButton({ btn: soundBtn, icon: soundIconEl, soundKey: K.sound });
+
+  // ---------- State ----------
   let answer, row, col, current, gameOver;
+  let paused = false;
   let grid = [];          // 6 x 5 letters
   let tileEls = [];       // 6 x 5 tile elements
   let keyEls = {};        // letter -> key button
   let keyState = {};      // letter -> "green" | "yellow" | "gray"
-  let toastTimer;
-
-  let wins = store.get("wordle-wins");
-  let streak = store.get("wordle-streak");
-  let bestStreak = store.get("wordle-best-streak");
 
   function updateStatus() {
-    winsEl.textContent = wins;
-    streakEl.textContent = streak;
-    bestEl.textContent = bestStreak;
+    winsEl.textContent = stats.wins;
+    streakEl.textContent = stats.streak;
+    bestEl.textContent = stats.bestStreak;
   }
 
   // ---- Board / keyboard construction ----
@@ -156,37 +315,35 @@
     const btn = document.createElement("button");
     btn.className = className;
     btn.textContent = label;
-    btn.addEventListener("click", onClick);
+    btn.addEventListener("click", () => {
+      audio.unlock();
+      onClick();
+    });
     if (label.length === 1) keyEls[label] = btn;
     return btn;
   }
 
   // ---- Input ----
   function addLetter(ch) {
-    if (gameOver || col >= WORD_LEN) return;
+    if (gameOver || paused || col >= WORD_LEN) return;
     grid[row][col] = ch;
     const tile = tileEls[row][col];
     tile.textContent = ch;
     tile.classList.add("filled");
     col++;
     current = grid[row].join("");
+    sfx("tick");
   }
 
   function removeLetter() {
-    if (gameOver || col <= 0) return;
+    if (gameOver || paused || col <= 0) return;
     col--;
     grid[row][col] = "";
     const tile = tileEls[row][col];
     tile.textContent = "";
     tile.classList.remove("filled");
     current = grid[row].join("");
-  }
-
-  function showToast(msg) {
-    toastEl.textContent = msg;
-    toastEl.classList.add("show");
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => toastEl.classList.remove("show"), 1500);
+    sfx("tick");
   }
 
   // Standard coloring: greens first, then yellows from the remaining unmatched letters.
@@ -206,18 +363,27 @@
   }
 
   function submitGuess() {
-    if (gameOver || col < WORD_LEN) return;
+    if (gameOver || paused || col < WORD_LEN) return;
     const guess = grid[row].join("");
-    if (!WORDS_SET.has(guess)) { showToast("Not in word list"); return; }
+    if (!WORDS_SET.has(guess)) {
+      sfx("error");
+      toast.show("Not in word list", "Try a different five-letter word.", "⚠️");
+      return;
+    }
 
+    const guessNo = row + 1;
+    stats.totalGuesses++;
     const result = scoreGuess(guess, answer);
     for (let i = 0; i < WORD_LEN; i++) tileEls[row][i].classList.add(result[i]);
     for (let i = 0; i < WORD_LEN; i++) updateKey(guess[i], result[i]);
 
-    if (guess === answer) return endGame(true);
+    if (guess === answer) return endGame(true, guessNo);
     row++;
     col = 0;
-    if (row >= MAX_ROWS) endGame(false);
+    if (row >= MAX_ROWS) return endGame(false, guessNo);
+    sfx("place");
+    saveStats();
+    checkAchievements();
   }
 
   function updateKey(ch, state) {
@@ -231,55 +397,183 @@
   }
 
   // ---- Game flow ----
-  let overlay;
-  function endGame(won) {
+  function endGame(won, guesses) {
+    if (gameOver) return;
     gameOver = true;
+    paused = false;
+    stats.games++;
+    const used = guesses || (won ? row + 1 : MAX_ROWS);
     if (won) {
-      wins++;
-      streak++;
-      bestStreak = Math.max(bestStreak, streak);
+      stats.wins++;
+      stats.streak++;
+      stats.bestStreak = Math.max(stats.bestStreak, stats.streak);
+      if (used <= 2) stats.winsIn2++;
+      if (used <= 3) stats.winsIn3++;
+      if (used === MAX_ROWS) stats.winsOnSix++;
+      if (used <= FAST_GUESSES) stats.fastWins++;
+      if (stats.prevOutcome === "loss") stats.comebackWins++;
+      stats.prevOutcome = "win";
     } else {
-      streak = 0;
+      stats.losses++;
+      stats.streak = 0;
+      stats.prevOutcome = "loss";
     }
-    store.set("wordle-wins", wins);
-    store.set("wordle-streak", streak);
-    store.set("wordle-best-streak", bestStreak);
+    saveStats();
+    checkAchievements();
     updateStatus();
 
-    if (overlay) overlay.remove();
-    overlay = document.createElement("div");
-    overlay.className = "overlay";
-    const title = won ? "You got it! 🎉" : "Out of tries 😔";
-    const msg = won
-      ? `The word was ${answer}. Solved in ${row + 1} ${row === 0 ? "guess" : "guesses"}.`
-      : `The word was ${answer}. Better luck next time!`;
-    overlay.innerHTML = `<div class="overlay__box"><h2>${title}</h2><p>${msg}</p>
-      <button class="btn" id="ov-restart">Play again</button></div>`;
-    document.body.appendChild(overlay);
-    overlay.querySelector("#ov-restart").addEventListener("click", reset);
+    const buttons = [
+      { label: "Play again", onClick: () => { hideOverlay(); newGame(); } },
+      { label: "Badges", ghost: true, onClick: () => openAchv() },
+    ];
+    if (won) {
+      sfx("win");
+      confetti(90);
+      showOverlay(
+        "You got it! 🎉",
+        `The word was ${answer}. Solved in ${used} guess${used === 1 ? "" : "es"}. Streak ${stats.streak}.`,
+        buttons
+      );
+    } else {
+      sfx("over");
+      showOverlay("Out of tries 😔", `The word was ${answer}. Better luck next time!`, buttons);
+    }
   }
 
-  function reset() {
-    if (overlay) overlay.remove();
+  function newGame() {
+    hideOverlay();
     answer = WORDS[Math.floor(Math.random() * WORDS.length)];
     row = 0; col = 0; current = "";
     gameOver = false;
+    paused = false;
     keyState = {};
+    hintEl.textContent = HINT_DEFAULT;
     buildBoard();
     buildKeyboard();
     updateStatus();
   }
 
-  document.addEventListener("keydown", e => {
-    if (gameOver) {
-      if (e.key === "Enter") reset();
+  // ---------- Pause ----------
+  function setPaused(p) {
+    if (gameOver || paused === p) return;
+    paused = p;
+    if (p) {
+      showOverlay("Paused", "Take a breath — press Esc or hit Resume.", [
+        { label: "Resume", onClick: () => { hideOverlay(); setPaused(false); } },
+        { label: "New word", ghost: true, onClick: () => { hideOverlay(); setPaused(false); newGame(); } },
+      ]);
+    } else {
+      hideOverlay();
+    }
+  }
+
+  function togglePause() {
+    setPaused(!paused);
+  }
+
+  // ---------- Input ----------
+  function onKeyDown(e) {
+    if (!achvModal.hidden) {
+      if (e.key === "Escape") {
+        if (e.preventDefault) e.preventDefault();
+        closeAchv();
+      }
       return;
     }
-    if (/^[a-zA-Z]$/.test(e.key)) addLetter(e.key.toUpperCase());
-    else if (e.key === "Enter") submitGuess();
-    else if (e.key === "Backspace") removeLetter();
-  });
 
-  document.getElementById("new-game").addEventListener("click", reset);
-  reset();
+    const tag = String((e.target && e.target.tagName) || "").toLowerCase();
+    if (tag === "input" || tag === "textarea" || tag === "select") return;
+
+    const key = String(e.key || "");
+    // P is a guess letter here (APPLE, PAPER…), so pause lives on Escape.
+    if (key === "Escape") {
+      if (e.preventDefault) e.preventDefault();
+      togglePause();
+      return;
+    }
+
+    if (paused && !gameOver) return;
+
+    if (gameOver) {
+      if (key === "Enter") newGame();
+      return;
+    }
+    if (/^[a-zA-Z]$/.test(key)) addLetter(key.toUpperCase());
+    else if (key === "Enter") submitGuess();
+    else if (key === "Backspace") removeLetter();
+  }
+
+  function bindEvents() {
+    newGameBtn.addEventListener("click", () => { sfx("click"); newGame(); });
+
+    const badges2 = dom.byId("badges2");
+    badgesBtn.addEventListener("click", () => { sfx("click"); openAchv(); });
+    if (badges2) badges2.addEventListener("click", () => { sfx("click"); openAchv(); });
+
+    document.addEventListener("keydown", onKeyDown);
+    window.addEventListener("blur", () => {
+      if (!gameOver && !paused && achvModal.hidden) setPaused(true);
+    });
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden && !gameOver && !paused && achvModal.hidden) setPaused(true);
+    });
+
+    audio.bindUnlock();
+  }
+
+  // ---------- Init ----------
+  function init() {
+    migrateLegacy();
+    updateBadgeCount();
+    bindEvents();
+    newGame();
+    renderAchvGrid();
+  }
+
+  // Test hook — harmless in normal play.
+  window.__WORDLE = {
+    WORDS,
+    WORDS_SET,
+    MAX_ROWS,
+    WORD_LEN,
+    KEY_ROWS,
+    RANK,
+    FAST_GUESSES,
+    get answer() { return answer; },
+    get row() { return row; },
+    get col() { return col; },
+    get current() { return current; },
+    get gameOver() { return gameOver; },
+    get paused() { return paused; },
+    get grid() { return grid.map((r) => r.slice()); },
+    get keyState() { return Object.assign({}, keyState); },
+    stats,
+    ACHIEVEMENTS,
+    scoreGuess,
+    addLetter,
+    removeLetter,
+    submitGuess,
+    newGame,
+    // Test-only: pin the target word.
+    setAnswer: (word) => { answer = String(word).toUpperCase(); },
+    typeWord: (word) => {
+      for (const ch of String(word).toUpperCase()) addLetter(ch);
+    },
+    guess: (word) => {
+      for (const ch of String(word).toUpperCase()) addLetter(ch);
+      submitGuess();
+    },
+    setPaused,
+    togglePause,
+    checkAchievements,
+    saveStats,
+    openAchv,
+    closeAchv,
+    unlocked: () => achv.list(),
+    overlayTitle: () => overlay.info().title,
+    overlayMsg: () => overlay.info().msg,
+    overlay,
+  };
+
+  init();
 })();

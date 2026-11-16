@@ -83,22 +83,15 @@
     .key.green { background: #3aa981; color: #06231f; }
     .key.yellow { background: #d3a92c; color: #06231f; }
     .key.gray { background: #1a1c33; color: var(--muted); }
-    .toast {
-      position: fixed;
-      top: 70px;
-      left: 50%;
-      transform: translateX(-50%) translateY(-8px);
-      background: var(--text);
-      color: var(--bg);
-      font-weight: 700;
-      padding: 10px 18px;
-      border-radius: 8px;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.2s ease, transform 0.2s ease;
-      z-index: 60;
+    @media (max-width: 430px) {
+      .wboard { grid-template-rows: repeat(6, 48px); gap: 5px; }
+      .wrow { grid-template-columns: repeat(5, 48px); gap: 5px; }
+      .wtile { font-size: 1.4rem; }
+      .keyboard { gap: 5px; }
+      .keyboard__row { gap: 4px; }
+      .key { min-width: 26px; height: 42px; padding: 0 5px; font-size: 0.78rem; }
+      .key--wide { min-width: 44px; font-size: 0.62rem; }
     }
-    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   </style>
 </head>
 <body>
@@ -106,9 +99,16 @@
     <header class="game-header">
       <a class="back-btn" href="../../index.html">← Back to Games</a>
       <h1>Word Tile</h1>
+      <span class="game-header__spacer"></span>
+      <button class="icon-btn" id="sound-btn" type="button" aria-pressed="true" aria-label="Mute sound" title="Mute sound">
+        <span id="sound-icon" aria-hidden="true">🔊</span>
+      </button>
+      <button class="icon-btn" id="badges-btn" type="button" aria-label="Badges and achievements" title="Badges &amp; achievements">
+        <span aria-hidden="true">🏆</span><span class="icon-btn__count" id="badge-count">0</span>
+      </button>
     </header>
     <main class="game-area">
-      <div class="status-bar">
+      <div class="status-bar" aria-live="polite">
         <div class="status-bar__item"><span class="status-bar__label">Wins</span><span id="wins" class="status-bar__value">0</span></div>
         <div class="status-bar__item"><span class="status-bar__label">Streak</span><span id="streak" class="status-bar__value">0</span></div>
         <div class="status-bar__item"><span class="status-bar__label">Best Streak</span><span id="best" class="status-bar__value">0</span></div>
@@ -117,11 +117,27 @@
       <div id="keyboard" class="keyboard"></div>
       <div class="game-controls">
         <button id="new-game" class="btn">New Game</button>
+        <button id="badges2" class="btn btn--ghost" type="button">🏆 Badges</button>
       </div>
-      <p class="game-info__hint">Guess the 5-letter word in 6 tries. Green = right spot, yellow = wrong spot, gray = not in word.</p>
+      <p id="hint" class="game-info__hint" aria-live="polite">Guess the 5-letter word in 6 tries. Green = right spot, yellow = wrong spot, gray = not in word. Esc pauses.</p>
     </main>
-    <div id="toast" class="toast">Not in word list</div>
   </div>
+
+  <div class="snake-toasts" id="toasts" aria-live="polite"></div>
+
+  <div class="snake-modal" id="achv-modal" hidden>
+    <div class="snake-modal__backdrop" data-close></div>
+    <div class="snake-modal__panel" role="dialog" aria-modal="true" aria-labelledby="achv-title">
+      <header class="snake-modal__head">
+        <h2 id="achv-title">🏆 Badges <small id="achv-count">0 / 0</small></h2>
+        <button class="icon-btn" type="button" data-close aria-label="Close badges">✕</button>
+      </header>
+      <div class="achv-records" id="achv-records"></div>
+      <div class="achv-grid" id="achv-grid"></div>
+    </div>
+  </div>
+
+  <script src="../../js/arcade-core.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
