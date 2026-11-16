@@ -16,19 +16,24 @@ No Node, no npm, nothing to install. Works from a local folder or a USB stick.
 - **Favorites** — star any game; the "Favorites" filter shows your saved picks.
 - **Recently played** — the last few games you opened from the portal, stored locally.
 - **Random game** — jumps into a random game from the current filter.
+- **Theme** — pick **System** (follows your OS), **Dark** (neutral near-black),
+  **Light** (bright), or **Kids** (chunky, high-contrast, playful). Applies to the
+  portal and every game; your choice is remembered. Defaults to System, then Dark.
 - **New badges** — games with `isNew: true` in the `GAMES` array get a "New" pill.
 - Keyboard: `/` focuses search, `Esc` clears it.
 
-## Games (40)
+## Games (46)
 
 | Game | Type | Play |
 |------|------|------|
-| 🐍 Snake | Arcade | Arrow keys / WASD + on-screen pad |
-| 🧱 Tetris | Puzzle | Move, rotate, soft/hard drop, pause |
-| 💣 Minesweeper | Logic | Left-click reveal, right-click flag |
-| 🔢 Sudoku | Puzzle | Click a cell, type or use the numpad |
+| 🐍 Snake | Arcade | 4 modes (Classic, Endless, Zen, Vs AI), combos, power-ups, 19 badges |
+| 🧱 Tetris | Puzzle | Marathon, Sprint 40, or race an AI rival — combos, hold, 24 badges |
+| 💣 Minesweeper | Logic | Classic, Time Attack, Daily or Zen — chording, 27 badges |
+| 🔢 Sudoku | Puzzle | Classic, Time Attack, Daily or X-Sudoku — notes, hints, 28 badges |
+| 🔢 Super Sudoku | Puzzle | Five overlapping cards — solve all five |
+| 🧮 Kakuro | Puzzle | Fill each run so it matches the clue sums |
 | ➡️ 2048 | Puzzle | Arrows / WASD / swipe |
-| 🧠 Memory | Pattern | Click cards to flip and match |
+| 🧠 Memory | Pattern | Flip pairs — 4 modes, 3 sizes, 24 badges |
 | 🔴 Connect Four | Strategy | Click a column vs the computer |
 | ❌ Tic-Tac-Toe | Strategy | Unbeatable AI |
 | 🏓 Pong | Arcade | Mouse or ↑/↓ vs the computer |
@@ -40,11 +45,13 @@ No Node, no npm, nothing to install. Works from a local folder or a USB stick.
 | 🚩 Minesweeper Variants | Logic | Classic flood-fill or Saturation mode |
 | 🏍️ Tron | Arcade | Light-cycle duel vs the computer |
 | 🟠 Checkers | Strategy | Mandatory captures vs the computer |
+| 🁫 Dominoes | Strategy | Draw, Block or All Fives — 3 AI levels, 24 badges |
 | ⚫ Othello | Strategy | Flip discs to your color |
 | 🚢 Battleship | Strategy | Hunt and sink the enemy fleet |
 | 🪙 Nim | Strategy | Take 1–3 — perfect play vs the CPU |
 | 🔷 Dots & Boxes | Strategy | Draw lines, claim the most boxes |
 | 🧩 Nonogram | Logic | Solve the picture from the number clues |
+| 🌀 Grand Tour | Logic | One loop through every dot — 4 difficulties, 24 badges |
 | 🔤 Word Tile | Word | Guess the 5-letter word in 6 tries |
 | 💡 Lights Out | Puzzle | Toggle the grid until all lights are off |
 | 🧮 15 Puzzle | Puzzle | Slide the tiles back into order |
@@ -53,7 +60,9 @@ No Node, no npm, nothing to install. Works from a local folder or a USB stick.
 | 🎲 Yahtzee | Dice | Roll and re-roll — beat your best total |
 | 🏗️ Stack | Arcade | Drop blocks on the tower — how high? |
 | 🐤 Flappy | Arcade | Tap to flap through the endless pipes |
+| 🐸 Frogger | Arcade | Dodge traffic, ride logs, fill five home bays — 25 badges |
 | 🔍 Word Search | Word | Find the hidden themed words |
+| 🔡 Boggle | Word | Connect adjacent letters — 4×4 and 5×5, 24 badges |
 | 🪢 Hangman | Word | Guess the word before the gallows completes |
 | 🔀 Jumble | Word | Unscramble the letters from the clue |
 | 🪜 Word Ladder | Word | Change one letter at a time |
@@ -69,6 +78,7 @@ No Node, no npm, nothing to install. Works from a local folder or a USB stick.
 ```
 index.html            ← portal home (auto-generated game grid)
 css/styles.css        ← shared arcade styling
+js/arcade-core.js     ← shared game engine (storage, audio, badges, toasts…)
 games/
   snake/              ← one folder per game
     index.html         ← markup + layout
@@ -77,10 +87,24 @@ games/
   ...
 ```
 
-Each game is **isolated** in its own folder with a "← Back to Games" button, so games
-never interfere with each other.
+Games that use the shared core load `../../js/arcade-core.js` before their own
+`script.js`, then destructure what they need:
 
-## Adding a new game (game #41+)
+```js
+const { store, keys, util, audio, toast, overlay, confetti, badges, modal, dom } =
+  window.Arcade;
+```
+
+The core provides persistent storage, seeded RNG (for Daily puzzles), oscillator
+sound effects, toast notifications, the game-over overlay, confetti, the badge
+grid, a pause-aware modal, and a delta-clamped animation loop. Games keep their
+own rules and rendering; only the plumbing is shared.
+
+Each game is **isolated** in its own folder with a "← Back to Games" button, so games
+never interfere with each other. Games may bundle extra data files — for example,
+`games/boggle/words.js` holds the offline dictionary.
+
+## Adding a new game (game #47+)
 
 1. Create `games/<name>/index.html` and `games/<name>/script.js`.
    Copy any existing game's `index.html` as a starting point — it already has the
@@ -110,4 +134,9 @@ never interfere with each other.
   reset score instead of breaking the game.
 - Favorites and recently played use the same safe `localStorage` wrapper; if storage
   is blocked, the portal still works and those features simply stay empty.
+- **Themes** live entirely in `css/styles.css` as `[data-theme="…"]` variable blocks,
+  applied to `<html>`. A tiny inline script in each page's `<head>` reads
+  `offline-arcade:theme:v1` and sets `data-theme` before first paint (no flash).
+  "System" removes the attribute so CSS falls back to `prefers-color-scheme`, then
+  dark. Canvas game rendering keeps its own colors; themes restyle the surrounding UI.
 - Pure HTML/CSS/JS — no dependencies, so it stays fast and future-proof offline.

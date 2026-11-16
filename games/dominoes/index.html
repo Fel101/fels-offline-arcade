@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dominoes — Offline Arcade</title>
+  <meta name="theme-color" content="#0e0e11">
+  <meta name="color-scheme" content="dark light">
+  <script>
+    // Apply the saved theme before first paint to avoid a flash.
+    // "system" (or anything unrecognized) leaves <html> without data-theme,
+    // so CSS falls back to prefers-color-scheme, then dark.
+    (() => {
+      try {
+        var saved = localStorage.getItem("offline-arcade:theme:v1");
+        var theme = "system";
+        if (saved) {
+          try {
+            var parsed = JSON.parse(saved);
+            if (parsed === "dark" || parsed === "light" || parsed === "kids") theme = parsed;
+          } catch (_) {
+            if (saved === "dark" || saved === "light" || saved === "kids") theme = saved;
+          }
+        }
+        if (theme !== "system") document.documentElement.dataset.theme = theme;
+      } catch (_) {
+        /* storage blocked - fall back to system default */
+      }
+    })();
+  </script>
+  <link rel="stylesheet" href="../../css/styles.css">
+</head>
+<body>
+  <div class="game-shell">
+    <header class="game-header">
+      <a class="back-btn" href="../../index.html">← Back to Games</a>
+      <h1>Dominoes</h1>
+      <span class="game-header__spacer"></span>
+      <button class="icon-btn" id="sound-btn" type="button" aria-pressed="true" aria-label="Mute sound" title="Mute sound">
+        <span id="sound-icon" aria-hidden="true">🔊</span>
+      </button>
+      <button class="icon-btn" id="badges-btn" type="button" aria-label="Badges and achievements" title="Badges &amp; achievements">
+        <span aria-hidden="true">🏆</span><span class="icon-btn__count" id="badge-count">0</span>
+      </button>
+    </header>
+
+    <main class="game-area">
+      <div class="mode-bar" role="group" aria-label="Game mode">
+        <button class="chip mode-chip" type="button" data-mode="classic" aria-pressed="true" title="Draw dominoes — first to 100 points">Classic</button>
+        <button class="chip mode-chip" type="button" data-mode="allfives" aria-pressed="false" title="Score whenever the open ends total a multiple of 5">All Fives 5️⃣</button>
+        <button class="chip mode-chip" type="button" data-mode="block" aria-pressed="false" title="No drawing — pass if you cannot play">Block</button>
+        <button class="chip mode-chip" type="button" data-mode="daily" aria-pressed="false" title="One seeded match a day — first to 100">Daily 📅</button>
+      </div>
+
+      <div class="diff-bar" role="group" aria-label="Computer difficulty">
+        <span class="diff-bar__label">Computer</span>
+        <button class="chip diff-chip" type="button" data-diff="chill" aria-pressed="false" title="Relaxed, random-ish computer">Chill</button>
+        <button class="chip diff-chip" type="button" data-diff="cunning" aria-pressed="true" title="Solid, tactical computer">Cunning</button>
+        <button class="chip diff-chip" type="button" data-diff="ruthless" aria-pressed="false" title="Blocks you and hoards matching tiles">Ruthless</button>
+      </div>
+
+      <div class="status-bar" aria-live="polite">
+        <div class="status-bar__item"><span class="status-bar__label">Score</span><span id="score" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">CPU</span><span id="ai-score" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Best</span><span id="best" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Round</span><span id="round" class="status-bar__value">1</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Target</span><span id="target" class="status-bar__value">100</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Boneyard</span><span id="boneyard" class="status-bar__value">14</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Turn</span><span id="turn" class="status-bar__value" style="font-size:1rem;">Your turn</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Ends</span><span id="ends" class="status-bar__value">—</span></div>
+      </div>
+
+      <div class="domino-opponent">
+        <span class="domino-opponent__name" id="opp-name">Computer · Cunning</span>
+        <div class="domino-opponent__hand" id="opp-hand" aria-hidden="true"></div>
+        <span class="domino-opponent__count" id="opp-count">7 tiles</span>
+      </div>
+
+      <div class="domino-table">
+        <canvas id="game" class="domino-canvas" width="760" height="420" aria-label="Dominoes table — the chain of played tiles"></canvas>
+      </div>
+
+      <div class="end-choice" id="end-choice" hidden aria-live="polite"></div>
+
+      <div class="domino-hand" id="hand" role="group" aria-label="Your hand"></div>
+
+      <div class="game-controls">
+        <button id="restart" class="btn" type="button">New Match</button>
+        <button id="pause" class="btn btn--ghost" type="button">Pause</button>
+        <button id="badges2" class="btn btn--ghost" type="button">🏆 Badges</button>
+      </div>
+
+      <p class="game-info__hint" id="hint">Draw dominoes — first to 100 points · Click a tile to play · P to pause</p>
+    </main>
+  </div>
+
+  <div class="snake-toasts" id="toasts" aria-live="polite"></div>
+
+  <div class="snake-modal" id="achv-modal" hidden>
+    <div class="snake-modal__backdrop" data-close></div>
+    <div class="snake-modal__panel" role="dialog" aria-modal="true" aria-labelledby="achv-title">
+      <header class="snake-modal__head">
+        <h2 id="achv-title">🏆 Badges <small id="achv-count">0 / 0</small></h2>
+        <button class="icon-btn" type="button" data-close aria-label="Close badges">✕</button>
+      </header>
+      <div class="achv-records" id="achv-records"></div>
+      <div class="achv-grid" id="achv-grid"></div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>

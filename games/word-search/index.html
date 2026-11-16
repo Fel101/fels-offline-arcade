@@ -4,6 +4,30 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Word Search — Offline Arcade</title>
+  <meta name="theme-color" content="#0e0e11">
+  <meta name="color-scheme" content="dark light">
+  <script>
+    // Apply the saved theme before first paint to avoid a flash.
+    // "system" (or anything unrecognized) leaves <html> without data-theme,
+    // so CSS falls back to prefers-color-scheme, then dark.
+    (() => {
+      try {
+        var saved = localStorage.getItem("offline-arcade:theme:v1");
+        var theme = "system";
+        if (saved) {
+          try {
+            var parsed = JSON.parse(saved);
+            if (parsed === "dark" || parsed === "light" || parsed === "kids") theme = parsed;
+          } catch (_) {
+            if (saved === "dark" || saved === "light" || saved === "kids") theme = saved;
+          }
+        }
+        if (theme !== "system") document.documentElement.dataset.theme = theme;
+      } catch (_) {
+        /* storage blocked - fall back to system default */
+      }
+    })();
+  </script>
   <link rel="stylesheet" href="../../css/styles.css">
   <style>
     .ws-wrap {

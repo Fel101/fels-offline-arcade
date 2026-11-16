@@ -4,6 +4,30 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sudoku — Offline Arcade</title>
+  <meta name="theme-color" content="#0e0e11">
+  <meta name="color-scheme" content="dark light">
+  <script>
+    // Apply the saved theme before first paint to avoid a flash.
+    // "system" (or anything unrecognized) leaves <html> without data-theme,
+    // so CSS falls back to prefers-color-scheme, then dark.
+    (() => {
+      try {
+        var saved = localStorage.getItem("offline-arcade:theme:v1");
+        var theme = "system";
+        if (saved) {
+          try {
+            var parsed = JSON.parse(saved);
+            if (parsed === "dark" || parsed === "light" || parsed === "kids") theme = parsed;
+          } catch (_) {
+            if (saved === "dark" || saved === "light" || saved === "kids") theme = saved;
+          }
+        }
+        if (theme !== "system") document.documentElement.dataset.theme = theme;
+      } catch (_) {
+        /* storage blocked - fall back to system default */
+      }
+    })();
+  </script>
   <link rel="stylesheet" href="../../css/styles.css">
 </head>
 <body>
@@ -11,37 +35,91 @@
     <header class="game-header">
       <a class="back-btn" href="../../index.html">← Back to Games</a>
       <h1>Sudoku</h1>
+      <span class="game-header__spacer"></span>
+      <button class="icon-btn" id="sound-btn" type="button" aria-pressed="true" aria-label="Mute sound" title="Mute sound">
+        <span id="sound-icon" aria-hidden="true">🔊</span>
+      </button>
+      <button class="icon-btn" id="badges-btn" type="button" aria-label="Badges and achievements" title="Badges &amp; achievements">
+        <span aria-hidden="true">🏆</span><span class="icon-btn__count" id="badge-count">0</span>
+      </button>
     </header>
+
     <main class="game-area">
-      <div class="status-bar">
-        <div class="status-bar__item"><span class="status-bar__label">Time</span><span id="time" class="status-bar__value">0</span></div>
-        <div class="status-bar__item"><span class="status-bar__label">Difficulty</span><span id="diff-label" class="status-bar__value" style="font-size:1.1rem;">Medium</span></div>
+      <div class="mode-bar" role="group" aria-label="Game mode">
+        <button class="chip mode-chip" type="button" data-mode="classic" aria-pressed="true" title="Relaxed solving — three hints, no mistake limit">Classic</button>
+        <button class="chip mode-chip" type="button" data-mode="attack" aria-pressed="false" title="Three mistakes and it's over — beat the clock">Time Attack ⏱</button>
+        <button class="chip mode-chip" type="button" data-mode="daily" aria-pressed="false" title="One seeded puzzle a day — build a streak">Daily 📅</button>
+        <button class="chip mode-chip" type="button" data-mode="x" aria-pressed="false" title="Classic rules plus both marked diagonals must contain 1–9">X-Sudoku ✕</button>
       </div>
-      <div id="board" class="board" style="grid-template-columns:repeat(9,1fr);"></div>
+
+      <div class="difficulty-bar" id="difficulty-bar" role="group" aria-label="Difficulty">
+        <button class="chip diff-chip" type="button" data-diff="easy" aria-pressed="false">Easy</button>
+        <button class="chip diff-chip" type="button" data-diff="medium" aria-pressed="true">Medium</button>
+        <button class="chip diff-chip" type="button" data-diff="hard" aria-pressed="false">Hard</button>
+        <button class="chip diff-chip" type="button" data-diff="expert" aria-pressed="false">Expert</button>
+      </div>
+
+      <div class="status-bar" aria-live="polite">
+        <div class="status-bar__item"><span class="status-bar__label">Time</span><span id="time" class="status-bar__value">0:00</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Score</span><span id="score" class="status-bar__value">0</span></div>
+        <div class="status-bar__item" id="mistakes-item"><span class="status-bar__label">Mistakes</span><span id="mistakes" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Combo</span><span id="combo" class="status-bar__value">x0</span></div>
+        <div class="status-bar__item" id="hints-item"><span class="status-bar__label">Hints</span><span id="hints" class="status-bar__value">3</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Best</span><span id="best" class="status-bar__value">—</span></div>
+      </div>
+
+      <div class="sudoku-layout">
+        <div class="sudoku-board-wrap">
+          <div id="board" class="sudoku-board" role="group" aria-label="Sudoku board"></div>
+          <div class="sudoku-countdown" id="countdown" hidden><span id="countdown-num">3</span></div>
+        </div>
+      </div>
+
+      <div class="sudoku-pad" role="group" aria-label="Number pad">
+        <button class="num-btn" type="button" data-n="1" aria-label="Place 1">1</button>
+        <button class="num-btn" type="button" data-n="2" aria-label="Place 2">2</button>
+        <button class="num-btn" type="button" data-n="3" aria-label="Place 3">3</button>
+        <button class="num-btn" type="button" data-n="4" aria-label="Place 4">4</button>
+        <button class="num-btn" type="button" data-n="5" aria-label="Place 5">5</button>
+        <button class="num-btn" type="button" data-n="6" aria-label="Place 6">6</button>
+        <button class="num-btn" type="button" data-n="7" aria-label="Place 7">7</button>
+        <button class="num-btn" type="button" data-n="8" aria-label="Place 8">8</button>
+        <button class="num-btn" type="button" data-n="9" aria-label="Place 9">9</button>
+        <button class="num-btn num-btn--tool" type="button" data-n="0" aria-label="Erase cell">⌫</button>
+      </div>
+
       <div class="game-controls">
-        <button class="btn num-btn" data-n="1">1</button>
-        <button class="btn num-btn" data-n="2">2</button>
-        <button class="btn num-btn" data-n="3">3</button>
-        <button class="btn num-btn" data-n="4">4</button>
-        <button class="btn num-btn" data-n="5">5</button>
-        <button class="btn num-btn" data-n="6">6</button>
-        <button class="btn num-btn" data-n="7">7</button>
-        <button class="btn num-btn" data-n="8">8</button>
-        <button class="btn num-btn" data-n="9">9</button>
-        <button class="btn btn--ghost num-btn" data-n="0">Clear</button>
+        <button id="notes-btn" class="btn btn--ghost" type="button" aria-pressed="false" title="Toggle pencil notes (N)">✏️ Notes</button>
+        <button id="hint-btn" class="btn btn--ghost" type="button" title="Reveal a cell (H)">💡 Hint</button>
+        <button id="undo-btn" class="btn btn--ghost" type="button" title="Undo (U)">↶ Undo</button>
+        <button id="redo-btn" class="btn btn--ghost" type="button" title="Redo">↷ Redo</button>
       </div>
+
       <div class="game-controls">
-        <select id="difficulty" class="btn btn--ghost" style="padding:8px 12px;">
-          <option value="easy">Easy</option>
-          <option value="medium" selected>Medium</option>
-          <option value="hard">Hard</option>
-        </select>
-        <button id="new-game" class="btn">New Puzzle</button>
-        <button id="check" class="btn btn--ghost">Check</button>
+        <button id="new-game" class="btn" type="button">New Puzzle</button>
+        <button id="pause" class="btn btn--ghost" type="button">Pause</button>
+        <button id="check" class="btn btn--ghost" type="button">Check</button>
+        <button id="badges2" class="btn btn--ghost" type="button">🏆 Badges</button>
       </div>
-      <p class="game-info__hint">Click a cell, then type a number or use the pad. Boxes outlined in white.</p>
+
+      <p class="game-info__hint" id="hint">Click a cell, type 1–9 · N notes · H hint · U undo · P pause</p>
     </main>
   </div>
+
+  <div class="snake-toasts" id="toasts" aria-live="polite"></div>
+
+  <div class="snake-modal" id="achv-modal" hidden>
+    <div class="snake-modal__backdrop" data-close></div>
+    <div class="snake-modal__panel" role="dialog" aria-modal="true" aria-labelledby="achv-title">
+      <header class="snake-modal__head">
+        <h2 id="achv-title">🏆 Badges <small id="achv-count">0 / 0</small></h2>
+        <button class="icon-btn" type="button" data-close aria-label="Close badges">✕</button>
+      </header>
+      <div class="achv-records" id="achv-records"></div>
+      <div class="achv-grid" id="achv-grid"></div>
+    </div>
+  </div>
+
   <script src="script.js"></script>
 </body>
 </html>
