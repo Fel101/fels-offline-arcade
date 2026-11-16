@@ -49,7 +49,7 @@
         <div class="status-bar__item"><span class="status-bar__label">Wins</span><span id="wins" class="status-bar__value">0</span></div>
         <div class="status-bar__item"><span class="status-bar__label">Streak</span><span id="streak" class="status-bar__value">0</span></div>
       </div>
-      <div id="board" class="board" style="grid-template-columns:repeat(7,1fr);"></div>
+      <div id="board" class="board" style="grid-template-columns:repeat(7,minmax(0,1fr)); width:100%; max-width:380px; min-width:0;"></div>
       <div class="game-controls">
         <button id="new-game" class="btn">New Game</button>
         <select id="ai-diff" class="btn btn--ghost" style="padding:8px 12px;" aria-label="Difficulty">

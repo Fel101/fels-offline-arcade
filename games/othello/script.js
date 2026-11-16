@@ -343,7 +343,7 @@
       cell.style.width = "100%";
       cell.style.aspectRatio = "1";
       cell.style.padding = "0";
-      cell.style.fontSize = "2.4rem";
+      cell.style.fontSize = "clamp(1.2rem, 5.5vw, 2.4rem)";
       cell.style.background = (r + c) % 2 === 0 ? "radial-gradient(circle at 50% 42%, #2aa763, #1c7a48)" : "radial-gradient(circle at 50% 42%, #1f8a50, #146038)";
       const p = board[r][c];
       if (p) {

@@ -342,15 +342,16 @@
   }
 
   function render() {
-    boardEl.style.gridTemplateColumns = `repeat(${COLS}, 1fr)`;
+    boardEl.style.gridTemplateColumns = `repeat(${COLS}, minmax(0, 1fr))`;
     boardEl.innerHTML = "";
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
         const cell = document.createElement("button");
         cell.className = "cell";
-        cell.style.width = "46px";
-        cell.style.height = "46px";
-        cell.style.fontSize = "1.5rem";
+        cell.style.width = "100%";
+        cell.style.aspectRatio = "1";
+        cell.style.height = "auto";
+        cell.style.fontSize = "clamp(1rem, 5.5vw, 1.6rem)";
         cell.textContent = grid[r][c] === HUMAN ? "🔴" : grid[r][c] === AI ? "🟡" : "";
         cell.setAttribute("aria-label", grid[r][c] === HUMAN ? "Red disc" : grid[r][c] === AI ? "Yellow disc" : "Empty cell");
         boardEl.appendChild(cell);

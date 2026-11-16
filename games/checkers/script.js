@@ -307,7 +307,7 @@
       cell.style.width = "100%";
       cell.style.aspectRatio = "1";
       cell.style.padding = "0";
-      cell.style.fontSize = "2.2rem";
+      cell.style.fontSize = "clamp(1.1rem, 5vw, 2.2rem)";
       const dark = isDark(r, c);
       cell.style.background = dark ? "#1f7a49" : "#35a866";
       if (!dark) { cell.disabled = true; cell.style.cursor = "default"; }
