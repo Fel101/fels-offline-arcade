@@ -34,7 +34,7 @@ No Node, no npm, nothing to install. Works from a local folder or a USB stick.
 | 🧮 Kakuro | Puzzle | Fill each run so it matches the clue sums |
 | 🔢 2048 | Puzzle | Merge tiles — 3 sizes, undo, 24 badges |
 | 🧠 Memory | Pattern | Flip pairs — 4 modes, 3 sizes, 24 badges |
-| 🔴 Connect Four | Strategy | Click a column vs the computer |
+| 🔴 Connect Four | Strategy | Click a column vs the computer — 14 badges |
 | ❌ Tic-Tac-Toe | Strategy | Perfect AI, 3 levels + 2-player — 24 badges |
 | 🏓 Pong | Arcade | Mouse or ↑/↓ vs the computer — 14 badges |
 | 🧨 Breakout | Arcade | Mouse or ◀/▶ — 14 badges |
