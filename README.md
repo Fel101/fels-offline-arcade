@@ -36,7 +36,7 @@ No Node, no npm, nothing to install. Works from a local folder or a USB stick.
 | 🧠 Memory | Pattern | Flip pairs — 4 modes, 3 sizes, 24 badges |
 | 🔴 Connect Four | Strategy | Click a column vs the computer |
 | ❌ Tic-Tac-Toe | Strategy | Perfect AI, 3 levels + 2-player — 24 badges |
-| 🏓 Pong | Arcade | Mouse or ↑/↓ vs the computer |
+| 🏓 Pong | Arcade | Mouse or ↑/↓ vs the computer — 14 badges |
 | 🧨 Breakout | Arcade | Mouse or ◀/▶ |
 | 🔨 Whack-a-Mole | Reflex | Whack moles, chain combos — 4 modes, 24 badges |
 | ♠️ Blackjack | Card | Bet, hit, stand vs the dealer |
