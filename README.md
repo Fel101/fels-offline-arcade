@@ -38,7 +38,7 @@ No Node, no npm, nothing to install. Works from a local folder or a USB stick.
 | ❌ Tic-Tac-Toe | Strategy | Unbeatable AI |
 | 🏓 Pong | Arcade | Mouse or ↑/↓ vs the computer |
 | 🧨 Breakout | Arcade | Mouse or ◀/▶ |
-| 🔨 Whack-a-Mole | Reflex | Click moles in 30 seconds |
+| 🔨 Whack-a-Mole | Reflex | Whack moles, chain combos — 4 modes, 24 badges |
 | ♠️ Blackjack | Card | Bet, hit, stand vs the dealer |
 | ♟️ Chess | Strategy | Full rules — castling, en passant, promotion + AI |
 | 🃏 Solitaire | Card | Klondike, click to move |
@@ -53,7 +53,7 @@ No Node, no npm, nothing to install. Works from a local folder or a USB stick.
 | 🧩 Nonogram | Logic | Solve the picture from the number clues |
 | 🌀 Grand Tour | Logic | One loop through every dot — 4 difficulties, 24 badges |
 | 🔤 Word Tile | Word | Guess the 5-letter word in 6 tries |
-| 💡 Lights Out | Puzzle | Toggle the grid until all lights are off |
+| 💡 Lights Out | Puzzle | One click toggles a cross — 3 sizes, 24 badges |
 | 🧮 15 Puzzle | Puzzle | Slide the tiles back into order |
 | 🌈 Flow | Puzzle | Connect matching pipes, fill every cell |
 | 🎶 Simon | Reflex | Repeat the growing color-tone sequence |

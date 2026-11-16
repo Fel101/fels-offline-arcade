@@ -377,9 +377,11 @@
     if (notes) playNotes(notes);
   }
 
-  function setSoundEnabled(on) {
+  function setSoundEnabled(on, opts) {
     soundOn = !!on;
-    if (soundOn) unlockAudio();
+    // Only create/resume the AudioContext in response to a real gesture.
+    // Creating one at page load makes Chrome log an autoplay warning.
+    if (soundOn && (!opts || opts.unlock !== false) && audioUnlocked) unlockAudio();
   }
 
   function isSoundEnabled() {
@@ -394,7 +396,7 @@
     const { btn, icon, soundKey } = opts;
     if (!btn) return;
     let on = store.get(soundKey, "on") !== "off";
-    setSoundEnabled(on);
+    setSoundEnabled(on, { unlock: false });
 
     function render() {
       if (icon) icon.textContent = on ? "🔊" : "🔇";
@@ -411,7 +413,10 @@
       setSoundEnabled(on);
       store.set(soundKey, on ? "on" : "off");
       render();
-      if (on) sfx("click");
+      if (on) {
+        unlockAudio();
+        sfx("click");
+      }
     });
 
     return {
