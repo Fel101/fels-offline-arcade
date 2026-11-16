@@ -37,7 +37,7 @@ No Node, no npm, nothing to install. Works from a local folder or a USB stick.
 | 🔴 Connect Four | Strategy | Click a column vs the computer |
 | ❌ Tic-Tac-Toe | Strategy | Perfect AI, 3 levels + 2-player — 24 badges |
 | 🏓 Pong | Arcade | Mouse or ↑/↓ vs the computer — 14 badges |
-| 🧨 Breakout | Arcade | Mouse or ◀/▶ |
+| 🧨 Breakout | Arcade | Mouse or ◀/▶ — 14 badges |
 | 🔨 Whack-a-Mole | Reflex | Whack moles, chain combos — 4 modes, 24 badges |
 | ♠️ Blackjack | Card | Bet, hit, stand vs the dealer |
 | ♟️ Chess | Strategy | Full rules — castling, en passant, promotion + AI |
