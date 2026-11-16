@@ -48,7 +48,7 @@ No Node, no npm, nothing to install. Works from a local folder or a USB stick.
 | 🁫 Dominoes | Strategy | Draw, Block or All Fives — 3 AI levels, 24 badges |
 | ⚫ Othello | Strategy | Flip discs to your color |
 | 🚢 Battleship | Strategy | Hunt and sink the enemy fleet |
-| 🪙 Nim | Strategy | Take 1–3 — perfect play vs the CPU |
+| 🪙 Nim | Strategy | Take 1–3 — perfect play vs the CPU, 14 badges |
 | 🔷 Dots & Boxes | Strategy | Draw lines, claim the most boxes |
 | 🧩 Nonogram | Logic | Solve the picture from the number clues |
 | 🌀 Grand Tour | Logic | One loop through every dot — 4 difficulties, 24 badges |
