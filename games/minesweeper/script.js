@@ -7,6 +7,9 @@
 (() => {
   "use strict";
 
+  const Arcade = window.Arcade;
+  const { toast, overlay, badges: badgesApi, modal: modalApi, dom } = Arcade;
+
   // ---------- DOM ----------
   const boardEl = document.getElementById("board");
   const boardWrapEl = document.getElementById("board-wrap");
@@ -56,19 +59,41 @@
 
   const DIFF_ORDER = ["beginner", "intermediate", "expert"];
 
-  const ACHIEVEMENTS = [
+  // "Lower is better" time badges: goal is in seconds, the stat in ms.
+  function timeBadge(id, icon, name, desc, seconds) {
+    const limit = seconds * 1000;
+    return {
+      id,
+      icon,
+      name,
+      desc,
+      stat: "bestTime",
+      goal: seconds,
+      satisfied: () => (stats.bestTime || 0) > 0 && stats.bestTime <= limit,
+      progress: () => {
+        const ms = stats.bestTime || 0;
+        if (!ms) return { pct: 0, text: "No win yet" };
+        if (ms <= limit) return { pct: 100, text: "Unlocked" };
+        return { pct: Math.min(100, (limit / ms) * 100), text: `Best ${formatTime(ms)}` };
+      },
+    };
+  }
+
+    const ACHIEVEMENTS = [
     { id: "first", icon: "🎯", name: "First Sweep", desc: "Win your first board.", stat: "wins", goal: 1 },
     { id: "winBeginner", icon: "🌱", name: "Rookie", desc: "Win on Beginner.", stat: "winsBeginner", goal: 1 },
     { id: "winIntermediate", icon: "🌿", name: "Surveyor", desc: "Win on Intermediate.", stat: "winsIntermediate", goal: 1 },
     { id: "winExpert", icon: "💎", name: "Expert Sweeper", desc: "Win on Expert.", stat: "winsExpert", goal: 1 },
-    { id: "allDiffs", icon: "🌈", name: "All-Rounder", desc: "Win on every difficulty.", stat: "diffsWon", goal: 3 },
+    { id: "allDiffs", icon: "🌈", name: "All-Rounder", desc: "Win on every difficulty.", stat: "diffsWon", goal: 3,
+      value: () =>
+        ["winsBeginner", "winsIntermediate", "winsExpert"].filter((k) => (stats[k] || 0) > 0).length },
     { id: "wins10", icon: "👍", name: "Getting Good", desc: "Win 10 boards.", stat: "wins", goal: 10 },
     { id: "wins50", icon: "🎖️", name: "Veteran", desc: "Win 50 boards.", stat: "wins", goal: 50 },
     { id: "wins100", icon: "👑", name: "Legend", desc: "Win 100 boards.", stat: "wins", goal: 100 },
-    { id: "speed10", icon: "⚡", name: "Quick Click", desc: "Win any board in under 10 seconds.", stat: "bestTime", goal: 10 },
-    { id: "speed5", icon: "🚀", name: "Lightning", desc: "Win any board in under 5 seconds.", stat: "bestTime", goal: 5 },
-    { id: "speed60", icon: "💨", name: "Swift", desc: "Win any board in under 1:00.", stat: "bestTime", goal: 60 },
-    { id: "speed180", icon: "🌪️", name: "Blur", desc: "Win any board in under 3:00.", stat: "bestTime", goal: 180 },
+    timeBadge("speed10", "⚡", "Quick Click", "Win any board in under 10 seconds.", 10),
+    timeBadge("speed5", "🚀", "Lightning", "Win any board in under 5 seconds.", 5),
+    timeBadge("speed60", "💨", "Swift", "Win any board in under 1:00.", 60),
+    timeBadge("speed180", "🌪️", "Blur", "Win any board in under 3:00.", 180),
     { id: "noFlags", icon: "🧠", name: "Trust Your Logic", desc: "Win without placing a single flag.", stat: "noFlagWins", goal: 1 },
     { id: "noHints", icon: "🔍", name: "Pure Logic", desc: "Win without using a hint.", stat: "noHintWins", goal: 1 },
     { id: "perfect", icon: "✨", name: "Flawless Sweep", desc: "Win with every mine correctly flagged.", stat: "perfectFlagWins", goal: 1 },
@@ -113,34 +138,7 @@
   const REDUCE = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
 
   // ---------- Storage ----------
-  const store = {
-    get(key, fallback) {
-      try {
-        const v = localStorage.getItem(key);
-        return v === null ? fallback : v;
-      } catch {
-        return fallback;
-      }
-    },
-    set(key, value) {
-      try {
-        localStorage.setItem(key, value);
-      } catch {
-        /* storage blocked */
-      }
-    },
-    json(key, fallback) {
-      try {
-        const raw = this.get(key, null);
-        return raw === null ? fallback : JSON.parse(raw);
-      } catch {
-        return fallback;
-      }
-    },
-    jsonSet(key, value) {
-      this.set(key, JSON.stringify(value));
-    },
-  };
+  const store = Arcade.store;
 
   const K = {
     best: (mode, diff) => `ms-best-v1-${mode}-${diff}`,
@@ -162,9 +160,6 @@
     if (!Number.isFinite(stats[key])) stats[key] = DEFAULT_STATS[key];
   }
 
-  const storedAchv = store.json(K.achv, []);
-  let unlocked = new Set(Array.isArray(storedAchv) ? storedAchv : []);
-  unlocked = new Set(Array.from(unlocked).filter((id) => ACHIEVEMENTS.some((a) => a.id === id)));
 
   let daily = store.json(K.daily, null);
   if (!daily || typeof daily !== "object" || Array.isArray(daily)) daily = { streak: 0, lastDate: "", history: {} };
@@ -204,7 +199,6 @@
     lastTick: -1,
   };
 
-  let overlayEl = null;
   let resumeAfterModal = false;
   let lastTs = 0;
   let lastTimeText = "";
@@ -227,88 +221,63 @@
   let PAL = readPalette();
 
   // ---------- Audio ----------
-  let soundOn = store.get(K.sound, "on") !== "off";
+  const soundCtl = Arcade.audio.bindButton({
+    btn: soundBtn,
+    icon: soundIconEl,
+    soundKey: K.sound,
+  });
+  let soundOn = soundCtl.enabled;
   let actx = null;
 
+  Arcade.audio.define("reveal", [
+    [660, 0, 0.045, "sine", 0.025],
+  ]);
+  Arcade.audio.define("flag", [
+    [300, 0, 0.06, "square", 0.03, 220],
+  ]);
+  Arcade.audio.define("unflag", [
+    [240, 0, 0.05, "square", 0.022, 320],
+  ]);
+  Arcade.audio.define("chord", [
+    [520, 0, 0.05, "triangle", 0.03],
+    [700, 0.035, 0.06, "triangle", 0.025],
+  ]);
+  Arcade.audio.define("boom", [
+    [140, 0, 0.5, "sawtooth", 0.06, 40],
+    [90, 0.02, 0.4, "square", 0.04, 30],
+  ]);
+  Arcade.audio.define("win", [
+    [523, 0, 0.12, "sine", 0.05],
+    [659, 0.1, 0.12, "sine", 0.05],
+    [784, 0.2, 0.16, "sine", 0.05],
+    [1047, 0.32, 0.3, "sine", 0.045],
+  ]);
+  Arcade.audio.define("over", [
+    [320, 0, 0.45, "sawtooth", 0.05, 70],
+  ]);
+  Arcade.audio.define("hint", [
+    [440, 0, 0.08, "sine", 0.04],
+    [660, 0.07, 0.1, "sine", 0.04],
+  ]);
+  Arcade.audio.define("achv", [
+    [587, 0, 0.1, "triangle", 0.04],
+    [740, 0.09, 0.1, "triangle", 0.04],
+    [880, 0.18, 0.16, "triangle", 0.04],
+  ]);
+  Arcade.audio.define("tick", [
+    [880, 0, 0.04, "square", 0.02],
+  ]);
+  Arcade.audio.define("click", [
+    [600, 0, 0.035, "sine", 0.02],
+  ]);
+
   function ensureAudio() {
-    try {
-      if (!actx) {
-        const AC = window.AudioContext || window.webkitAudioContext;
-        if (AC) actx = new AC();
-      }
-      if (actx && actx.state === "suspended") actx.resume();
-    } catch {
-      actx = null;
-    }
+    Arcade.audio.unlock();
   }
 
   function sfx(name) {
     if (!soundOn) return;
-    ensureAudio();
-    if (!actx) return;
-    try {
-      const t = actx.currentTime;
-      const note = (freq, start, dur, type = "sine", vol = 0.05, endFreq = null) => {
-        const o = actx.createOscillator();
-        const g = actx.createGain();
-        o.type = type;
-        o.frequency.setValueAtTime(freq, t + start);
-        if (endFreq) o.frequency.exponentialRampToValueAtTime(Math.max(20, endFreq), t + start + dur);
-        g.gain.setValueAtTime(0.0001, t + start);
-        g.gain.exponentialRampToValueAtTime(vol, t + start + 0.012);
-        g.gain.exponentialRampToValueAtTime(0.0001, t + start + dur);
-        o.connect(g).connect(actx.destination);
-        o.start(t + start);
-        o.stop(t + start + dur + 0.03);
-      };
-      switch (name) {
-        case "reveal":
-          note(660, 0, 0.045, "sine", 0.025);
-          break;
-        case "flag":
-          note(300, 0, 0.06, "square", 0.03, 220);
-          break;
-        case "unflag":
-          note(240, 0, 0.05, "square", 0.022, 320);
-          break;
-        case "chord":
-          note(520, 0, 0.05, "triangle", 0.03);
-          note(700, 0.035, 0.06, "triangle", 0.025);
-          break;
-        case "boom":
-          note(140, 0, 0.5, "sawtooth", 0.06, 40);
-          note(90, 0.02, 0.4, "square", 0.04, 30);
-          break;
-        case "win":
-          note(523, 0, 0.12, "sine", 0.05);
-          note(659, 0.1, 0.12, "sine", 0.05);
-          note(784, 0.2, 0.16, "sine", 0.05);
-          note(1047, 0.32, 0.3, "sine", 0.045);
-          break;
-        case "over":
-          note(320, 0, 0.45, "sawtooth", 0.05, 70);
-          break;
-        case "hint":
-          note(440, 0, 0.08, "sine", 0.04);
-          note(660, 0.07, 0.1, "sine", 0.04);
-          break;
-        case "achv":
-          note(587, 0, 0.1, "triangle", 0.04);
-          note(740, 0.09, 0.1, "triangle", 0.04);
-          note(880, 0.18, 0.16, "triangle", 0.04);
-          break;
-        case "tick":
-          note(880, 0, 0.04, "square", 0.02);
-          break;
-        case "click":
-          note(600, 0, 0.035, "sine", 0.02);
-          break;
-        default:
-          break;
-      }
-    } catch {
-      /* audio is a nice-to-have */
-    }
+    Arcade.audio.sfx(name);
   }
 
   function updateSoundBtn() {
@@ -320,10 +289,10 @@
   }
 
   function updateBadgeCount() {
-    badgeCountEl.textContent = unlocked.size;
+    badgeCountEl.textContent = achv.count();
     badgesBtn.setAttribute(
       "aria-label",
-      `Badges and achievements: ${unlocked.size} of ${ACHIEVEMENTS.length} unlocked`
+      `Badges and achievements: ${achv.count()} of ${ACHIEVEMENTS.length} unlocked`
     );
   }
 
@@ -412,180 +381,108 @@
     return rec.t ? formatTime(rec.t) : "—";
   }
 
-  // ---------- Toasts ----------
-  function showToast(title, desc, icon) {
-    const el = document.createElement("div");
-    el.className = "snake-toast";
-    el.innerHTML =
-      `<span class="snake-toast__icon" aria-hidden="true"></span>` +
-      `<div class="snake-toast__body"><strong></strong><span></span></div>`;
-    el.querySelector(".snake-toast__icon").textContent = icon || "💬";
-    el.querySelector("strong").textContent = title;
-    el.querySelector("span").textContent = desc || "";
-    toastsEl.appendChild(el);
-    window.setTimeout(() => el.classList.add("is-out"), 3000);
-    window.setTimeout(() => el.remove(), 3450);
-  }
-
-  function pushToast(a) {
-    showToast(a.name, a.desc, a.icon);
-  }
-
   // ---------- Achievements ----------
-  function checkAchievements() {
-    let changed = false;
-    for (const a of ACHIEVEMENTS) {
-      if (unlocked.has(a.id)) continue;
-      let done = false;
-      if (a.stat === "bestTime") {
-        done = stats.bestTime > 0 && stats.bestTime <= a.goal * 1000;
-      } else if (a.stat === "diffsWon") {
-        done = diffsWon() >= a.goal;
-      } else if (a.stat === "dailyStreak") {
-        done = daily.streak >= a.goal;
-      } else {
-        done = (stats[a.stat] || 0) >= a.goal;
-      }
-      if (done) {
-        unlocked.add(a.id);
-        changed = true;
-        pushToast(a);
-      }
-    }
-    if (changed) {
-      sfx("achv");
-      store.jsonSet(K.achv, Array.from(unlocked));
-      updateBadgeCount();
-      if (!achvModal.hidden) renderAchvGrid();
+  toast.bind(document.getElementById("toasts"));
+
+  // Time-based badges are "lower is better"; give them a predicate and a
+  // progress bar that fills as the time drops.
+  const INVERTED_STATS = [];
+  if (INVERTED_STATS.length) {
+    for (const def of ACHIEVEMENTS) {
+      if (!INVERTED_STATS.includes(def.stat)) continue;
+      if (typeof def.satisfied === "function") continue;
+      def.satisfied = () => {
+        const ms = stats[def.stat] || 0;
+        return ms > 0 && ms <= def.goal * 1000;
+      };
+      def.progress = () => {
+        const ms = stats[def.stat] || 0;
+        if (!ms) return { text: "No solve yet" };
+        return { text: "Best " + formatTime(ms) };
+      };
     }
   }
 
-  function achvCard(a, done, pct, progressText) {
-    const isTime = a.stat === "bestTime";
-    const ariaMax = isTime ? 100 : a.goal;
-    const ariaNow = isTime
-      ? Math.round(pct)
-      : Math.min(Math.floor(stats[a.stat] || 0), a.goal);
-    return (
-      `<div class="achv ${done ? "achv--done" : "achv--locked"}">` +
-      `<div class="achv__icon" aria-hidden="true">${a.icon}</div>` +
-      `<div class="achv__body">` +
-      `<div class="achv__name"><span>${a.name}</span>${done ? '<span class="achv__tick" aria-label="Unlocked">✔</span>' : ""}</div>` +
-      `<div class="achv__desc">${a.desc}</div>` +
-      `<div class="achv__bar" role="progressbar" aria-valuemin="0" aria-valuemax="${ariaMax}" aria-valuenow="${ariaNow}"><span style="width:${pct}%"></span></div>` +
-      `<div class="achv__progress">${progressText}</div>` +
-      `</div></div>`
-    );
+  const achv = badgesApi.create(ACHIEVEMENTS, {
+    storageKey: K.achv,
+    getStat: (key) => {
+      if (key === "dailyStreak") return daily.streak;
+      if (typeof stats[key] === "number") return stats[key];
+      return 0;
+    },
+    onUnlock: () => {
+      updateBadgeCount();
+      saveStats();
+    },
+    onRender: () => {
+      if (!achvModal.hidden) renderAchvGrid();
+    },
+  });
+
+  function checkAchievements() {
+    achv.check();
   }
 
   function renderAchvGrid() {
-    achvGrid.innerHTML = ACHIEVEMENTS.map((a) => {
-      const done = unlocked.has(a.id);
-      let pct;
-      let progressText;
-      if (a.stat === "bestTime") {
-        const ms = stats.bestTime || 0;
-        const ok = ms > 0 && ms <= a.goal * 1000;
-        pct = ms > 0 ? Math.min(100, ((a.goal * 1000) / ms) * 100) : 0;
-        progressText = ok || done ? "Unlocked" : ms > 0 ? `Best ${formatTime(ms)}` : "No win yet";
-        return achvCard(a, done || ok, pct, progressText);
-      }
-      if (a.stat === "diffsWon") {
-        const raw = diffsWon();
-        pct = done ? 100 : Math.min(100, (raw / a.goal) * 100);
-        progressText = done ? "Unlocked" : `${raw} / ${a.goal}`;
-        return achvCard(a, done, pct, progressText);
-      }
-      if (a.stat === "dailyStreak") {
-        pct = done ? 100 : Math.min(100, (daily.streak / a.goal) * 100);
-        progressText = done ? "Unlocked" : `${daily.streak} / ${a.goal} days`;
-        return achvCard(a, done, pct, progressText);
-      }
-      const raw = stats[a.stat] || 0;
-      pct = done ? 100 : Math.max(0, Math.min(100, (raw / a.goal) * 100));
-      progressText = done ? "Unlocked" : `${Math.min(Math.floor(raw), a.goal)} / ${a.goal}`;
-      return achvCard(a, done, pct, progressText);
-    }).join("");
-
-    const played = stats.played || 0;
-    const rate = played > 0 ? Math.round((stats.wins / played) * 100) : 0;
-    const records = [
-      ["Best", bestLabel()],
-      ["Wins", stats.wins],
-      ["Win rate", rate + "%"],
-      ["Daily streak", daily.streak + "d"],
-      ["Best score", stats.bestScore],
-      ["Best win streak", stats.bestWinStreak],
-    ];
-    achvRecordsEl.innerHTML = records
-      .map(([label, val]) => `<span>${label} <b>${val}</b></span>`)
-      .join("");
-
-    achvCountEl.textContent = `${unlocked.size} / ${ACHIEVEMENTS.length}`;
+    achv.render(achvGrid, {
+      countEl: achvCountEl,
+      recordsEl: achvRecordsEl,
+      records: () => {
+        const played = stats.played || 0;
+        const rate = played > 0 ? Math.round((stats.wins / played) * 100) : 0;
+        return [
+          ["Best", bestLabel()],
+          ["Wins", stats.wins],
+          ["Win rate", rate + "%"],
+          ["Daily streak", daily.streak + "d"],
+          ["Best score", stats.bestScore],
+          ["Best win streak", stats.bestWinStreak],
+        ];
+      },
+    });
   }
 
+  const achvModalCtl = modalApi.create(achvModal, {
+    onOpen: () => {
+      renderAchvGrid();
+      if (!state.over && !state.paused && state.started) {
+        state.paused = true;
+        resumeAfterModal = true;
+        boardEl.classList.add("is-paused");
+        pauseBtn.textContent = "▶ Resume";
+      }
+      const closeBtn = achvModal.querySelector(".snake-modal__head [data-close]");
+      if (closeBtn) closeBtn.focus();
+    },
+    onClose: () => {
+      if (resumeAfterModal) {
+        resumeAfterModal = false;
+        if (!state.over) {
+          state.paused = false;
+          pauseBtn.textContent = "Pause";
+        }
+      }
+      const target = overlay.isOpen() ? document.querySelector(".overlay .btn") : badgesBtn;
+      if (target) target.focus();
+    },
+  });
+
   function openAchv() {
-    renderAchvGrid();
-    achvModal.hidden = false;
-    document.body.classList.add("modal-open");
-    if (!state.over && !state.paused && state.started) {
-      state.paused = true;
-      resumeAfterModal = true;
-      boardEl.classList.add("is-paused");
-      pauseBtn.textContent = "▶ Resume";
-    }
-    const closeBtn = achvModal.querySelector(".snake-modal__head [data-close]");
-    if (closeBtn) closeBtn.focus();
+    achvModalCtl.open();
   }
 
   function closeAchv() {
-    if (achvModal.hidden) return;
-    achvModal.hidden = true;
-    document.body.classList.remove("modal-open");
-    if (resumeAfterModal) {
-      resumeAfterModal = false;
-      if (!state.over) {
-        state.paused = false;
-        boardEl.classList.remove("is-paused");
-        pauseBtn.textContent = "Pause";
-      }
-    }
-    const focusTarget = overlayEl ? overlayEl.querySelector(".btn") : badgesBtn;
-    if (focusTarget) focusTarget.focus();
+    achvModalCtl.close();
   }
 
   // ---------- Overlay ----------
-  function hideOverlay() {
-    if (overlayEl) {
-      overlayEl.remove();
-      overlayEl = null;
-    }
-  }
-
+  // Provided by the shared core.
+  const hideOverlay = () => overlay.hide();
   function showOverlay(title, msg, actions) {
-    hideOverlay();
-    overlayEl = document.createElement("div");
-    overlayEl.className = "overlay";
-    overlayEl.dataset.title = title;
-    overlayEl.dataset.msg = msg;
-    const box = document.createElement("div");
-    box.className = "overlay__box";
-    box.innerHTML = `<h2></h2><p></p><div class="overlay__actions"></div>`;
-    box.querySelector("h2").textContent = title;
-    box.querySelector("p").textContent = msg;
-    const actionsEl = box.querySelector(".overlay__actions");
-    for (const action of actions || []) {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = action.ghost ? "btn btn--ghost" : "btn";
-      b.textContent = action.label;
-      b.addEventListener("click", action.onClick);
-      actionsEl.appendChild(b);
-    }
-    overlayEl.appendChild(box);
-    document.body.appendChild(overlayEl);
-    const first = overlayEl.querySelector(".btn");
-    if (first) first.focus();
+    return overlay.show(title, msg, actions);
+  }
+  function currentOverlayEl() {
+    return overlay.current();
   }
 
   function focusModeBar() {
@@ -888,11 +785,11 @@
   function useHint() {
     if (state.over || state.paused) return;
     if (!state.started) {
-      showToast("Start first", "Reveal a square to begin the board.", "👆");
+      toast.show("Start first", "Reveal a square to begin the board.", "👆");
       return;
     }
     if (state.hintsLeft <= 0) {
-      showToast("No hints left", state.mode === "zen" ? "Zen has unlimited hints." : "You've used all your hints.", "💡");
+      toast.show("No hints left", state.mode === "zen" ? "Zen has unlimited hints." : "You've used all your hints.", "💡");
       return;
     }
     const zeros = [];
@@ -1216,22 +1113,8 @@
   }
 
   // ---------- Effects ----------
-  function confetti() {
-    if (REDUCE) return;
-    const wrap = document.createElement("div");
-    wrap.className = "confetti";
-    const colors = [PAL.accent, PAL.accent2, PAL.accent3, PAL.danger, PAL.text];
-    for (let i = 0; i < 90; i++) {
-      const s = document.createElement("span");
-      s.style.left = Math.random() * 100 + "%";
-      s.style.background = colors[i % colors.length];
-      s.style.animationDuration = 1.6 + Math.random() * 1.8 + "s";
-      s.style.animationDelay = Math.random() * 0.5 + "s";
-      wrap.appendChild(s);
-    }
-    document.body.appendChild(wrap);
-    window.setTimeout(() => wrap.remove(), 4200);
-  }
+  // Provided by the shared core.
+  const confetti = (count) => Arcade.confetti(count === undefined ? 80 : count);
 
   // ---------- Input ----------
   function onPointerDown(e, r, c) {
@@ -1354,7 +1237,7 @@
       state.flagMode = !state.flagMode;
       sfx("click");
       updateHUD();
-      showToast(
+      toast.show(
         state.flagMode ? "Flag mode on" : "Flag mode off",
         state.flagMode ? "Taps now place flags. Tap again to remove." : "Taps reveal squares again.",
         "🚩"
@@ -1393,16 +1276,6 @@
 
     achvModal.querySelectorAll("[data-close]").forEach((el) => {
       el.addEventListener("click", closeAchv);
-    });
-
-    soundBtn.addEventListener("click", () => {
-      soundOn = !soundOn;
-      store.set(K.sound, soundOn ? "on" : "off");
-      updateSoundBtn();
-      if (soundOn) {
-        ensureAudio();
-        sfx("click");
-      }
     });
 
     document.addEventListener("keydown", onKeyDown);

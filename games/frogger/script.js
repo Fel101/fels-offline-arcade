@@ -7,6 +7,9 @@
 (() => {
   "use strict";
 
+  const Arcade = window.Arcade;
+  const { toast, overlay, badges: badgesApi, modal: modalApi, dom } = Arcade;
+
   // ---------- DOM ----------
   const canvas = document.getElementById("game");
   const ctx = canvas.getContext("2d");
@@ -97,7 +100,6 @@
     },
   };
 
-  // ---------- Achievements ----------
   const ACHIEVEMENTS = [
     { id: "first_home", icon: "🏠", name: "First Crossing", desc: "Reach your first home bay.", stat: "totalHomes", goal: 1 },
     { id: "home10", icon: "🐸", name: "Getting There", desc: "Reach 10 home bays.", stat: "totalHomes", goal: 10 },
@@ -126,6 +128,8 @@
     { id: "logRider", icon: "🪵", name: "Log Rider", desc: "Travel 100 tiles on logs.", stat: "logDistance", goal: 100 },
   ];
 
+
+
   const DEFAULT_STATS = {
     totalRuns: 0,
     totalHomes: 0,
@@ -144,38 +148,7 @@
   };
 
   // ---------- Storage ----------
-  const store = {
-    get(key, fallback) {
-      try {
-        const v = localStorage.getItem(key);
-        return v === null ? fallback : v;
-      } catch {
-        return fallback;
-      }
-    },
-    set(key, value) {
-      try {
-        localStorage.setItem(key, value);
-      } catch {
-        /* storage blocked */
-      }
-    },
-    num(key, fallback = 0) {
-      const n = Number(this.get(key, fallback));
-      return Number.isFinite(n) ? n : fallback;
-    },
-    json(key, fallback) {
-      try {
-        const raw = this.get(key, null);
-        return raw === null ? fallback : JSON.parse(raw);
-      } catch {
-        return fallback;
-      }
-    },
-    jsonSet(key, value) {
-      this.set(key, JSON.stringify(value));
-    },
-  };
+  const store = Arcade.store;
 
   const K = {
     best: (mode) => `frogger-best-v1-${mode}`,
@@ -195,10 +168,6 @@
   for (const key of Object.keys(DEFAULT_STATS)) {
     if (!Number.isFinite(stats[key])) stats[key] = DEFAULT_STATS[key];
   }
-
-  const storedAchv = store.json(K.achv, []);
-  let unlocked = new Set(Array.isArray(storedAchv) ? storedAchv : []);
-  unlocked = new Set(Array.from(unlocked).filter((id) => ACHIEVEMENTS.some((a) => a.id === id)));
 
   let daily = store.json(K.daily, null);
   if (!daily || typeof daily !== "object" || Array.isArray(daily)) daily = { streak: 0, lastDate: "", history: {} };
@@ -238,94 +207,68 @@
   };
 
   // ---------- Audio ----------
-  let soundOn = store.get(K.sound, "on") !== "off";
-  let actx = null;
+  const soundCtl = Arcade.audio.bindButton({
+    btn: soundBtn,
+    icon: soundIconEl,
+    soundKey: K.sound,
+  });
+  let soundOn = soundCtl.enabled;
+
+  Arcade.audio.define("hop", [
+    [420, 0, 0.05, "triangle", 0.03, 620],
+  ]);
+  Arcade.audio.define("bump", [
+    [180, 0, 0.08, "square", 0.025, 140],
+  ]);
+  Arcade.audio.define("splash", [
+    [300, 0, 0.28, "sine", 0.05, 70],
+    [520, 0.02, 0.16, "triangle", 0.025, 180],
+  ]);
+  Arcade.audio.define("hit", [
+    [150, 0, 0.32, "sawtooth", 0.06, 50],
+    [90, 0.03, 0.3, "square", 0.04, 35],
+  ]);
+  Arcade.audio.define("home", [
+    [523, 0, 0.1, "triangle", 0.045],
+    [659, 0.08, 0.1, "triangle", 0.045],
+    [784, 0.16, 0.16, "triangle", 0.045],
+  ]);
+  Arcade.audio.define("level", [
+    [523, 0, 0.12, "sine", 0.05],
+    [659, 0.1, 0.12, "sine", 0.05],
+    [784, 0.2, 0.14, "sine", 0.05],
+    [1047, 0.32, 0.24, "sine", 0.045],
+  ]);
+  Arcade.audio.define("extra", [
+    [660, 0, 0.1, "triangle", 0.05],
+    [880, 0.09, 0.1, "triangle", 0.05],
+    [1100, 0.18, 0.18, "triangle", 0.05],
+  ]);
+  Arcade.audio.define("win", [
+    [523, 0, 0.12, "sine", 0.05],
+    [659, 0.1, 0.12, "sine", 0.05],
+    [784, 0.2, 0.16, "sine", 0.05],
+    [1047, 0.32, 0.3, "sine", 0.045],
+  ]);
+  Arcade.audio.define("over", [
+    [320, 0, 0.5, "sawtooth", 0.055, 60],
+  ]);
+  Arcade.audio.define("achv", [
+    [587, 0, 0.1, "triangle", 0.04],
+    [740, 0.09, 0.1, "triangle", 0.04],
+    [880, 0.18, 0.16, "triangle", 0.04],
+  ]);
+  Arcade.audio.define("click", [
+    [600, 0, 0.035, "sine", 0.02],
+  ]);
 
   function ensureAudio() {
-    try {
-      if (!actx) {
-        const AC = window.AudioContext || window.webkitAudioContext;
-        if (AC) actx = new AC();
-      }
-      if (actx && actx.state === "suspended") actx.resume();
-    } catch {
-      actx = null;
-    }
+    Arcade.audio.unlock();
   }
 
   function sfx(name) {
     if (!soundOn) return;
-    ensureAudio();
-    if (!actx) return;
-    try {
-      const t = actx.currentTime;
-      const note = (freq, start, dur, type = "sine", vol = 0.05, endFreq = null) => {
-        const o = actx.createOscillator();
-        const g = actx.createGain();
-        o.type = type;
-        o.frequency.setValueAtTime(freq, t + start);
-        if (endFreq) o.frequency.exponentialRampToValueAtTime(Math.max(20, endFreq), t + start + dur);
-        g.gain.setValueAtTime(0.0001, t + start);
-        g.gain.exponentialRampToValueAtTime(vol, t + start + 0.012);
-        g.gain.exponentialRampToValueAtTime(0.0001, t + start + dur);
-        o.connect(g).connect(actx.destination);
-        o.start(t + start);
-        o.stop(t + start + dur + 0.03);
-      };
-      switch (name) {
-        case "hop":
-          note(420, 0, 0.05, "triangle", 0.03, 620);
-          break;
-        case "bump":
-          note(180, 0, 0.08, "square", 0.025, 140);
-          break;
-        case "splash":
-          note(300, 0, 0.28, "sine", 0.05, 70);
-          note(520, 0.02, 0.16, "triangle", 0.025, 180);
-          break;
-        case "hit":
-          note(150, 0, 0.32, "sawtooth", 0.06, 50);
-          note(90, 0.03, 0.3, "square", 0.04, 35);
-          break;
-        case "home":
-          note(523, 0, 0.1, "triangle", 0.045);
-          note(659, 0.08, 0.1, "triangle", 0.045);
-          note(784, 0.16, 0.16, "triangle", 0.045);
-          break;
-        case "level":
-          note(523, 0, 0.12, "sine", 0.05);
-          note(659, 0.1, 0.12, "sine", 0.05);
-          note(784, 0.2, 0.14, "sine", 0.05);
-          note(1047, 0.32, 0.24, "sine", 0.045);
-          break;
-        case "extra":
-          note(660, 0, 0.1, "triangle", 0.05);
-          note(880, 0.09, 0.1, "triangle", 0.05);
-          note(1100, 0.18, 0.18, "triangle", 0.05);
-          break;
-        case "win":
-          note(523, 0, 0.12, "sine", 0.05);
-          note(659, 0.1, 0.12, "sine", 0.05);
-          note(784, 0.2, 0.16, "sine", 0.05);
-          note(1047, 0.32, 0.3, "sine", 0.045);
-          break;
-        case "over":
-          note(320, 0, 0.5, "sawtooth", 0.055, 60);
-          break;
-        case "achv":
-          note(587, 0, 0.1, "triangle", 0.04);
-          note(740, 0.09, 0.1, "triangle", 0.04);
-          note(880, 0.18, 0.16, "triangle", 0.04);
-          break;
-        case "click":
-          note(600, 0, 0.035, "sine", 0.02);
-          break;
-        default:
-          break;
-      }
-    } catch {
-      /* audio is a nice-to-have */
-    }
+    Arcade.audio.sfx(name);
   }
 
   function updateSoundBtn() {
@@ -337,10 +280,10 @@
   }
 
   function updateBadgeCount() {
-    badgeCountEl.textContent = unlocked.size;
+    badgeCountEl.textContent = achv.count();
     badgesBtn.setAttribute(
       "aria-label",
-      `Badges and achievements: ${unlocked.size} of ${ACHIEVEMENTS.length} unlocked`
+      `Badges and achievements: ${achv.count()} of ${ACHIEVEMENTS.length} unlocked`
     );
   }
 
@@ -428,7 +371,6 @@
   let lastTs = 0;
   let nowMs = performance.now();
   let lastTimeText = "";
-  let overlayEl = null;
   let resumeAfterModal = false;
   let pointerStart = null;
 
@@ -524,7 +466,7 @@
   }
 
   function loadBest() {
-    best = store.num(K.best(state.mode), 0);
+    best = Number(store.get(K.best(state.mode), 0)) || 0;
     bestEl.textContent = best;
   }
 
@@ -536,165 +478,104 @@
     }
   }
 
-  // ---------- Toasts & achievements ----------
-  function showToast(title, desc, icon) {
-    const el = document.createElement("div");
-    el.className = "snake-toast";
-    el.innerHTML =
-      `<span class="snake-toast__icon" aria-hidden="true"></span>` +
-      `<div class="snake-toast__body"><strong></strong><span></span></div>`;
-    el.querySelector(".snake-toast__icon").textContent = icon || "💬";
-    el.querySelector("strong").textContent = title;
-    el.querySelector("span").textContent = desc || "";
-    toastsEl.appendChild(el);
-    window.setTimeout(() => el.classList.add("is-out"), 3000);
-    window.setTimeout(() => el.remove(), 3450);
+
+  // ---------- Achievements ----------
+  toast.bind(document.getElementById("toasts"));
+
+  // Time-based badges are "lower is better"; give them a predicate and a
+  // progress bar that fills as the time drops.
+  const INVERTED_STATS = [];
+  if (INVERTED_STATS.length) {
+    for (const def of ACHIEVEMENTS) {
+      if (!INVERTED_STATS.includes(def.stat)) continue;
+      if (typeof def.satisfied === "function") continue;
+      def.satisfied = () => {
+        const ms = stats[def.stat] || 0;
+        return ms > 0 && ms <= def.goal * 1000;
+      };
+      def.progress = () => {
+        const ms = stats[def.stat] || 0;
+        if (!ms) return { text: "No solve yet" };
+        return { text: "Best " + formatTime(ms) };
+      };
+    }
   }
 
-  function pushToast(a) {
-    showToast(a.name, a.desc, a.icon);
-  }
+  const achv = badgesApi.create(ACHIEVEMENTS, {
+    storageKey: K.achv,
+    getStat: (key) => {
+      if (key === "dailyStreak") return daily.streak;
+      if (typeof stats[key] === "number") return stats[key];
+      return 0;
+    },
+    onUnlock: () => {
+      updateBadgeCount();
+      saveStats();
+    },
+    onRender: () => {
+      if (!achvModal.hidden) renderAchvGrid();
+    },
+  });
 
   function checkAchievements() {
-    let changed = false;
-    for (const a of ACHIEVEMENTS) {
-      if (unlocked.has(a.id)) continue;
-      let done = false;
-      if (a.stat === "fastestHome") {
-        done = stats.fastestHome > 0 && stats.fastestHome <= a.goal;
-      } else if (a.stat === "dailyStreak") {
-        done = daily.streak >= a.goal;
-      } else {
-        done = (stats[a.stat] || 0) >= a.goal;
-      }
-      if (done) {
-        unlocked.add(a.id);
-        changed = true;
-        pushToast(a);
-      }
-    }
-    if (changed) {
-      sfx("achv");
-      store.jsonSet(K.achv, Array.from(unlocked));
-      updateBadgeCount();
-      if (!achvModal.hidden) renderAchvGrid();
-    }
-  }
-
-  function achvCard(a, done, pct, progressText) {
-    const isTime = a.stat === "fastestHome";
-    const ariaMax = isTime ? 100 : a.goal;
-    const ariaNow = isTime ? Math.round(pct) : Math.min(Math.floor(stats[a.stat] || 0), a.goal);
-    return (
-      `<div class="achv ${done ? "achv--done" : "achv--locked"}">` +
-      `<div class="achv__icon" aria-hidden="true">${a.icon}</div>` +
-      `<div class="achv__body">` +
-      `<div class="achv__name"><span>${a.name}</span>${done ? '<span class="achv__tick" aria-label="Unlocked">✔</span>' : ""}</div>` +
-      `<div class="achv__desc">${a.desc}</div>` +
-      `<div class="achv__bar" role="progressbar" aria-valuemin="0" aria-valuemax="${ariaMax}" aria-valuenow="${ariaNow}"><span style="width:${pct}%"></span></div>` +
-      `<div class="achv__progress">${progressText}</div>` +
-      `</div></div>`
-    );
+    achv.check();
   }
 
   function renderAchvGrid() {
-    achvGrid.innerHTML = ACHIEVEMENTS.map((a) => {
-      const done = unlocked.has(a.id);
-      let pct;
-      let progressText;
-      if (a.stat === "fastestHome") {
-        const v = stats.fastestHome || 0;
-        const ok = v > 0 && v <= a.goal;
-        pct = v > 0 ? Math.max(0, Math.min(100, (a.goal / v) * 100)) : 0;
-        progressText = ok || done ? "Unlocked" : v > 0 ? `Best ${v.toFixed(1)}s` : "No home yet";
-        return achvCard(a, done || ok, pct, progressText);
-      }
-      if (a.stat === "dailyStreak") {
-        pct = done ? 100 : Math.min(100, (daily.streak / a.goal) * 100);
-        progressText = done ? "Unlocked" : `${daily.streak} / ${a.goal} days`;
-        return achvCard(a, done, pct, progressText);
-      }
-      const raw = stats[a.stat] || 0;
-      pct = done ? 100 : Math.max(0, Math.min(100, (raw / a.goal) * 100));
-      progressText = done ? "Unlocked" : `${Math.min(Math.floor(raw), a.goal)} / ${a.goal}`;
-      return achvCard(a, done, pct, progressText);
-    }).join("");
-
-    const records = [
+    achv.render(achvGrid, {
+      countEl: achvCountEl,
+      recordsEl: achvRecordsEl,
+      records: () => ([
       ["Best", best],
       ["Best level", stats.maxLevel],
       ["Homes", stats.totalHomes],
       ["Daily streak", daily.streak + "d"],
       ["Runs", stats.totalRuns],
       ["Frogs lost", stats.totalDeaths],
-    ];
-    achvRecordsEl.innerHTML = records
-      .map(([label, val]) => `<span>${label} <b>${val}</b></span>`)
-      .join("");
-
-    achvCountEl.textContent = `${unlocked.size} / ${ACHIEVEMENTS.length}`;
+    ]),
+    });
   }
 
+  const achvModalCtl = modalApi.create(achvModal, {
+    onOpen: () => {
+      renderAchvGrid();
+      if (state.running && !state.paused && !state.over) {
+        state.paused = true;
+        resumeAfterModal = true;
+        pauseBtn.textContent = "▶ Resume";
+      }
+      const closeBtn = achvModal.querySelector(".snake-modal__head [data-close]");
+      if (closeBtn) closeBtn.focus();
+    },
+    onClose: () => {
+      if (resumeAfterModal) {
+        resumeAfterModal = false;
+        if (!state.over) {
+          state.paused = false;
+          pauseBtn.textContent = "Pause";
+        }
+      }
+      const target = overlay.isOpen() ? document.querySelector(".overlay .btn") : badgesBtn;
+      if (target) target.focus();
+    },
+  });
+
   function openAchv() {
-    renderAchvGrid();
-    achvModal.hidden = false;
-    document.body.classList.add("modal-open");
-    if (state.running && !state.paused && !state.over) {
-      state.paused = true;
-      resumeAfterModal = true;
-      pauseBtn.textContent = "▶ Resume";
-    }
-    const closeBtn = achvModal.querySelector(".snake-modal__head [data-close]");
-    if (closeBtn) closeBtn.focus();
+    achvModalCtl.open();
   }
 
   function closeAchv() {
-    if (achvModal.hidden) return;
-    achvModal.hidden = true;
-    document.body.classList.remove("modal-open");
-    if (resumeAfterModal) {
-      resumeAfterModal = false;
-      if (!state.over) {
-        state.paused = false;
-        pauseBtn.textContent = "Pause";
-      }
-    }
-    const focusTarget = overlayEl ? overlayEl.querySelector(".btn") : badgesBtn;
-    if (focusTarget) focusTarget.focus();
+    achvModalCtl.close();
   }
 
   // ---------- Overlay ----------
-  function hideOverlay() {
-    if (overlayEl) {
-      overlayEl.remove();
-      overlayEl = null;
-    }
-  }
-
+  // Provided by the shared core.
+  const hideOverlay = () => overlay.hide();
   function showOverlay(title, msg, actions) {
-    hideOverlay();
-    overlayEl = document.createElement("div");
-    overlayEl.className = "overlay";
-    overlayEl.dataset.title = title;
-    overlayEl.dataset.msg = msg;
-    const box = document.createElement("div");
-    box.className = "overlay__box";
-    box.innerHTML = `<h2></h2><p></p><div class="overlay__actions"></div>`;
-    box.querySelector("h2").textContent = title;
-    box.querySelector("p").textContent = msg;
-    const actionsEl = box.querySelector(".overlay__actions");
-    for (const action of actions || []) {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = action.ghost ? "btn btn--ghost" : "btn";
-      b.textContent = action.label;
-      b.addEventListener("click", action.onClick);
-      actionsEl.appendChild(b);
-    }
-    overlayEl.appendChild(box);
-    document.body.appendChild(overlayEl);
-    const first = overlayEl.querySelector(".btn");
-    if (first) first.focus();
+    return overlay.show(title, msg, actions);
+  }
+  function currentOverlayEl() {
+    return overlay.current();
   }
 
   function focusModeBar() {
@@ -748,22 +629,8 @@
     floater(W / 2, H / 2, text, color);
   }
 
-  function confetti() {
-    if (REDUCE) return;
-    const wrap = document.createElement("div");
-    wrap.className = "confetti";
-    const colors = [PAL.accent, PAL.accent2, PAL.accent3, PAL.danger, PAL.text];
-    for (let i = 0; i < 90; i++) {
-      const s = document.createElement("span");
-      s.style.left = Math.random() * 100 + "%";
-      s.style.background = colors[i % colors.length];
-      s.style.animationDuration = 1.6 + Math.random() * 1.8 + "s";
-      s.style.animationDelay = Math.random() * 0.5 + "s";
-      wrap.appendChild(s);
-    }
-    document.body.appendChild(wrap);
-    window.setTimeout(() => wrap.remove(), 4200);
-  }
+  // Provided by the shared core.
+  const confetti = (count) => Arcade.confetti(count === undefined ? 80 : count);
 
   function updateEffects(dt) {
     const dts = Math.min(dt, 50) / 1000;
@@ -884,7 +751,7 @@
         state.lives = Math.min(5, state.lives + 1);
         stats.extraLives++;
         sfx("extra");
-        showToast("Extra Life!", "+1 life", "❤️");
+        toast.show("Extra Life!", "+1 life", "❤️");
       }
     }
     updateHUD();
@@ -1621,16 +1488,6 @@
 
     achvModal.querySelectorAll("[data-close]").forEach((el) => {
       el.addEventListener("click", closeAchv);
-    });
-
-    soundBtn.addEventListener("click", () => {
-      soundOn = !soundOn;
-      store.set(K.sound, soundOn ? "on" : "off");
-      updateSoundBtn();
-      if (soundOn) {
-        ensureAudio();
-        sfx("click");
-      }
     });
 
     document.querySelectorAll(".dpad button").forEach((btn) => {
