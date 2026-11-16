@@ -1,25 +1,54 @@
 // Word Ladder — puzzle-book ladder puzzle. Pure vanilla JS, fully offline.
 // Word list: the Word Tile 808-word list plus an addendum of common 5-letter words.
+// Shared plumbing (storage, audio, toasts, overlay, confetti, badges, modal)
+// comes from ../../js/arcade-core.js.
 (() => {
-  const startWordEl = document.getElementById("start-word");
-  const targetWordEl = document.getElementById("target-word");
-  const chainEl = document.getElementById("chain");
-  const formEl = document.getElementById("rung-form");
-  const inputEl = document.getElementById("rung-input");
-  const messageEl = document.getElementById("message");
-  const winsEl = document.getElementById("wins");
-  const stepsEl = document.getElementById("steps");
-  const bestStepsEl = document.getElementById("best-steps");
-  const hintBtn = document.getElementById("hint-btn");
-  const undoBtn = document.getElementById("undo-btn");
-  const giveupBtn = document.getElementById("giveup-btn");
-  const newPuzzleBtn = document.getElementById("new-puzzle");
+  "use strict";
 
-  // Safe storage wrapper — file:// can block localStorage in some browsers.
-  const store = {
-    get(k, d = 0) { try { return Number(localStorage.getItem(k)) || d; } catch { return d; } },
-    set(k, v) { try { localStorage.setItem(k, v); } catch {} },
-  };
+  const {
+    store,
+    keys: makeKeys,
+    audio,
+    toast,
+    overlay,
+    confetti,
+    badges: badgesApi,
+    modal: modalApi,
+    dom,
+  } = window.Arcade;
+
+  const sfx = audio.sfx;
+  const showOverlay = overlay.show;
+  const hideOverlay = overlay.hide;
+
+  // ---------- DOM ----------
+  const startWordEl = dom.byId("start-word");
+  const targetWordEl = dom.byId("target-word");
+  const chainEl = dom.byId("chain");
+  const formEl = dom.byId("rung-form");
+  const inputEl = dom.byId("rung-input");
+  const messageEl = dom.byId("message");
+  const winsEl = dom.byId("wins");
+  const streakEl = dom.byId("streak");
+  const stepsEl = dom.byId("steps");
+  const bestStepsEl = dom.byId("best-steps");
+  const hintBtn = dom.byId("hint-btn");
+  const undoBtn = dom.byId("undo-btn");
+  const giveupBtn = dom.byId("giveup-btn");
+  const newPuzzleBtn = dom.byId("new-puzzle");
+  const hintEl = dom.byId("hint");
+
+  const badgesBtn = dom.byId("badges-btn");
+  const badgeCountEl = dom.byId("badge-count");
+  const soundBtn = dom.byId("sound-btn");
+  const soundIconEl = dom.byId("sound-icon");
+
+  const achvModal = dom.byId("achv-modal");
+  const achvGrid = dom.byId("achv-grid");
+  const achvCountEl = dom.byId("achv-count");
+  const achvRecordsEl = dom.byId("achv-records");
+
+  toast.bind(dom.byId("toasts"));
 
   // ---- Word Tile's 808 words (same list, same words) ----
   const WORDS = [
@@ -153,13 +182,142 @@
     }
   }
 
-  let wins = store.get("wordladder-wins");
-  let bestSteps = store.get("wordladder-best-steps"); // 0 = no best yet
+  const FAST_STEPS = 4; // a win this short counts as a "shortcut"
+  const HINT_DEFAULT = "Change one letter per step to climb from the start word to the target word. Esc pauses.";
 
-  let puzzle = null;      // { start, target, distToTarget, originalPath }
-  let chain = [];         // rungs, chain[0] === start
+  const K = makeKeys("word-ladder");
+
+  // ---------- Persistent stats ----------
+  const DEFAULT_STATS = {
+    games: 0,
+    wins: 0,
+    losses: 0,
+    streak: 0,
+    bestStreak: 0,
+    optimalWins: 0, // wins at the shortest possible step count
+    noHintWins: 0, // wins without using Hint
+    fastWins: 0, // wins in FAST_STEPS or fewer
+    steps: 0, // accepted rungs, career
+    hints: 0,
+    undos: 0,
+    bestSteps: 0, // 0 = no best yet
+  };
+
+  const storedStats = store.json(K.stats, null);
+  const stats = Object.assign(
+    {},
+    DEFAULT_STATS,
+    storedStats && typeof storedStats === "object" && !Array.isArray(storedStats) ? storedStats : {}
+  );
+  for (const key of Object.keys(DEFAULT_STATS)) {
+    if (!Number.isFinite(stats[key])) stats[key] = DEFAULT_STATS[key];
+  }
+
+  function saveStats() {
+    store.jsonSet(K.stats, stats);
+  }
+
+  // Carry the pre-core counters (wordladder-wins / wordladder-best-steps) over.
+  function migrateLegacy() {
+    const legacy = [
+      ["wordladder-wins", "wins"],
+      ["wordladder-best-steps", "bestSteps"],
+    ];
+    for (const [oldKey, statKey] of legacy) {
+      const raw = store.get(oldKey, null);
+      if (raw !== null && raw !== undefined) {
+        const n = Number(raw);
+        if (Number.isFinite(n) && n > stats[statKey]) stats[statKey] = n;
+        store.remove(oldKey);
+      }
+    }
+    saveStats();
+  }
+
+  // ---------- Achievements ----------
+  const ACHIEVEMENTS = [
+    { id: "first", icon: "🎯", name: "First Win", desc: "Finish your first ladder.", stat: "wins", goal: 1 },
+    { id: "win5", icon: "🔁", name: "Regular", desc: "Finish 5 ladders.", stat: "wins", goal: 5 },
+    { id: "win10", icon: "👑", name: "Champion", desc: "Finish 10 ladders.", stat: "wins", goal: 10 },
+    { id: "streak2", icon: "🔥", name: "Two in a Row", desc: "Finish 2 ladders in a row.", stat: "bestStreak", goal: 2 },
+    { id: "streak3", icon: "🎩", name: "Hat Trick", desc: "Finish 3 ladders in a row.", stat: "bestStreak", goal: 3 },
+    { id: "optimal1", icon: "📏", name: "Tight Ladder", desc: "Finish a ladder in the fewest possible steps.", stat: "optimalWins", goal: 1 },
+    { id: "optimal5", icon: "🧭", name: "Pathfinder", desc: "Finish 5 ladders with the shortest path.", stat: "optimalWins", goal: 5 },
+    { id: "noHint5", icon: "🙈", name: "Unassisted", desc: "Finish 5 ladders without a hint.", stat: "noHintWins", goal: 5 },
+    { id: "fastWin", icon: "💨", name: "Shortcut", desc: `Finish a ladder in ${FAST_STEPS} steps or fewer.`, stat: "fastWins", goal: 1 },
+    { id: "steps50", icon: "🪜", name: "Steady Climber", desc: "Add 50 rungs in total.", stat: "steps", goal: 50 },
+    { id: "hints25", icon: "💡", name: "Helping Hand", desc: "Use 25 hints in total.", stat: "hints", goal: 25 },
+    { id: "undo10", icon: "↩️", name: "Second Thoughts", desc: "Undo 10 rungs in total.", stat: "undos", goal: 10 },
+    { id: "games20", icon: "🎮", name: "Dedicated", desc: "Play 20 puzzles.", stat: "games", goal: 20 },
+    { id: "losses10", icon: "🧠", name: "Persistence", desc: "Give up 10 times — keep trying!", stat: "losses", goal: 10 },
+  ];
+
+  // ---------- Badges UI ----------
+  function updateBadgeCount() {
+    badgeCountEl.textContent = achv.count();
+    badgesBtn.setAttribute(
+      "aria-label",
+      `Badges and achievements: ${achv.count()} of ${achv.total()} unlocked`
+    );
+  }
+
+  const achv = badgesApi.create(ACHIEVEMENTS, {
+    storageKey: K.achv,
+    getStat: (key) => (typeof stats[key] === "number" ? stats[key] : 0),
+    onUnlock: () => {
+      updateBadgeCount();
+      saveStats();
+    },
+    onRender: () => {
+      if (!achvModal.hidden) renderAchvGrid();
+    },
+  });
+
+  function checkAchievements() {
+    achv.check();
+  }
+
+  function renderAchvGrid() {
+    achv.render(achvGrid, {
+      countEl: achvCountEl,
+      recordsEl: achvRecordsEl,
+      records: () => [
+        ["Finished", stats.wins],
+        ["Give-ups", stats.losses],
+        ["Best ladder", stats.bestSteps > 0 ? stats.bestSteps + " steps" : "—"],
+        ["Rungs added", stats.steps],
+        ["Hints used", stats.hints],
+      ],
+    });
+  }
+
+  const achvModalCtl = modalApi.create(achvModal, {
+    onOpen: () => {
+      renderAchvGrid();
+    },
+    onClose: () => {
+      const target = overlay.isOpen() ? document.querySelector(".overlay .btn") : badgesBtn;
+      if (target && target.focus) target.focus();
+    },
+  });
+
+  function openAchv() {
+    achvModalCtl.open();
+  }
+
+  function closeAchv() {
+    achvModalCtl.close();
+  }
+
+  // ---------- Audio ----------
+  audio.bindButton({ btn: soundBtn, icon: soundIconEl, soundKey: K.sound });
+
+  // ---------- State ----------
+  let puzzle = null; // { start, target, distToTarget, originalPath }
+  let chain = []; // rungs, chain[0] === start
   let roundOver = false;
-  let overlay = null;
+  let paused = false;
+  let hintUsedThisGame = false;
 
   // Breadth-first search up to maxDepth levels. Returns distances and BFS parent pointers.
   function bfs(start, maxDepth) {
@@ -169,7 +327,7 @@
     for (let d = 1; d <= maxDepth && frontier.length; d++) {
       const next = [];
       for (const cur of frontier) {
-        for (const nb of ADJ.get(cur)) {
+        for (const nb of ADJ.get(cur) || []) {
           if (!dist.has(nb)) {
             dist.set(nb, d);
             parent.set(nb, cur);
@@ -187,11 +345,17 @@
 
   function makePuzzle(start, target, parentFromStart) {
     // BFS from the target gives per-node distances for hints and give-up paths.
-    const { dist } = bfs(target, 6);
+    const { dist } = bfs(target, 12);
     const path = [target];
     let cur = target;
     while (cur !== start) {
       cur = parentFromStart.get(cur);
+      if (cur === undefined) {
+        // Unreachable pair — fall back to the start alone.
+        path.length = 0;
+        path.push(start);
+        break;
+      }
       path.unshift(cur);
     }
     return { start, target, distToTarget: dist, originalPath: path };
@@ -229,16 +393,23 @@
     const d = puzzle.distToTarget.get(from);
     if (d === undefined || d === 0) return null;
     const options = [];
-    for (const nb of ADJ.get(from)) {
+    for (const nb of ADJ.get(from) || []) {
       if (puzzle.distToTarget.get(nb) === d - 1) options.push(nb);
     }
     return options.length ? options[Math.floor(Math.random() * options.length)] : null;
   }
 
+  function optimalLen() {
+    if (!puzzle) return 0;
+    const d = puzzle.distToTarget.get(puzzle.start);
+    return d === undefined ? 0 : d;
+  }
+
   function updateStatus() {
-    winsEl.textContent = wins;
+    winsEl.textContent = stats.wins;
+    streakEl.textContent = stats.streak;
     stepsEl.textContent = Math.max(0, chain.length - 1);
-    bestStepsEl.textContent = bestSteps > 0 ? bestSteps : "—";
+    bestStepsEl.textContent = stats.bestSteps > 0 ? stats.bestSteps : "—";
   }
 
   function makeTiles(word, tileClass) {
@@ -255,6 +426,7 @@
   function renderEnds() {
     startWordEl.innerHTML = "";
     targetWordEl.innerHTML = "";
+    if (!puzzle) return;
     startWordEl.appendChild(makeTiles(puzzle.start, "ladder__tile ladder__tile--start"));
     targetWordEl.appendChild(makeTiles(puzzle.target, "ladder__tile ladder__tile--target"));
   }
@@ -295,13 +467,14 @@
     inputEl.classList.remove("ladder__input--shake");
     void inputEl.offsetWidth; // restart the animation
     inputEl.classList.add("ladder__input--shake");
-    setTimeout(() => inputEl.classList.remove("ladder__input--shake"), 500);
+    window.setTimeout(() => inputEl.classList.remove("ladder__input--shake"), 500);
   }
 
   function addRung(raw) {
-    if (roundOver) return;
-    const word = raw.trim().toUpperCase();
+    if (roundOver || paused) return;
+    const word = String(raw == null ? "" : raw).trim().toUpperCase();
     if (!/^[A-Z]{5}$/.test(word)) {
+      sfx("error");
       setMessage("Enter a 5-letter word.", "error");
       shakeInput();
       return;
@@ -310,19 +483,28 @@
     let diff = 0;
     for (let i = 0; i < WORD_LEN; i++) if (word[i] !== prev[i]) diff++;
     if (diff !== 1) {
-      setMessage(diff === 0
-        ? "That's the same as the current rung."
-        : "Change exactly ONE letter — this differs by " + diff + ".", "error");
+      sfx("error");
+      setMessage(
+        diff === 0
+          ? "That's the same as the current rung."
+          : "Change exactly ONE letter — this differs by " + diff + ".",
+        "error"
+      );
       shakeInput();
       return;
     }
     if (!WORD_SET.has(word)) {
+      sfx("error");
       setMessage('"' + word + '" is not in the word list.', "error");
       shakeInput();
       return;
     }
     chain.push(word);
+    stats.steps++;
+    saveStats();
+    checkAchievements();
     inputEl.value = "";
+    sfx("place");
     renderChain();
     updateStatus();
     if (word === puzzle.target) return endGame();
@@ -330,8 +512,12 @@
   }
 
   function undo() {
-    if (roundOver || chain.length <= 1) return;
+    if (roundOver || paused || chain.length <= 1) return;
     chain.pop();
+    stats.undos++;
+    saveStats();
+    checkAchievements();
+    sfx("flip");
     renderChain();
     updateStatus();
     setMessage("", null);
@@ -339,25 +525,26 @@
   }
 
   function useHint() {
-    if (roundOver) return;
+    if (roundOver || paused) return;
     const from = chain[chain.length - 1];
     const next = optimalNext(from);
     if (!next) {
+      sfx("error");
       setMessage("No link from here to the target. Try Undo, or give up.", "error");
       inputEl.focus();
       return;
     }
+    stats.hints++;
+    hintUsedThisGame = true;
+    saveStats();
+    checkAchievements();
     inputEl.value = next;
+    sfx("hint");
     setMessage("Hint: " + next + " — now press Add Step.", "hint");
     inputEl.focus();
   }
 
-  function giveUp() {
-    if (roundOver) return;
-    roundOver = true;
-    inputEl.disabled = true;
-    // Walk the optimal path from the current rung; if we're stuck on a dead
-    // branch, fall back to the solution from the start.
+  function buildSolutionText() {
     const path = [];
     let cur = chain[chain.length - 1];
     while (cur !== puzzle.target && path.length < 60) {
@@ -366,73 +553,226 @@
       path.push(nxt);
       cur = nxt;
     }
-    const remaining = path.length && path[path.length - 1] === puzzle.target
-      ? path
-      : puzzle.originalPath.slice(1);
-    const fromLabel = path.length ? "From your current rung" : "One possible solution";
-    if (overlay) overlay.remove();
-    overlay = document.createElement("div");
-    overlay.className = "overlay";
-    overlay.innerHTML = `<div class="overlay__box"><h2>Solution 🏳</h2>
-      <p>${fromLabel}:</p>
-      <div class="ladder__solution">${remaining.map(w => w).join("<br>")}</div>
-      <p>No win credited.</p>
-      <button class="btn" id="ov-restart">New puzzle</button></div>`;
-    document.body.appendChild(overlay);
-    overlay.querySelector("#ov-restart").addEventListener("click", newPuzzle);
+    const remaining =
+      path.length && path[path.length - 1] === puzzle.target
+        ? path
+        : puzzle.originalPath.slice(1);
+    return remaining.length ? remaining.join(" → ") : puzzle.target;
+  }
+
+  function giveUp() {
+    if (roundOver || paused) return;
+    roundOver = true;
+    hintUsedThisGame = false;
+    inputEl.disabled = true;
+    stats.games++;
+    stats.losses++;
+    stats.streak = 0;
+    saveStats();
+    checkAchievements();
+    updateStatus();
+    sfx("over");
+    showOverlay(
+      "Solution 🏳",
+      `From your current rung: ${buildSolutionText()}. No win credited.`,
+      [
+        { label: "New puzzle", onClick: () => { hideOverlay(); newPuzzle(); } },
+        { label: "Badges", ghost: true, onClick: () => openAchv() },
+      ]
+    );
   }
 
   function endGame() {
+    if (roundOver) return;
     roundOver = true;
     inputEl.disabled = true;
     const steps = chain.length - 1;
-    wins++;
-    let newBest = false;
-    if (bestSteps === 0 || steps < bestSteps) {
-      bestSteps = steps;
-      newBest = true;
-    }
-    store.set("wordladder-wins", wins);
-    store.set("wordladder-best-steps", bestSteps);
+    const best = optimalLen();
+    stats.games++;
+    stats.wins++;
+    stats.streak++;
+    stats.bestStreak = Math.max(stats.bestStreak, stats.streak);
+    if (best > 0 && steps === best) stats.optimalWins++;
+    if (!hintUsedThisGame) stats.noHintWins++;
+    if (steps <= FAST_STEPS) stats.fastWins++;
+    const newBest = stats.bestSteps === 0 || steps < stats.bestSteps;
+    if (newBest) stats.bestSteps = steps;
+    saveStats();
+    checkAchievements();
     renderChain();
     updateStatus();
-    if (overlay) overlay.remove();
-    overlay = document.createElement("div");
-    overlay.className = "overlay";
-    overlay.innerHTML = `<div class="overlay__box"><h2>You made it! 🎉</h2>
-      <p>${puzzle.start} → ${puzzle.target} in ${steps} ${steps === 1 ? "step" : "steps"}${newBest ? " — a new best!" : "."}</p>
-      <p>Wins: ${wins} · Best ever: ${bestSteps} ${bestSteps === 1 ? "step" : "steps"}</p>
-      <button class="btn" id="ov-restart">New puzzle</button></div>`;
-    document.body.appendChild(overlay);
-    overlay.querySelector("#ov-restart").addEventListener("click", newPuzzle);
+
+    sfx("win");
+    confetti(90);
+    const stepsLabel = steps === 1 ? "step" : "steps";
+    showOverlay(
+      "You made it! 🎉",
+      `${puzzle.start} → ${puzzle.target} in ${steps} ${stepsLabel}${newBest ? " — a new best!" : "."} ` +
+        `Wins: ${stats.wins} · Best ever: ${stats.bestSteps} ${stats.bestSteps === 1 ? "step" : "steps"}.`,
+      [
+        { label: "New puzzle", onClick: () => { hideOverlay(); newPuzzle(); } },
+        { label: "Badges", ghost: true, onClick: () => openAchv() },
+      ]
+    );
   }
 
-  function newPuzzle() {
-    if (overlay) overlay.remove();
-    puzzle = generatePuzzle();
+  function resetRound() {
     chain = [puzzle.start];
     roundOver = false;
+    paused = false;
+    hintUsedThisGame = false;
     inputEl.disabled = false;
     inputEl.value = "";
     setMessage("", null);
     renderEnds();
     renderChain();
     updateStatus();
+    hintEl.textContent = HINT_DEFAULT;
     inputEl.focus();
   }
 
-  inputEl.addEventListener("input", () => {
-    inputEl.value = inputEl.value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, WORD_LEN);
-  });
-  formEl.addEventListener("submit", e => {
-    e.preventDefault();
-    addRung(inputEl.value);
-  });
+  function newPuzzle() {
+    hideOverlay();
+    puzzle = generatePuzzle();
+    resetRound();
+  }
 
-  hintBtn.addEventListener("click", useHint);
-  undoBtn.addEventListener("click", undo);
-  giveupBtn.addEventListener("click", giveUp);
-  newPuzzleBtn.addEventListener("click", newPuzzle);
+  // ---------- Pause ----------
+  function setPaused(p) {
+    if (roundOver || paused === p) return;
+    paused = p;
+    inputEl.disabled = p;
+    if (p) {
+      showOverlay("Paused", "Take a breath — press Esc or hit Resume.", [
+        { label: "Resume", onClick: () => { hideOverlay(); setPaused(false); } },
+        { label: "New puzzle", ghost: true, onClick: () => { hideOverlay(); setPaused(false); newPuzzle(); } },
+      ]);
+    } else {
+      hideOverlay();
+      inputEl.focus();
+    }
+  }
 
-  newPuzzle();
+  function togglePause() {
+    setPaused(!paused);
+  }
+
+  // ---------- Input ----------
+  function onKeyDown(e) {
+    if (!achvModal.hidden) {
+      if (e.key === "Escape") {
+        if (e.preventDefault) e.preventDefault();
+        closeAchv();
+      }
+      return;
+    }
+
+    // Escape works even from the text input — P does not, because P is a letter.
+    if (e.key === "Escape") {
+      if (e.preventDefault) e.preventDefault();
+      togglePause();
+      return;
+    }
+
+    const tag = String((e.target && e.target.tagName) || "").toLowerCase();
+    if (tag === "input" || tag === "textarea" || tag === "select") return;
+  }
+
+  function bindEvents() {
+    inputEl.addEventListener("input", () => {
+      inputEl.value = inputEl.value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, WORD_LEN);
+    });
+    formEl.addEventListener("submit", (e) => {
+      e.preventDefault();
+      audio.unlock();
+      addRung(inputEl.value);
+    });
+
+    hintBtn.addEventListener("click", () => { sfx("click"); useHint(); });
+    undoBtn.addEventListener("click", () => { sfx("click"); undo(); });
+    giveupBtn.addEventListener("click", () => { sfx("click"); giveUp(); });
+    newPuzzleBtn.addEventListener("click", () => { sfx("click"); newPuzzle(); });
+
+    const badges2 = dom.byId("badges2");
+    badgesBtn.addEventListener("click", () => { sfx("click"); openAchv(); });
+    if (badges2) badges2.addEventListener("click", () => { sfx("click"); openAchv(); });
+
+    document.addEventListener("keydown", onKeyDown);
+    window.addEventListener("blur", () => {
+      if (!roundOver && !paused && achvModal.hidden) setPaused(true);
+    });
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden && !roundOver && !paused && achvModal.hidden) setPaused(true);
+    });
+
+    audio.bindUnlock();
+  }
+
+  // ---------- Init ----------
+  function init() {
+    migrateLegacy();
+    updateBadgeCount();
+    bindEvents();
+    newPuzzle();
+    renderAchvGrid();
+  }
+
+  // Test hook — harmless in normal play.
+  window.__WORDLADDER = {
+    WORD_LEN,
+    FAST_STEPS,
+    WORD_LIST,
+    WORD_SET,
+    ADJ,
+    get puzzle() { return puzzle ? { start: puzzle.start, target: puzzle.target } : null; },
+    get chain() { return chain.slice(); },
+    get steps() { return Math.max(0, chain.length - 1); },
+    get optimalLen() { return optimalLen(); },
+    get roundOver() { return roundOver; },
+    get paused() { return paused; },
+    get hintUsed() { return hintUsedThisGame; },
+    stats,
+    ACHIEVEMENTS,
+    bfs,
+    makePuzzle,
+    generatePuzzle,
+    optimalNext,
+    addRung,
+    undo,
+    useHint,
+    giveUp,
+    endGame,
+    newPuzzle,
+    // Test-only: install a puzzle directly.
+    setPuzzle: (start, target) => {
+      const s = String(start).toUpperCase();
+      const t = String(target).toUpperCase();
+      hideOverlay();
+      const { parent } = bfs(s, 12);
+      puzzle = makePuzzle(s, t, parent);
+      resetRound();
+    },
+    // Test-only: install a chain without validating every rung.
+    setChain: (words) => {
+      chain = words.map((w) => String(w).toUpperCase());
+      roundOver = false;
+      paused = false;
+      inputEl.disabled = false;
+      renderChain();
+      updateStatus();
+    },
+    solution: () => (puzzle ? puzzle.originalPath.slice(1) : []),
+    setPaused,
+    togglePause,
+    checkAchievements,
+    saveStats,
+    openAchv,
+    closeAchv,
+    unlocked: () => achv.list(),
+    overlayTitle: () => overlay.info().title,
+    overlayMsg: () => overlay.info().msg,
+    overlay,
+  };
+
+  init();
 })();

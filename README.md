@@ -65,7 +65,7 @@ No Node, no npm, nothing to install. Works from a local folder or a USB stick.
 | 🔡 Boggle | Word | Connect adjacent letters — 4×4 and 5×5, 24 badges |
 | 🪢 Hangman | Word | Guess the word before the gallows completes — 14 badges |
 | 🔀 Jumble | Word | Unscramble the letters from the clue |
-| 🪜 Word Ladder | Word | Change one letter at a time |
+| 🪜 Word Ladder | Word | Change one letter at a time — 14 badges |
 | 🕵️ Cryptogram | Word | Decode the secret message |
 | 🔠 Word Square | Word | Every row and column is a word |
 | 🎯 Mastermind | Logic | Crack the color code — 14 badges |
