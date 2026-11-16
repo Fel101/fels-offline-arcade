@@ -35,25 +35,50 @@
     <header class="game-header">
       <a class="back-btn" href="../../index.html">← Back to Games</a>
       <h1>Othello</h1>
+      <span class="game-header__spacer"></span>
+      <button class="icon-btn" id="sound-btn" type="button" aria-pressed="true" aria-label="Mute sound" title="Mute sound">
+        <span id="sound-icon" aria-hidden="true">🔊</span>
+      </button>
+      <button class="icon-btn" id="badges-btn" type="button" aria-label="Badges and achievements" title="Badges &amp; achievements">
+        <span aria-hidden="true">🏆</span><span class="icon-btn__count" id="badge-count">0</span>
+      </button>
     </header>
     <main class="game-area">
-      <div class="status-bar">
+      <div class="status-bar" aria-live="polite">
         <div class="status-bar__item"><span class="status-bar__label">Status</span><span id="status" class="status-bar__value" style="font-size:1rem;">Your move</span></div>
         <div class="status-bar__item"><span class="status-bar__label">Balance</span><span id="counts" class="status-bar__value" style="font-size:1rem;">You 2 · AI 2</span></div>
         <div class="status-bar__item"><span class="status-bar__label">Wins</span><span id="wins" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Streak</span><span id="streak" class="status-bar__value">0</span></div>
       </div>
       <div id="board" class="board" style="grid-template-columns:repeat(8,1fr); max-width:520px; width:100%;"></div>
       <div class="game-controls">
         <button id="new-game" class="btn">New Game</button>
-        <select id="level" class="btn btn--ghost" style="padding:8px 12px;">
+        <select id="level" class="btn btn--ghost" style="padding:8px 12px;" aria-label="Difficulty">
           <option value="2">Easy</option>
           <option value="3" selected>Normal</option>
           <option value="4">Hard</option>
         </select>
+        <button id="badges2" class="btn btn--ghost" type="button">🏆 Badges</button>
       </div>
-      <p class="game-info__hint">You are Black and move first. Flank AI discs to flip them — most discs wins.</p>
+      <p id="hint" class="game-info__hint" aria-live="polite">You are Black and move first. Flank AI discs to flip them — most discs wins. P pauses.</p>
     </main>
   </div>
+
+  <div class="snake-toasts" id="toasts" aria-live="polite"></div>
+
+  <div class="snake-modal" id="achv-modal" hidden>
+    <div class="snake-modal__backdrop" data-close></div>
+    <div class="snake-modal__panel" role="dialog" aria-modal="true" aria-labelledby="achv-title">
+      <header class="snake-modal__head">
+        <h2 id="achv-title">🏆 Badges <small id="achv-count">0 / 0</small></h2>
+        <button class="icon-btn" type="button" data-close aria-label="Close badges">✕</button>
+      </header>
+      <div class="achv-records" id="achv-records"></div>
+      <div class="achv-grid" id="achv-grid"></div>
+    </div>
+  </div>
+
+  <script src="../../js/arcade-core.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
