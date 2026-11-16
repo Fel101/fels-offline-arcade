@@ -2,8 +2,15 @@
 // Modes: Classic, Endless (wrap), Zen (no death), Vs AI (rival snake).
 // Features: combos, power-up food, persistent per-mode high scores,
 // 19 badges/achievements with progress + toasts, particles, sound, themes.
+//
+// Shared plumbing (storage, audio, toasts, overlay, badges, modal) comes
+// from ../../js/arcade-core.js.
 (() => {
   "use strict";
+
+  const Arcade = window.Arcade;
+  const { toast, overlay, badges: badgesApi, modal: modalApi, dom } = Arcade;
+  const sfxNative = Arcade.audio.sfx;
 
   // ---------- DOM ----------
   const canvas = document.getElementById("game");
@@ -21,7 +28,7 @@
   const badgeCountEl = document.getElementById("badge-count");
   const soundBtn = document.getElementById("sound-btn");
   const soundIconEl = document.getElementById("sound-icon");
-  const toastsEl = document.getElementById("toasts");
+  toast.bind(document.getElementById("toasts"));
   const achvModal = document.getElementById("achv-modal");
   const achvGrid = document.getElementById("achv-grid");
   const achvCountEl = document.getElementById("achv-count");
@@ -136,40 +143,10 @@
   };
 
   // ---------- Storage (file:// safe) ----------
-  const store = {
-    get(key, fallback) {
-      try {
-        const v = localStorage.getItem(key);
-        return v === null ? fallback : v;
-      } catch {
-        return fallback;
-      }
-    },
-    set(key, value) {
-      try {
-        localStorage.setItem(key, value);
-      } catch {
-        /* storage blocked */
-      }
-    },
-    num(key, fallback = 0) {
-      const n = Number(this.get(key, fallback));
-      return Number.isFinite(n) ? n : fallback;
-    },
-    json(key, fallback) {
-      try {
-        const raw = this.get(key, null);
-        return raw === null ? fallback : JSON.parse(raw);
-      } catch {
-        return fallback;
-      }
-    },
-    jsonSet(key, value) {
-      this.set(key, JSON.stringify(value));
-    },
-  };
+  const store = Arcade.store;
 
   const K = {
+    // Legacy keys — kept exactly as they were so existing saves still load.
     best: (mode) => `snake-best-${mode}`,
     stats: "snake-stats-v1",
     achv: "snake-achv-v1",
@@ -177,7 +154,7 @@
     mode: "snake-mode",
   };
 
-  const legacyBest = store.num("snake-best", 0);
+  const legacyBest = Number(store.get("snake-best", 0)) || 0;
 
   const storedRecords = store.json(K.stats, {});
   let records = Object.assign(
@@ -189,11 +166,7 @@
     if (!Number.isFinite(records[key])) records[key] = DEFAULT_RECORDS[key];
   }
 
-  const storedAchv = store.json(K.achv, []);
-  let unlocked = new Set(Array.isArray(storedAchv) ? storedAchv : []);
-  unlocked = new Set(
-    Array.from(unlocked).filter((id) => ACHIEVEMENTS.some((a) => a.id === id))
-  );
+  // Achievement unlock state lives in the shared badge registry below.
 
   // ---------- Palette (theme aware) ----------
   function readPalette() {
@@ -212,75 +185,44 @@
   let PAL = readPalette();
 
   // ---------- Audio ----------
-  let soundOn = store.get(K.sound, "on") !== "off";
+  // Snake's sounds, registered on the shared core so the plumbing (unlock
+  // gating, mute persistence, AudioContext lifetime) lives in one place.
+  const soundCtl = Arcade.audio.bindButton({
+    btn: soundBtn,
+    icon: soundIconEl,
+    soundKey: K.sound,
+  });
+  let soundOn = soundCtl.enabled;
   let actx = null;
 
+  // "eat" is dynamic (pitch rises with the combo), so it is built per call.
+  Arcade.audio.define("golden", [
+    [660, 0, 0.09, "triangle", 0.05],
+    [880, 0.07, 0.11, "triangle", 0.05],
+    [1320, 0.15, 0.16, "triangle", 0.045],
+  ]);
+  Arcade.audio.define("power", [[300, 0, 0.22, "sine", 0.05, 900]]);
+  Arcade.audio.define("rival", [[240, 0, 0.12, "sawtooth", 0.035, 150]]);
+  Arcade.audio.define("die", [
+    [320, 0, 0.5, "sawtooth", 0.06, 60],
+    [160, 0.05, 0.55, "square", 0.04, 40],
+  ]);
+  Arcade.audio.define("click", [[600, 0, 0.04, "sine", 0.025]]);
+
   function ensureAudio() {
-    try {
-      if (!actx) {
-        const AC = window.AudioContext || window.webkitAudioContext;
-        if (AC) actx = new AC();
-      }
-      if (actx && actx.state === "suspended") actx.resume();
-    } catch {
-      actx = null;
-    }
+    Arcade.audio.unlock();
   }
 
   function sfx(name) {
     if (!soundOn) return;
-    ensureAudio();
-    if (!actx) return;
-    try {
-      const t = actx.currentTime;
-      const note = (freq, start, dur, type = "sine", vol = 0.05, endFreq = null) => {
-        const o = actx.createOscillator();
-        const g = actx.createGain();
-        o.type = type;
-        o.frequency.setValueAtTime(freq, t + start);
-        if (endFreq) o.frequency.exponentialRampToValueAtTime(Math.max(20, endFreq), t + start + dur);
-        g.gain.setValueAtTime(0.0001, t + start);
-        g.gain.exponentialRampToValueAtTime(vol, t + start + 0.012);
-        g.gain.exponentialRampToValueAtTime(0.0001, t + start + dur);
-        o.connect(g).connect(actx.destination);
-        o.start(t + start);
-        o.stop(t + start + dur + 0.03);
-      };
-
-      switch (name) {
-        case "eat":
-          note(420 + Math.min(combo, 9) * 55, 0, 0.08, "square", 0.035);
-          break;
-        case "golden":
-          note(660, 0, 0.09, "triangle", 0.05);
-          note(880, 0.07, 0.11, "triangle", 0.05);
-          note(1320, 0.15, 0.16, "triangle", 0.045);
-          break;
-        case "power":
-          note(300, 0, 0.22, "sine", 0.05, 900);
-          break;
-        case "rival":
-          note(240, 0, 0.12, "sawtooth", 0.035, 150);
-          break;
-        case "die":
-          note(320, 0, 0.5, "sawtooth", 0.06, 60);
-          note(160, 0.05, 0.55, "square", 0.04, 40);
-          break;
-        case "achv":
-          note(523, 0, 0.12, "sine", 0.05);
-          note(659, 0.1, 0.12, "sine", 0.05);
-          note(784, 0.2, 0.2, "sine", 0.05);
-          note(1047, 0.32, 0.3, "sine", 0.045);
-          break;
-        case "click":
-          note(600, 0, 0.04, "sine", 0.025);
-          break;
-        default:
-          break;
-      }
-    } catch {
-      /* audio is a nice-to-have */
+    if (name === "eat") {
+      // Pitch climbs with the combo — a nice touch that a static table can't do.
+      const freq = 420 + Math.min(combo, 9) * 55;
+      Arcade.audio.define("eat", [[freq, 0, 0.08, "square", 0.035]]);
+      Arcade.audio.sfx("eat");
+      return;
     }
+    Arcade.audio.sfx(name);
   }
 
   function updateSoundBtn() {
@@ -292,10 +234,10 @@
   }
 
   function updateBadgeCount() {
-    badgeCountEl.textContent = unlocked.size;
+    badgeCountEl.textContent = achv.count();
     badgesBtn.setAttribute(
       "aria-label",
-      `Badges and achievements: ${unlocked.size} of ${ACHIEVEMENTS.length} unlocked`
+      `Badges and achievements: ${achv.count()} of ${achv.total()} unlocked`
     );
   }
 
@@ -354,7 +296,7 @@
   }
 
   function bestOf(m) {
-    return store.num(K.best(m), m === "classic" ? legacyBest : 0);
+    return Number(store.get(K.best(m), 0)) || (m === "classic" ? legacyBest : 0);
   }
 
   function loadBest() {
@@ -382,130 +324,77 @@
   }
 
   // ---------- Toasts & achievements UI ----------
-  function pushToast(a) {
-    const el = document.createElement("div");
-    el.className = "snake-toast";
-    el.innerHTML =
-      `<span class="snake-toast__icon" aria-hidden="true">${a.icon}</span>` +
-      `<div class="snake-toast__body"><strong>${a.name}</strong><span>${a.desc}</span></div>`;
-    toastsEl.appendChild(el);
-    window.setTimeout(() => el.classList.add("is-out"), 3200);
-    window.setTimeout(() => el.remove(), 3650);
-  }
+  const achv = badgesApi.create(ACHIEVEMENTS, {
+    storageKey: K.achv,
+    getStat: (key) => records[key] || 0,
+    onUnlock: () => {
+      updateBadgeCount();
+      saveRecords();
+    },
+    onRender: () => {
+      if (!achvModal.hidden) renderAchvGrid();
+    },
+  });
 
   function checkAchievements() {
-    let changed = false;
-    for (const a of ACHIEVEMENTS) {
-      if (!unlocked.has(a.id) && (records[a.stat] || 0) >= a.goal) {
-        unlocked.add(a.id);
-        changed = true;
-        pushToast(a);
-      }
-    }
-    if (changed) {
-      sfx("achv");
-      store.jsonSet(K.achv, Array.from(unlocked));
-      updateBadgeCount();
-      if (!achvModal.hidden) renderAchvGrid();
-    }
+    achv.check();
   }
 
   function renderAchvGrid() {
-    achvGrid.innerHTML = ACHIEVEMENTS.map((a) => {
-      const done = unlocked.has(a.id);
-      const raw = records[a.stat] || 0;
-      const pct = done ? 100 : Math.max(0, Math.min(100, (raw / a.goal) * 100));
-      const progress = done ? "Unlocked" : `${Math.min(Math.floor(raw), a.goal)} / ${a.goal}`;
-      return (
-        `<div class="achv ${done ? "achv--done" : "achv--locked"}">` +
-        `<div class="achv__icon" aria-hidden="true">${a.icon}</div>` +
-        `<div class="achv__body">` +
-        `<div class="achv__name"><span>${a.name}</span>${done ? '<span class="achv__tick" aria-label="Unlocked">✔</span>' : ""}</div>` +
-        `<div class="achv__desc">${a.desc}</div>` +
-        `<div class="achv__bar" role="progressbar" aria-valuemin="0" aria-valuemax="${a.goal}" aria-valuenow="${Math.min(Math.floor(raw), a.goal)}"><span style="width:${pct}%"></span></div>` +
-        `<div class="achv__progress">${progress}</div>` +
-        `</div></div>`
-      );
-    }).join("");
-
-    achvRecordsEl.innerHTML = [
-      ["Classic", bestOf("classic")],
-      ["Endless", bestOf("endless")],
-      ["Zen", bestOf("zen")],
-      ["Vs AI", bestOf("ai")],
-      ["Apples", records.totalFood],
-      ["Runs", records.totalRuns],
-    ]
-      .map(([label, val]) => `<span>${label} <b>${val}</b></span>`)
-      .join("");
-
-    achvCountEl.textContent = `${unlocked.size} / ${ACHIEVEMENTS.length}`;
+    achv.render(achvGrid, {
+      countEl: achvCountEl,
+      recordsEl: achvRecordsEl,
+      records: () => [
+        ["Classic", bestOf("classic")],
+        ["Endless", bestOf("endless")],
+        ["Zen", bestOf("zen")],
+        ["Vs AI", bestOf("ai")],
+        ["Apples", records.totalFood],
+        ["Runs", records.totalRuns],
+      ],
+    });
   }
 
+  const achvModalCtl = modalApi.create(achvModal, {
+    onOpen: () => {
+      renderAchvGrid();
+      if (running && !paused && !over) {
+        paused = true;
+        resumeAfterModal = true;
+        pauseBtn.textContent = "▶ Resume";
+      }
+    },
+    onClose: () => {
+      if (resumeAfterModal) {
+        resumeAfterModal = false;
+        if (!over) {
+          paused = false;
+          pauseBtn.textContent = "Pause";
+        }
+      }
+      const target = overlay.isOpen() ? document.querySelector(".overlay .btn") : badgesBtn;
+      if (target) target.focus();
+    },
+  });
+
   function openAchv() {
-    renderAchvGrid();
-    achvModal.hidden = false;
-    document.body.classList.add("modal-open");
-    if (running && !paused && !over) {
-      paused = true;
-      resumeAfterModal = true;
-      pauseBtn.textContent = "▶ Resume";
-    }
-    const closeBtn = achvModal.querySelector(".snake-modal__head [data-close]");
-    if (closeBtn) closeBtn.focus();
+    achvModalCtl.open();
   }
 
   function closeAchv() {
-    if (achvModal.hidden) return;
-    achvModal.hidden = true;
-    document.body.classList.remove("modal-open");
-    if (resumeAfterModal) {
-      resumeAfterModal = false;
-      if (!over) {
-        paused = false;
-        pauseBtn.textContent = "Pause";
-      }
-    }
-    const focusTarget = overlayEl ? overlayEl.querySelector(".btn") : badgesBtn;
-    if (focusTarget) focusTarget.focus();
+    achvModalCtl.close();
   }
 
   // ---------- Overlay ----------
-  function hideOverlay() {
-    if (overlayEl) {
-      overlayEl.remove();
-      overlayEl = null;
-    }
-  }
-
-  function showOverlay(title, msg, actions) {
-    hideOverlay();
-    overlayEl = document.createElement("div");
-    overlayEl.className = "overlay";
-    const box = document.createElement("div");
-    box.className = "overlay__box";
-    box.innerHTML = `<h2>${title}</h2><p>${msg}</p><div class="overlay__actions"></div>`;
-    const actionsEl = box.querySelector(".overlay__actions");
-    for (const action of actions || []) {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = action.ghost ? "btn btn--ghost" : "btn";
-      b.textContent = action.label;
-      b.addEventListener("click", action.onClick);
-      actionsEl.appendChild(b);
-    }
-    overlayEl.appendChild(box);
-    document.body.appendChild(overlayEl);
-    const first = overlayEl.querySelector(".btn");
-    if (first) first.focus();
-  }
+  // Provided by the shared core.
+  const hideOverlay = () => overlay.hide();
 
   function setPaused(p, silent) {
     if (over || !running) return;
     paused = p;
     pauseBtn.textContent = p ? "▶ Resume" : "Pause";
     if (p && !silent) {
-      showOverlay("Paused", "Take a breath — press P or hit Resume.", [
+      overlay.show("Paused", "Take a breath — press P or hit Resume.", [
         {
           label: "Resume",
           onClick: () => {
@@ -975,7 +864,7 @@
         ? "You ran into the rival."
         : "Run over.";
 
-    showOverlay("Game Over", `${reasonText} Score ${score}${isRecord ? " · 🏆 New Best!" : ""}.`, [
+    overlay.show("Game Over", `${reasonText} Score ${score}${isRecord ? " · 🏆 New Best!" : ""}.`, [
       {
         label: "Play Again",
         onClick: () => {
@@ -1014,7 +903,7 @@
     sfx("golden");
 
     const isRecord = score > bestAtStart && score > 0;
-    showOverlay("Board Cleared!", `Every cell is filled. Score ${score}${isRecord ? " · 🏆 New Best!" : ""}.`, [
+    overlay.show("Board Cleared!", `Every cell is filled. Score ${score}${isRecord ? " · 🏆 New Best!" : ""}.`, [
       {
         label: "Play Again",
         onClick: () => {
@@ -1422,15 +1311,7 @@
       el.addEventListener("click", closeAchv);
     });
 
-    soundBtn.addEventListener("click", () => {
-      soundOn = !soundOn;
-      store.set(K.sound, soundOn ? "on" : "off");
-      updateSoundBtn();
-      if (soundOn) {
-        ensureAudio();
-        sfx("click");
-      }
-    });
+    // Sound button is wired by Arcade.audio.bindButton above.
 
     document.querySelectorAll(".dpad button").forEach((btn) => {
       const move = () => {
@@ -1542,7 +1423,7 @@
   // ---------- Init ----------
   function init() {
     PAL = readPalette();
-    soundOn = store.get(K.sound, "on") !== "off";
+    soundOn = soundCtl.enabled;
     updateSoundBtn();
     updateBadgeCount();
     bindEvents();
