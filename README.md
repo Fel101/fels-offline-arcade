@@ -44,7 +44,7 @@ No Node, no npm, nothing to install. Works from a local folder or a USB stick.
 | 🃏 Solitaire | Card | Klondike, click to move |
 | 🚩 Minesweeper Variants | Logic | Classic flood-fill or Saturation mode |
 | 🏍️ Tron | Arcade | Light-cycle duel vs the computer |
-| 🟠 Checkers | Strategy | Mandatory captures vs the computer |
+| 🟠 Checkers | Strategy | Mandatory captures vs the computer — 14 badges |
 | 🁫 Dominoes | Strategy | Draw, Block or All Fives — 3 AI levels, 24 badges |
 | ⚫ Othello | Strategy | Flip discs to your color |
 | 🚢 Battleship | Strategy | Hunt and sink the enemy fleet |
