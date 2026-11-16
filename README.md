@@ -63,7 +63,7 @@ No Node, no npm, nothing to install. Works from a local folder or a USB stick.
 | 🐸 Frogger | Arcade | Dodge traffic, ride logs, fill five home bays — 25 badges |
 | 🔍 Word Search | Word | Find the hidden themed words |
 | 🔡 Boggle | Word | Connect adjacent letters — 4×4 and 5×5, 24 badges |
-| 🪢 Hangman | Word | Guess the word before the gallows completes |
+| 🪢 Hangman | Word | Guess the word before the gallows completes — 14 badges |
 | 🔀 Jumble | Word | Unscramble the letters from the clue |
 | 🪜 Word Ladder | Word | Change one letter at a time |
 | 🕵️ Cryptogram | Word | Decode the secret message |
