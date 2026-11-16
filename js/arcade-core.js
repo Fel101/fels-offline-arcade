@@ -564,6 +564,11 @@
     return !!overlayEl;
   }
 
+  /** The live overlay element, or null when closed. */
+  function current() {
+    return overlayEl;
+  }
+
   /** Title / message of the currently shown overlay (used by tests). */
   function overlayInfo() {
     if (!overlayEl) return { title: null, msg: null };
@@ -579,6 +584,7 @@
     hide: hideOverlay,
     isOpen: isOverlayOpen,
     info: overlayInfo,
+    current,
   };
 
   /* ---------------------------------------------------------
@@ -662,30 +668,64 @@
       return Number.isFinite(v) ? v : 0;
     }
 
+    /** True when the definition is satisfied, allowing custom predicates. */
+    function isSatisfied(def) {
+      if (typeof def.satisfied === "function") return !!def.satisfied();
+      return valueOf(def) >= (def.goal || 1);
+    }
+
     function isDone(def) {
       return unlocked.has(def.id);
+    }
+
+    /** True when the badge is earned OR its custom predicate currently holds. */
+    function isEarned(def) {
+      return unlocked.has(def.id) || (typeof def.satisfied === "function" && def.satisfied());
     }
 
     function progress(def) {
       const raw = valueOf(def);
       const goal = def.goal || 1;
+      if (typeof def.progress === "function") {
+        const custom = def.progress() || {};
+        return {
+          raw,
+          goal,
+          pct:
+            typeof custom.pct === "number"
+              ? clamp(custom.pct, 0, 100)
+              : isEarned(def)
+                ? 100
+                : clamp((raw / goal) * 100, 0, 100),
+          now:
+            typeof custom.now === "number"
+              ? custom.now
+              : Math.min(Math.floor(raw), goal),
+          text: custom.text !== undefined
+            ? custom.text
+            : isEarned(def)
+              ? "Unlocked"
+              : `${Math.min(Math.floor(raw), goal)} / ${goal}`,
+        };
+      }
       return {
         raw,
         goal,
-        pct: isDone(def) ? 100 : clamp((raw / goal) * 100, 0, 100),
+        pct: isEarned(def) ? 100 : clamp((raw / goal) * 100, 0, 100),
         now: Math.min(Math.floor(raw), goal),
-        text: isDone(def) ? "Unlocked" : `${Math.min(Math.floor(raw), goal)} / ${goal}`,
+        text: isEarned(def) ? "Unlocked" : `${Math.min(Math.floor(raw), goal)} / ${goal}`,
       };
     }
 
     function card(def, onUnlockSound) {
       const p = progress(def);
+      const done = isEarned(def);
       return (
-        `<div class="achv ${isDone(def) ? "achv--done" : "achv--locked"}">` +
+        `<div class="achv ${done ? "achv--done" : "achv--locked"}">` +
         `<div class="achv__icon" aria-hidden="true">${def.icon}</div>` +
         `<div class="achv__body">` +
         `<div class="achv__name"><span>${def.name}</span>` +
-        `${isDone(def) ? '<span class="achv__tick" aria-label="Unlocked">✔</span>' : ""}` +
+        `${done ? '<span class="achv__tick" aria-label="Unlocked">✔</span>' : ""}` +
         `</div>` +
         `<div class="achv__desc">${def.desc}</div>` +
         `<div class="achv__bar" role="progressbar" aria-valuemin="0" aria-valuemax="${p.goal}" aria-valuenow="${p.now}">` +
@@ -695,12 +735,23 @@
       );
     }
 
+    /** Per-badge progress summary, for tests and custom renderers. */
+    function summary(def) {
+      const p = progress(def);
+      return {
+        id: def.id,
+        earned: isEarned(def),
+        text: p.text,
+        pct: Math.round(p.pct),
+      };
+    }
+
     /** Unlock any newly-earned badges. Returns the newly unlocked defs. */
     function check(quiet) {
       const fresh = [];
       for (const def of list) {
         if (unlocked.has(def.id)) continue;
-        if (valueOf(def) >= (def.goal || 1)) {
+        if (isSatisfied(def)) {
           unlocked.add(def.id);
           fresh.push(def);
           if (!quiet) showToast(def.name, def.desc, def.icon);
@@ -719,7 +770,9 @@
     function render(gridEl, opts2) {
       if (!gridEl) return;
       const o = opts2 || {};
-      gridEl.innerHTML = list.map((d) => card(d)).join("");
+      gridEl.innerHTML = list
+        .map((d) => (typeof options.card === "function" ? options.card(d) : card(d)))
+        .join("");
       if (o.recordsEl && typeof o.records === "function") {
         o.recordsEl.innerHTML = o.records()
           .map(([label, val]) => `<span>${label} <b>${val}</b></span>`)
@@ -736,8 +789,11 @@
       total,
       valueOf,
       isDone,
+      isEarned,
+      isSatisfied,
       progress,
       card,
+      summary,
       check,
       render,
       list: () => Array.from(unlocked),

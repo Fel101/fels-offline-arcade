@@ -3,8 +3,14 @@
 // Features: 7-bag, hold, 3-piece next queue, ghost, lock delay, wall kicks,
 // combos, back-to-back Tetris, persistent high scores, 24 achievements,
 // sound, particles, theme-aware canvas, and an AI rival with 3 difficulties.
+//
+// Shared plumbing (storage, audio, toasts, overlay, badges, modal) comes
+// from ../../js/arcade-core.js.
 (() => {
   "use strict";
+
+  const Arcade = window.Arcade;
+  const { toast, overlay, badges: badgesApi, modal: modalApi, dom } = Arcade;
 
   // ---------- DOM ----------
   const board = document.getElementById("board");
@@ -135,8 +141,37 @@
     { id: "hold", icon: "🙌", name: "Hold Up", desc: "Use the hold slot.", stat: "totalHolds", goal: 1 },
     { id: "drops50", icon: "⬇️", name: "Drop It", desc: "Hard drop 50 pieces.", stat: "totalHardDrops", goal: 50 },
     { id: "sprint", icon: "🏃", name: "Sprint", desc: "Finish a 40-line Sprint.", stat: "sprints", goal: 1 },
-    { id: "under3", icon: "⏱️", name: "Speed Demon", desc: "Finish a Sprint under 3:00.", stat: "sprintBest", goal: 180 },
-    { id: "under2", icon: "🚄", name: "Bullet Train", desc: "Finish a Sprint under 2:00.", stat: "sprintBest", goal: 120 },
+    // Sprint badges measure a time, so lower is better: `satisfied` inverts
+    // the comparison and `progress` fills the bar as the time drops.
+    {
+      id: "under3",
+      icon: "⏱️",
+      name: "Speed Demon",
+      desc: "Finish a Sprint under 3:00.",
+      stat: "sprintBest",
+      goal: 180,
+      satisfied: () => records.sprintBest > 0 && records.sprintBest <= 180 * 1000,
+      progress: () => {
+        const ms = records.sprintBest || 0;
+        if (!ms) return { text: "No sprint yet" };
+        if (ms <= 180 * 1000) return { text: `Best ${formatTime(ms)}` };
+        return { text: `Best ${formatTime(ms)}` };
+      },
+    },
+    {
+      id: "under2",
+      icon: "🚄",
+      name: "Bullet Train",
+      desc: "Finish a Sprint under 2:00.",
+      stat: "sprintBest",
+      goal: 120,
+      satisfied: () => records.sprintBest > 0 && records.sprintBest <= 120 * 1000,
+      progress: () => {
+        const ms = records.sprintBest || 0;
+        if (!ms) return { text: "No sprint yet" };
+        return { text: `Best ${formatTime(ms)}` };
+      },
+    },
     { id: "rival", icon: "🤖", name: "Rival Slayer", desc: "Win a race against the AI.", stat: "aiWins", goal: 1 },
     { id: "rival3", icon: "🏆", name: "Rival Hunter", desc: "Win 3 races against the AI.", stat: "aiWins", goal: 3 },
     { id: "marathon5", icon: "🕔", name: "Marathoner", desc: "Survive 5 minutes in Marathon.", stat: "marathonTime", goal: 300 },
@@ -164,40 +199,10 @@
   };
 
   // ---------- Storage ----------
-  const store = {
-    get(key, fallback) {
-      try {
-        const v = localStorage.getItem(key);
-        return v === null ? fallback : v;
-      } catch {
-        return fallback;
-      }
-    },
-    set(key, value) {
-      try {
-        localStorage.setItem(key, value);
-      } catch {
-        /* storage blocked */
-      }
-    },
-    num(key, fallback = 0) {
-      const n = Number(this.get(key, fallback));
-      return Number.isFinite(n) ? n : fallback;
-    },
-    json(key, fallback) {
-      try {
-        const raw = this.get(key, null);
-        return raw === null ? fallback : JSON.parse(raw);
-      } catch {
-        return fallback;
-      }
-    },
-    jsonSet(key, value) {
-      this.set(key, JSON.stringify(value));
-    },
-  };
+  const store = Arcade.store;
 
   const K = {
+    // Legacy keys — kept exactly as they were so existing saves still load.
     best: (m) => `tetris-best-${m}`,
     sprintBest: "tetris-sprint-best",
     stats: "tetris-stats-v1",
@@ -217,11 +222,9 @@
     if (!Number.isFinite(records[key])) records[key] = DEFAULT_RECORDS[key];
   }
 
-  const storedAchv = store.json(K.achv, []);
-  let unlocked = new Set(Array.isArray(storedAchv) ? storedAchv : []);
-  unlocked = new Set(Array.from(unlocked).filter((id) => ACHIEVEMENTS.some((a) => a.id === id)));
+  // Achievement unlock state lives in the shared badge registry below.
 
-  let sprintBest = Math.max(records.sprintBest || 0, store.num(K.sprintBest, 0));
+  let sprintBest = Math.max(records.sprintBest || 0, Number(store.get(K.sprintBest, 0)) || 0);
   records.sprintBest = sprintBest;
 
   // ---------- Palette ----------
@@ -251,95 +254,50 @@
   }
 
   // ---------- Audio ----------
-  let soundOn = store.get(K.sound, "on") !== "off";
+  const soundCtl = Arcade.audio.bindButton({
+    btn: soundBtn,
+    icon: soundIconEl,
+    soundKey: K.sound,
+  });
+  let soundOn = soundCtl.enabled;
   let actx = null;
 
+  Arcade.audio.define("move", [[220, 0, 0.035, "square", 0.018]]);
+  Arcade.audio.define("rotate", [[330, 0, 0.045, "square", 0.02]]);
+  Arcade.audio.define("lock", [[150, 0, 0.07, "sine", 0.035, 90]]);
+  Arcade.audio.define("clear", [
+    [440, 0, 0.09, "triangle", 0.045],
+    [660, 0.06, 0.12, "triangle", 0.04],
+  ]);
+  Arcade.audio.define("tetris", [
+    [440, 0, 0.1, "triangle", 0.05],
+    [660, 0.07, 0.11, "triangle", 0.05],
+    [880, 0.14, 0.12, "triangle", 0.05],
+    [1320, 0.22, 0.22, "triangle", 0.045],
+  ]);
+  Arcade.audio.define("levelup", [
+    [523, 0, 0.1, "sine", 0.04],
+    [659, 0.08, 0.1, "sine", 0.04],
+    [784, 0.16, 0.18, "sine", 0.04],
+  ]);
+  Arcade.audio.define("hold", [[300, 0, 0.14, "sine", 0.035, 520]]);
+  Arcade.audio.define("drop", [[220, 0, 0.1, "square", 0.035, 70]]);
+  Arcade.audio.define("over", [[320, 0, 0.45, "sawtooth", 0.05, 60]]);
+  Arcade.audio.define("win", [
+    [523, 0, 0.12, "sine", 0.05],
+    [659, 0.1, 0.12, "sine", 0.05],
+    [784, 0.2, 0.18, "sine", 0.05],
+    [1047, 0.32, 0.3, "sine", 0.045],
+  ]);
+  Arcade.audio.define("click", [[600, 0, 0.035, "sine", 0.02]]);
+
   function ensureAudio() {
-    try {
-      if (!actx) {
-        const AC = window.AudioContext || window.webkitAudioContext;
-        if (AC) actx = new AC();
-      }
-      if (actx && actx.state === "suspended") actx.resume();
-    } catch {
-      actx = null;
-    }
+    Arcade.audio.unlock();
   }
 
   function sfx(name) {
     if (!soundOn) return;
-    ensureAudio();
-    if (!actx) return;
-    try {
-      const t = actx.currentTime;
-      const note = (freq, start, dur, type = "sine", vol = 0.05, endFreq = null) => {
-        const o = actx.createOscillator();
-        const g = actx.createGain();
-        o.type = type;
-        o.frequency.setValueAtTime(freq, t + start);
-        if (endFreq) o.frequency.exponentialRampToValueAtTime(Math.max(20, endFreq), t + start + dur);
-        g.gain.setValueAtTime(0.0001, t + start);
-        g.gain.exponentialRampToValueAtTime(vol, t + start + 0.012);
-        g.gain.exponentialRampToValueAtTime(0.0001, t + start + dur);
-        o.connect(g).connect(actx.destination);
-        o.start(t + start);
-        o.stop(t + start + dur + 0.03);
-      };
-
-      switch (name) {
-        case "move":
-          note(220, 0, 0.035, "square", 0.018);
-          break;
-        case "rotate":
-          note(330, 0, 0.045, "square", 0.02);
-          break;
-        case "lock":
-          note(150, 0, 0.07, "sine", 0.035, 90);
-          break;
-        case "clear":
-          note(440, 0, 0.09, "triangle", 0.045);
-          note(660, 0.06, 0.12, "triangle", 0.04);
-          break;
-        case "tetris":
-          note(440, 0, 0.1, "triangle", 0.05);
-          note(660, 0.07, 0.11, "triangle", 0.05);
-          note(880, 0.14, 0.12, "triangle", 0.05);
-          note(1320, 0.22, 0.22, "triangle", 0.045);
-          break;
-        case "levelup":
-          note(523, 0, 0.1, "sine", 0.04);
-          note(659, 0.08, 0.1, "sine", 0.04);
-          note(784, 0.16, 0.18, "sine", 0.04);
-          break;
-        case "hold":
-          note(300, 0, 0.14, "sine", 0.035, 520);
-          break;
-        case "drop":
-          note(220, 0, 0.1, "square", 0.035, 70);
-          break;
-        case "over":
-          note(320, 0, 0.45, "sawtooth", 0.05, 60);
-          break;
-        case "win":
-          note(523, 0, 0.12, "sine", 0.05);
-          note(659, 0.1, 0.12, "sine", 0.05);
-          note(784, 0.2, 0.18, "sine", 0.05);
-          note(1047, 0.32, 0.3, "sine", 0.045);
-          break;
-        case "achv":
-          note(587, 0, 0.1, "triangle", 0.04);
-          note(740, 0.09, 0.1, "triangle", 0.04);
-          note(880, 0.18, 0.16, "triangle", 0.04);
-          break;
-        case "click":
-          note(600, 0, 0.035, "sine", 0.02);
-          break;
-        default:
-          break;
-      }
-    } catch {
-      /* audio is a nice-to-have */
-    }
+    Arcade.audio.sfx(name);
   }
 
   function updateSoundBtn() {
@@ -351,10 +309,10 @@
   }
 
   function updateBadgeCount() {
-    badgeCountEl.textContent = unlocked.size;
+    badgeCountEl.textContent = achv.count();
     badgesBtn.setAttribute(
       "aria-label",
-      `Badges and achievements: ${unlocked.size} of ${ACHIEVEMENTS.length} unlocked`
+      `Badges and achievements: ${achv.count()} of ${achv.total()} unlocked`
     );
   }
 
@@ -399,7 +357,10 @@
   let flashRows = [];
   let flashUntil = 0;
 
-  let overlayEl = null;
+  let overlayEl = null; // kept for the test hook
+  function currentOverlayEl() {
+    return overlay.current();
+  }
   let resumeAfterModal = false;
   let lastTs = 0;
 
@@ -525,163 +486,86 @@
     if (mode === "sprint") {
       bestScore = 0;
     } else {
-      bestScore = store.num(K.best(mode), 0);
+      bestScore = Number(store.get(K.best(mode), 0)) || 0;
     }
     bestAtStart = mode === "sprint" ? sprintBest : bestScore;
   }
 
   // ---------- Toasts & achievements ----------
-  function pushToast(a) {
-    const el = document.createElement("div");
-    el.className = "snake-toast";
-    el.innerHTML =
-      `<span class="snake-toast__icon" aria-hidden="true">${a.icon}</span>` +
-      `<div class="snake-toast__body"><strong>${a.name}</strong><span>${a.desc}</span></div>`;
-    toastsEl.appendChild(el);
-    window.setTimeout(() => el.classList.add("is-out"), 3200);
-    window.setTimeout(() => el.remove(), 3650);
-  }
+  toast.bind(document.getElementById("toasts"));
+
+  const achv = badgesApi.create(ACHIEVEMENTS, {
+    storageKey: K.achv,
+    getStat: (key) => records[key] || 0,
+    onUnlock: () => {
+      updateBadgeCount();
+      saveRecords();
+    },
+    onRender: () => {
+      if (!achvModal.hidden) renderAchvGrid();
+    },
+  });
 
   function checkAchievements() {
-    let changed = false;
-    for (const a of ACHIEVEMENTS) {
-      if (unlocked.has(a.id)) continue;
-      let done = false;
-      if (a.stat === "sprintBest") {
-        done = records.sprintBest > 0 && records.sprintBest <= a.goal * 1000;
-      } else {
-        done = (records[a.stat] || 0) >= a.goal;
-      }
-      if (done) {
-        unlocked.add(a.id);
-        changed = true;
-        pushToast(a);
-      }
-    }
-    if (changed) {
-      sfx("achv");
-      store.jsonSet(K.achv, Array.from(unlocked));
-      updateBadgeCount();
-      if (!achvModal.hidden) renderAchvGrid();
-    }
+    achv.check();
   }
 
   function renderAchvGrid() {
-    achvGrid.innerHTML = ACHIEVEMENTS.map((a) => {
-      const done = unlocked.has(a.id);
-      let pct;
-      let progress;
-      if (a.stat === "sprintBest") {
-        const ms = records.sprintBest || 0;
-        const ok = ms > 0 && ms <= a.goal * 1000;
-        pct = ms > 0 ? Math.min(100, (a.goal * 1000 / ms) * 100) : 0;
-        progress = ok || done ? "Unlocked" : ms > 0 ? `Best ${formatTime(ms)}` : "No sprint yet";
-        return achvCard(a, done || ok, pct, progress);
+    achv.render(achvGrid, {
+      countEl: achvCountEl,
+      recordsEl: achvRecordsEl,
+      records: () => [
+        ["Marathon", Number(store.get(K.best("marathon"), 0)) || 0],
+        ["Sprint", sprintBest ? formatTime(sprintBest) : "—"],
+        ["AI wins", records.aiWins],
+        ["Lines", records.totalLines],
+        ["Pieces", records.totalPieces],
+        ["Runs", records.totalRuns],
+      ],
+    });
+  }
+
+  const achvModalCtl = modalApi.create(achvModal, {
+    onOpen: () => {
+      renderAchvGrid();
+      if (!gameOver && !paused) {
+        paused = true;
+        resumeAfterModal = true;
+        pauseBtn.textContent = "▶ Resume";
       }
-      const raw = records[a.stat] || 0;
-      pct = done ? 100 : Math.max(0, Math.min(100, (raw / a.goal) * 100));
-      progress = done ? "Unlocked" : `${Math.min(Math.floor(raw), a.goal)} / ${a.goal}`;
-      return achvCard(a, done, pct, progress);
-    }).join("");
-
-    achvRecordsEl.innerHTML = [
-      ["Marathon", store.num(K.best("marathon"), 0)],
-      ["Sprint", sprintBest ? formatTime(sprintBest) : "—"],
-      ["AI wins", records.aiWins],
-      ["Lines", records.totalLines],
-      ["Pieces", records.totalPieces],
-      ["Runs", records.totalRuns],
-    ]
-      .map(([label, val]) => `<span>${label} <b>${val}</b></span>`)
-      .join("");
-
-    achvCountEl.textContent = `${unlocked.size} / ${ACHIEVEMENTS.length}`;
-  }
-
-  function achvCard(a, done, pct, progress) {
-    const isTime = a.stat === "sprintBest";
-    const ariaMax = isTime ? 100 : a.goal;
-    const ariaNow = isTime
-      ? Math.round(pct)
-      : Math.min(Math.floor(records[a.stat] || 0), a.goal);
-    return (
-      `<div class="achv ${done ? "achv--done" : "achv--locked"}">` +
-      `<div class="achv__icon" aria-hidden="true">${a.icon}</div>` +
-      `<div class="achv__body">` +
-      `<div class="achv__name"><span>${a.name}</span>${done ? '<span class="achv__tick" aria-label="Unlocked">✔</span>' : ""}</div>` +
-      `<div class="achv__desc">${a.desc}</div>` +
-      `<div class="achv__bar" role="progressbar" aria-valuemin="0" aria-valuemax="${ariaMax}" aria-valuenow="${ariaNow}"><span style="width:${pct}%"></span></div>` +
-      `<div class="achv__progress">${progress}</div>` +
-      `</div></div>`
-    );
-  }
+    },
+    onClose: () => {
+      if (resumeAfterModal) {
+        resumeAfterModal = false;
+        if (!gameOver) {
+          paused = false;
+          pauseBtn.textContent = "Pause";
+        }
+      }
+      const target = overlay.isOpen() ? document.querySelector(".overlay .btn") : badgesBtn;
+      if (target) target.focus();
+    },
+  });
 
   function openAchv() {
-    renderAchvGrid();
-    achvModal.hidden = false;
-    document.body.classList.add("modal-open");
-    if (!gameOver && !paused) {
-      paused = true;
-      resumeAfterModal = true;
-      pauseBtn.textContent = "▶ Resume";
-    }
-    const closeBtn = achvModal.querySelector(".snake-modal__head [data-close]");
-    if (closeBtn) closeBtn.focus();
+    achvModalCtl.open();
   }
 
   function closeAchv() {
-    if (achvModal.hidden) return;
-    achvModal.hidden = true;
-    document.body.classList.remove("modal-open");
-    if (resumeAfterModal) {
-      resumeAfterModal = false;
-      if (!gameOver) {
-        paused = false;
-        pauseBtn.textContent = "Pause";
-      }
-    }
-    const focusTarget = overlayEl ? overlayEl.querySelector(".btn") : badgesBtn;
-    if (focusTarget) focusTarget.focus();
+    achvModalCtl.close();
   }
 
   // ---------- Overlay ----------
-  function hideOverlay() {
-    if (overlayEl) {
-      overlayEl.remove();
-      overlayEl = null;
-    }
-  }
-
-  function showOverlay(title, msg, actions) {
-    hideOverlay();
-    overlayEl = document.createElement("div");
-    overlayEl.className = "overlay";
-    overlayEl.dataset.title = title;
-    overlayEl.dataset.msg = msg;
-    const box = document.createElement("div");
-    box.className = "overlay__box";
-    box.innerHTML = `<h2>${title}</h2><p>${msg}</p><div class="overlay__actions"></div>`;
-    const actionsEl = box.querySelector(".overlay__actions");
-    for (const action of actions || []) {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = action.ghost ? "btn btn--ghost" : "btn";
-      b.textContent = action.label;
-      b.addEventListener("click", action.onClick);
-      actionsEl.appendChild(b);
-    }
-    overlayEl.appendChild(box);
-    document.body.appendChild(overlayEl);
-    const first = overlayEl.querySelector(".btn");
-    if (first) first.focus();
-  }
+  // Provided by the shared core. `overlayEl` is kept as a live reference so
+  // existing test hooks that inspect overlayEl.dataset still work.
+  const hideOverlay = () => overlay.hide();
 
   function setPaused(p, silent) {
     if (gameOver) return;
     paused = p;
     pauseBtn.textContent = p ? "▶ Resume" : "Pause";
     if (p && !silent) {
-      showOverlay("Paused", "Take a breath — press P or hit Resume.", [
+      overlay.show("Paused", "Take a breath — press P or hit Resume.", [
         {
           label: "Resume",
           onClick: () => {
@@ -1512,7 +1396,7 @@
       sfx("over");
     }
 
-    showOverlay(title, msg, [
+    overlay.show(title, msg, [
       {
         label: "Play Again",
         onClick: () => {
@@ -1663,15 +1547,7 @@
       el.addEventListener("click", closeAchv);
     });
 
-    soundBtn.addEventListener("click", () => {
-      soundOn = !soundOn;
-      store.set(K.sound, soundOn ? "on" : "off");
-      updateSoundBtn();
-      if (soundOn) {
-        ensureAudio();
-        sfx("click");
-      }
-    });
+    // Sound button is wired by Arcade.audio.bindButton above.
 
     document.querySelectorAll(".touch-controls button").forEach((btn) => {
       const act = btn.dataset.act;
@@ -1800,7 +1676,7 @@
   // ---------- Init ----------
   function init() {
     PAL = readPalette();
-    soundOn = store.get(K.sound, "on") !== "off";
+    soundOn = soundCtl.enabled;
     aiDiff = store.get(K.diff, "smart");
     if (!AI_DIFFS[aiDiff]) aiDiff = "smart";
 
