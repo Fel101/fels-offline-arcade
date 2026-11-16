@@ -32,10 +32,10 @@ No Node, no npm, nothing to install. Works from a local folder or a USB stick.
 | 🔢 Sudoku | Puzzle | Classic, Time Attack, Daily or X-Sudoku — notes, hints, 28 badges |
 | 🔢 Super Sudoku | Puzzle | Five overlapping cards — solve all five |
 | 🧮 Kakuro | Puzzle | Fill each run so it matches the clue sums |
-| ➡️ 2048 | Puzzle | Arrows / WASD / swipe |
+| 🔢 2048 | Puzzle | Merge tiles — 3 sizes, undo, 24 badges |
 | 🧠 Memory | Pattern | Flip pairs — 4 modes, 3 sizes, 24 badges |
 | 🔴 Connect Four | Strategy | Click a column vs the computer |
-| ❌ Tic-Tac-Toe | Strategy | Unbeatable AI |
+| ❌ Tic-Tac-Toe | Strategy | Perfect AI, 3 levels + 2-player — 24 badges |
 | 🏓 Pong | Arcade | Mouse or ↑/↓ vs the computer |
 | 🧨 Breakout | Arcade | Mouse or ◀/▶ |
 | 🔨 Whack-a-Mole | Reflex | Whack moles, chain combos — 4 modes, 24 badges |
@@ -54,9 +54,9 @@ No Node, no npm, nothing to install. Works from a local folder or a USB stick.
 | 🌀 Grand Tour | Logic | One loop through every dot — 4 difficulties, 24 badges |
 | 🔤 Word Tile | Word | Guess the 5-letter word in 6 tries |
 | 💡 Lights Out | Puzzle | One click toggles a cross — 3 sizes, 24 badges |
-| 🧮 15 Puzzle | Puzzle | Slide the tiles back into order |
+| 🧮 15 Puzzle | Puzzle | Slide into order — 3 sizes, hints, 24 badges |
 | 🌈 Flow | Puzzle | Connect matching pipes, fill every cell |
-| 🎶 Simon | Reflex | Repeat the growing color-tone sequence |
+| 🎵 Simon | Reflex | Repeat the sequence — 4 modes, 3 pad sets, 24 badges |
 | 🎲 Yahtzee | Dice | Roll and re-roll — beat your best total |
 | 🏗️ Stack | Arcade | Drop blocks on the tower — how high? |
 | 🐤 Flappy | Arcade | Tap to flap through the endless pipes |

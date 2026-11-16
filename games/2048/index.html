@@ -35,19 +35,69 @@
     <header class="game-header">
       <a class="back-btn" href="../../index.html">← Back to Games</a>
       <h1>2048</h1>
+      <span class="game-header__spacer"></span>
+      <button class="icon-btn" id="sound-btn" type="button" aria-pressed="true" aria-label="Mute sound" title="Mute sound">
+        <span id="sound-icon" aria-hidden="true">🔊</span>
+      </button>
+      <button class="icon-btn" id="badges-btn" type="button" aria-label="Badges and achievements" title="Badges &amp; achievements">
+        <span aria-hidden="true">🏆</span><span class="icon-btn__count" id="badge-count">0</span>
+      </button>
     </header>
+
     <main class="game-area">
+      <div class="mode-bar" role="group" aria-label="Game mode">
+        <button class="chip mode-chip" type="button" data-mode="classic" aria-pressed="true" title="Reach 2048 — no clock, no limit">Classic 🎯</button>
+        <button class="chip mode-chip" type="button" data-mode="sprint" aria-pressed="false" title="Reach 2048 as fast as you can — the clock is your score">Sprint ⚡</button>
+        <button class="chip mode-chip" type="button" data-mode="daily" aria-pressed="false" title="One seeded board a day — build a streak">Daily 📅</button>
+        <button class="chip mode-chip" type="button" data-mode="zen" aria-pressed="false" title="No clock, undo as much as you like">Zen 🌿</button>
+      </div>
+
+      <div class="difficulty-bar" id="difficulty-bar" role="group" aria-label="Board size">
+        <button class="chip diff-chip" type="button" data-diff="easy" aria-pressed="true">Easy · 4 × 4</button>
+        <button class="chip diff-chip" type="button" data-diff="normal" aria-pressed="false">Normal · 5 × 5</button>
+        <button class="chip diff-chip" type="button" data-diff="hard" aria-pressed="false">Hard · 5 × 5 · 4-spawns</button>
+      </div>
+
       <div class="status-bar">
         <div class="status-bar__item"><span class="status-bar__label">Score</span><span id="score" class="status-bar__value">0</span></div>
-        <div class="status-bar__item"><span class="status-bar__label">Best</span><span id="best" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Best</span><span id="best" class="status-bar__value">—</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Top Tile</span><span id="top" class="status-bar__value">2</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Moves</span><span id="moves" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Time</span><span id="time" class="status-bar__value">0:00</span></div>
       </div>
-      <div id="board" class="board" style="grid-template-columns:repeat(4,1fr);"></div>
+
+      <div class="g2048-wrap" id="board-wrap">
+        <div id="board" class="g2048-board" role="group" aria-label="2048 board — use arrow keys or swipe to merge tiles"></div>
+        <div class="sudoku-countdown g2048-countdown" id="countdown" hidden><span id="countdown-num">3</span></div>
+      </div>
+
       <div class="game-controls">
-        <button id="new-game" class="btn">New Game</button>
+        <button id="new-game" class="btn" type="button">New Game</button>
+        <button id="undo" class="btn btn--ghost" type="button" title="Undo the last move (Z)">↩ Undo</button>
+        <button id="pause" class="btn btn--ghost" type="button">Pause</button>
+        <button id="badges2" class="btn btn--ghost" type="button">🏆 Badges</button>
       </div>
-      <p class="game-info__hint">Arrow keys / WASD or swipe. Merge tiles to reach 2048.</p>
+
+      <p class="game-info__hint" id="hint">Arrow keys / WASD or swipe · Merge matching tiles to reach 2048 · Z undoes</p>
+      <div id="live" class="visually-hidden" aria-live="polite"></div>
     </main>
   </div>
+
+  <div class="snake-toasts" id="toasts" aria-live="polite"></div>
+
+  <div class="snake-modal" id="achv-modal" hidden>
+    <div class="snake-modal__backdrop" data-close></div>
+    <div class="snake-modal__panel" role="dialog" aria-modal="true" aria-labelledby="achv-title">
+      <header class="snake-modal__head">
+        <h2 id="achv-title">🏆 Badges <small id="achv-count">0 / 0</small></h2>
+        <button class="icon-btn" type="button" data-close aria-label="Close badges">✕</button>
+      </header>
+      <div class="achv-records" id="achv-records"></div>
+      <div class="achv-grid" id="achv-grid"></div>
+    </div>
+  </div>
+
+  <script src="../../js/arcade-core.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

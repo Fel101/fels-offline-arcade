@@ -35,24 +35,68 @@
     <header class="game-header">
       <a class="back-btn" href="../../index.html">← Back to Games</a>
       <h1>Tic-Tac-Toe</h1>
+      <span class="game-header__spacer"></span>
+      <button class="icon-btn" id="sound-btn" type="button" aria-pressed="true" aria-label="Mute sound" title="Mute sound">
+        <span id="sound-icon" aria-hidden="true">🔊</span>
+      </button>
+      <button class="icon-btn" id="badges-btn" type="button" aria-label="Badges and achievements" title="Badges &amp; achievements">
+        <span aria-hidden="true">🏆</span><span class="icon-btn__count" id="badge-count">0</span>
+      </button>
     </header>
+
     <main class="game-area">
+      <div class="mode-bar" role="group" aria-label="Game mode">
+        <button class="chip mode-chip" type="button" data-mode="classic" aria-pressed="true" title="Perfect AI — a draw is a win">Classic 🤖</button>
+        <button class="chip mode-chip" type="button" data-mode="blitz" aria-pressed="false" title="Beat the AI 3 times before the clock runs out">Blitz ⚡</button>
+        <button class="chip mode-chip" type="button" data-mode="daily" aria-pressed="false" title="One seeded match a day — build a streak">Daily 📅</button>
+        <button class="chip mode-chip" type="button" data-mode="two" aria-pressed="false" title="Two players, one device">2 Player 👥</button>
+      </div>
+
+      <div class="difficulty-bar" id="difficulty-bar" role="group" aria-label="AI difficulty">
+        <button class="chip diff-chip" type="button" data-diff="chill" aria-pressed="true">Chill · random-ish</button>
+        <button class="chip diff-chip" type="button" data-diff="cunning" aria-pressed="false">Cunning · mostly smart</button>
+        <button class="chip diff-chip" type="button" data-diff="ruthless" aria-pressed="false">Ruthless · perfect</button>
+      </div>
+
       <div class="status-bar">
-        <div class="status-bar__item"><span class="status-bar__label">You (X)</span><span id="you" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">You</span><span id="you" class="status-bar__value">0</span></div>
         <div class="status-bar__item"><span class="status-bar__label">Draws</span><span id="draws" class="status-bar__value">0</span></div>
-        <div class="status-bar__item"><span class="status-bar__label">CPU (O)</span><span id="cpu" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">CPU</span><span id="cpu" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Streak</span><span id="streak" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Time</span><span id="time" class="status-bar__value">0:00</span></div>
       </div>
-      <div id="board" class="board" style="grid-template-columns:repeat(3,1fr);"></div>
+
+      <div class="ttt-wrap" id="board-wrap">
+        <div id="board" class="ttt-board" role="group" aria-label="Tic-tac-toe board"></div>
+        <div class="sudoku-countdown ttt-countdown" id="countdown" hidden><span id="countdown-num">3</span></div>
+      </div>
+
       <div class="game-controls">
-        <button id="new-game" class="btn">New Game</button>
-        <select id="first" class="btn btn--ghost" style="padding:8px 12px;">
-          <option value="you" selected>You go first</option>
-          <option value="cpu">CPU goes first</option>
-        </select>
+        <button id="new-game" class="btn" type="button">New Game</button>
+        <button id="pause" class="btn btn--ghost" type="button">Pause</button>
+        <button id="badges2" class="btn btn--ghost" type="button">🏆 Badges</button>
       </div>
-      <p class="game-info__hint">You are X. The AI plays perfectly — aim for a draw!</p>
+
+      <p class="game-info__hint" id="hint">You are X · The AI plays perfectly on Ruthless — aim for a draw · Click a square</p>
+      <div id="live" class="visually-hidden" aria-live="polite"></div>
     </main>
   </div>
+
+  <div class="snake-toasts" id="toasts" aria-live="polite"></div>
+
+  <div class="snake-modal" id="achv-modal" hidden>
+    <div class="snake-modal__backdrop" data-close></div>
+    <div class="snake-modal__panel" role="dialog" aria-modal="true" aria-labelledby="achv-title">
+      <header class="snake-modal__head">
+        <h2 id="achv-title">🏆 Badges <small id="achv-count">0 / 0</small></h2>
+        <button class="icon-btn" type="button" data-close aria-label="Close badges">✕</button>
+      </header>
+      <div class="achv-records" id="achv-records"></div>
+      <div class="achv-grid" id="achv-grid"></div>
+    </div>
+  </div>
+
+  <script src="../../js/arcade-core.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

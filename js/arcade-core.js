@@ -377,6 +377,18 @@
     if (notes) playNotes(notes);
   }
 
+  /**
+   * Play a single tone at an arbitrary pitch — used by Simon-style games.
+   * freq in Hz, durationMs in milliseconds.
+   */
+  function tone(freq, durationMs, type, vol) {
+    if (!soundOn || !audioUnlocked) return;
+    ensureAudio();
+    if (!actx) return;
+    const dur = Math.max(0.03, (durationMs || 200) / 1000);
+    playNotes([[freq, 0, dur, type || "sine", vol === undefined ? 0.3 : vol]]);
+  }
+
   function setSoundEnabled(on, opts) {
     soundOn = !!on;
     // Only create/resume the AudioContext in response to a real gesture.
@@ -446,6 +458,7 @@
 
   const audio = {
     sfx,
+    tone,
     unlock: unlockAudio,
     define: defineSfx,
     setEnabled: setSoundEnabled,

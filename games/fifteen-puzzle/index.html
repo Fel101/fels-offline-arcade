@@ -29,50 +29,77 @@
     })();
   </script>
   <link rel="stylesheet" href="../../css/styles.css">
-  <style>
-    .puzzle-tile {
-      width: 72px;
-      height: 72px;
-      font-size: 1.6rem;
-      background: #3d4170;
-      color: #eef0ff;
-      border: none;
-      border-radius: 10px;
-      font-family: inherit;
-      font-weight: 800;
-      font-variant-numeric: tabular-nums;
-      cursor: pointer;
-      transition: background 0.12s ease, transform 0.12s ease;
-    }
-    .puzzle-tile:hover { background: #4a4f88; transform: scale(1.04); }
-    .puzzle-blank {
-      width: 72px;
-      height: 72px;
-      border-radius: 10px;
-      background: #0a0b18;
-      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
-    }
-  </style>
 </head>
 <body>
   <div class="game-shell">
     <header class="game-header">
       <a class="back-btn" href="../../index.html">← Back to Games</a>
       <h1>15 Puzzle</h1>
+      <span class="game-header__spacer"></span>
+      <button class="icon-btn" id="sound-btn" type="button" aria-pressed="true" aria-label="Mute sound" title="Mute sound">
+        <span id="sound-icon" aria-hidden="true">🔊</span>
+      </button>
+      <button class="icon-btn" id="badges-btn" type="button" aria-label="Badges and achievements" title="Badges &amp; achievements">
+        <span aria-hidden="true">🏆</span><span class="icon-btn__count" id="badge-count">0</span>
+      </button>
     </header>
+
     <main class="game-area">
+      <div class="mode-bar" role="group" aria-label="Game mode">
+        <button class="chip mode-chip" type="button" data-mode="classic" aria-pressed="true" title="No clock — solve in as few moves as you can">Classic 🧩</button>
+        <button class="chip mode-chip" type="button" data-mode="attack" aria-pressed="false" title="Race the clock — solve as many as you can">Time Attack ⏱</button>
+        <button class="chip mode-chip" type="button" data-mode="daily" aria-pressed="false" title="One seeded board a day — build a streak">Daily 📅</button>
+        <button class="chip mode-chip" type="button" data-mode="zen" aria-pressed="false" title="No clock, unlimited hints — just flow">Zen 🌿</button>
+      </div>
+
+      <div class="difficulty-bar" id="difficulty-bar" role="group" aria-label="Board size">
+        <button class="chip diff-chip" type="button" data-diff="easy" aria-pressed="true">Easy · 3 × 3</button>
+        <button class="chip diff-chip" type="button" data-diff="normal" aria-pressed="false">Normal · 4 × 4</button>
+        <button class="chip diff-chip" type="button" data-diff="hard" aria-pressed="false">Hard · 5 × 5</button>
+      </div>
+
       <div class="status-bar">
+        <div class="status-bar__item"><span class="status-bar__label">Time</span><span id="time" class="status-bar__value">0:00</span></div>
         <div class="status-bar__item"><span class="status-bar__label">Moves</span><span id="moves" class="status-bar__value">0</span></div>
-        <div class="status-bar__item"><span class="status-bar__label">Best</span><span id="best" class="status-bar__value">0</span></div>
-        <div class="status-bar__item"><span class="status-bar__label">Wins</span><span id="wins" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Solved</span><span id="solved" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Score</span><span id="score" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Hints</span><span id="hints" class="status-bar__value">3</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Best</span><span id="best" class="status-bar__value">—</span></div>
       </div>
-      <div id="board" class="board" style="grid-template-columns:repeat(4,1fr);"></div>
+
+      <div class="pz-wrap" id="board-wrap">
+        <div id="board" class="pz-board" role="group" aria-label="Sliding puzzle — click a tile next to the gap"></div>
+        <div class="sudoku-countdown pz-countdown" id="countdown" hidden><span id="countdown-num">3</span></div>
+      </div>
+
       <div class="game-controls">
-        <button id="new-game" class="btn">New Game</button>
+        <button id="new-game" class="btn" type="button">New Board</button>
+        <button id="hint-btn" class="btn btn--ghost" type="button" title="Show one correct move (H)">💡 Hint</button>
+        <button id="pause" class="btn btn--ghost" type="button">Pause</button>
+        <button id="finish" class="btn btn--ghost" type="button" title="End this Zen round" hidden>Finish</button>
+        <button id="badges2" class="btn btn--ghost" type="button">🏆 Badges</button>
       </div>
-      <p class="game-info__hint">Slide tiles into the gap with clicks or arrow keys / WASD. Arrow keys slide a tile in that direction. Order 1–15!</p>
+
+      <p class="game-info__hint" id="hint">Slide tiles into the gap with clicks or arrow keys / WASD · Put the tiles in order 1–15 · H hint, P pause</p>
+      <div id="live" class="visually-hidden" aria-live="polite"></div>
     </main>
   </div>
+
+  <div class="snake-toasts" id="toasts" aria-live="polite"></div>
+
+  <div class="snake-modal" id="achv-modal" hidden>
+    <div class="snake-modal__backdrop" data-close></div>
+    <div class="snake-modal__panel" role="dialog" aria-modal="true" aria-labelledby="achv-title">
+      <header class="snake-modal__head">
+        <h2 id="achv-title">🏆 Badges <small id="achv-count">0 / 0</small></h2>
+        <button class="icon-btn" type="button" data-close aria-label="Close badges">✕</button>
+      </header>
+      <div class="achv-records" id="achv-records"></div>
+      <div class="achv-grid" id="achv-grid"></div>
+    </div>
+  </div>
+
+  <script src="../../js/arcade-core.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
