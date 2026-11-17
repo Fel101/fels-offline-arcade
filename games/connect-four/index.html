@@ -34,6 +34,135 @@
     })();
   </script>
   <link rel="stylesheet" href="../../css/styles.css">
+  <style>
+    /* Connect Four — arcade-style board, glossy discs and effects.
+       Scoped to .c4-board so the shared .board/.cell styles are untouched. */
+    .c4-board {
+      width: min(100%, 420px);
+      margin-inline: auto;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: clamp(5px, 1.6vw, 9px);
+      padding: clamp(10px, 2.6vw, 16px);
+      border-radius: 24px;
+      background: linear-gradient(180deg, #2f7bd6 0%, #1f5fbf 55%, #164a9c 100%);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      box-shadow:
+        0 18px 40px rgba(0, 0, 0, 0.45),
+        inset 0 2px 0 rgba(255, 255, 255, 0.35),
+        inset 0 -6px 14px rgba(0, 0, 0, 0.35);
+      overflow: hidden;
+      position: relative;
+      touch-action: manipulation;
+    }
+
+    .c4-cell {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      padding: 0;
+      border: none;
+      border-radius: 50%;
+      overflow: visible;
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      background: radial-gradient(circle at 50% 38%, #0a1430 0%, #060b1c 70%, #03060f 100%);
+      box-shadow:
+        inset 0 4px 7px rgba(0, 0, 0, 0.75),
+        inset 0 -2px 3px rgba(255, 255, 255, 0.08),
+        0 1px 0 rgba(255, 255, 255, 0.12);
+      transition: background 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
+    }
+    .c4-cell.c4-col-hover {
+      background: radial-gradient(circle at 50% 38%, #12224f 0%, #0a1330 70%, #050a1a 100%);
+      box-shadow:
+        inset 0 4px 7px rgba(0, 0, 0, 0.7),
+        inset 0 -2px 3px rgba(255, 255, 255, 0.12),
+        0 0 0 2px rgba(255, 255, 255, 0.14);
+    }
+    .c4-cell:active { transform: scale(0.95); }
+    .c4-cell:focus-visible { outline: 3px solid var(--accent-2); outline-offset: 2px; z-index: 5; }
+
+    /* Ghost disc showing where the next drop will land. */
+    .c4-cell.c4-preview::after {
+      content: "";
+      position: absolute;
+      inset: 8%;
+      border-radius: 50%;
+      opacity: 0.5;
+      pointer-events: none;
+      z-index: 2;
+    }
+    .c4-board.c4-turn-red .c4-cell.c4-preview::after {
+      background: radial-gradient(circle at 34% 28%, #ffb3a6 0%, #f4463a 55%, #b81a10 100%);
+      box-shadow: inset 0 -3px 5px rgba(0, 0, 0, 0.3), inset 0 2px 3px rgba(255, 255, 255, 0.4);
+    }
+    .c4-board.c4-turn-yellow .c4-cell.c4-preview::after {
+      background: radial-gradient(circle at 34% 28%, #fff6b0 0%, #ffd83f 55%, #c98a00 100%);
+      box-shadow: inset 0 -3px 5px rgba(0, 0, 0, 0.3), inset 0 2px 3px rgba(255, 255, 255, 0.4);
+    }
+
+    /* Discs */
+    .c4-disc {
+      position: absolute;
+      inset: 7%;
+      border-radius: 50%;
+      z-index: 3;
+      pointer-events: none;
+      box-shadow:
+        inset 0 -4px 7px rgba(0, 0, 0, 0.35),
+        inset 0 3px 4px rgba(255, 255, 255, 0.5),
+        0 3px 5px rgba(0, 0, 0, 0.45);
+    }
+    .c4-disc::after {
+      content: "";
+      position: absolute;
+      inset: 13%;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.28);
+      box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.25);
+    }
+    .c4-disc--red {
+      background: radial-gradient(circle at 34% 28%, #ffb3a6 0%, #f4463a 45%, #cf2318 78%, #9c130b 100%);
+    }
+    .c4-disc--yellow {
+      background: radial-gradient(circle at 34% 28%, #fff6b0 0%, #ffd83f 45%, #f0b400 78%, #b87c00 100%);
+    }
+
+    /* Falling-disc animation (distance set inline via --fall). */
+    .c4-disc--drop { animation: c4Drop 0.46s cubic-bezier(0.3, 0.9, 0.4, 1.15); }
+    @keyframes c4Drop {
+      0% { transform: translateY(var(--fall, -120%)); }
+      70% { transform: translateY(0); }
+      82% { transform: translateY(-12%); }
+      100% { transform: translateY(0); }
+    }
+
+    /* Pulsing ring on the winning four. */
+    .c4-cell.c4-win::before {
+      content: "";
+      position: absolute;
+      inset: 2%;
+      border-radius: 50%;
+      z-index: 4;
+      pointer-events: none;
+      box-shadow:
+        0 0 0 3px rgba(255, 255, 255, 0.95),
+        0 0 18px 5px rgba(255, 215, 80, 0.9);
+      animation: c4WinRing 0.9s ease-in-out infinite;
+      animation-delay: 0.15s;
+    }
+    @keyframes c4WinRing {
+      0%, 100% { opacity: 0.55; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.07); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .c4-disc--drop,
+      .c4-cell.c4-win::before { animation: none; }
+      .c4-cell.c4-win::before { opacity: 1; }
+    }
+  </style>
 </head>
 <body>
   <div class="game-shell">
@@ -54,7 +183,7 @@
         <div class="status-bar__item"><span class="status-bar__label">Wins</span><span id="wins" class="status-bar__value">0</span></div>
         <div class="status-bar__item"><span class="status-bar__label">Streak</span><span id="streak" class="status-bar__value">0</span></div>
       </div>
-      <div id="board" class="board" style="grid-template-columns:repeat(7,minmax(0,1fr)); width:100%; max-width:380px; min-width:0;"></div>
+      <div id="board" class="board c4-board" role="group" aria-label="Connect Four board"></div>
       <div class="game-controls">
         <button id="new-game" class="btn">New Game</button>
         <select id="ai-diff" class="btn btn--ghost" style="padding:8px 12px;" aria-label="Difficulty">
@@ -64,7 +193,7 @@
         </select>
         <button id="badges2" class="btn btn--ghost" type="button">🏆 Badges</button>
       </div>
-      <p id="hint" class="game-info__hint" aria-live="polite">Click a column to drop your disc (🔴). Get four in a row. P pauses.</p>
+      <p id="hint" class="game-info__hint" aria-live="polite">Click a column to drop your disc. Connect four to win. P pauses.</p>
     </main>
   </div>
 

@@ -185,6 +185,9 @@
   let paused = false;
   let moveCount = 0; // human drops this game
   let aiTimer = null;
+  let lastMove = null; // { r, c } of the most recent drop, for the fall animation
+  let winCells = null; // [[r,c] x4] of the winning line, for the highlight
+  let hoverCol = -1; // column currently under the pointer, for the preview
 
   function newGrid() { return Array.from({ length: ROWS }, () => new Array(COLS).fill("")); }
 
@@ -221,6 +224,27 @@
   function getWinner(g) {
     if (won(g, AI)) return AI;
     if (won(g, HUMAN)) return HUMAN;
+    return null;
+  }
+
+  // Like won(), but returns the four [row, col] cells of the winning line so the
+  // UI can highlight them. Used only for rendering, never by the AI.
+  function findWin(g, p) {
+    const dirs = [[0, 1], [1, 0], [1, 1], [1, -1]];
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        if (g[r][c] !== p) continue;
+        for (const [dr, dc] of dirs) {
+          const line = [];
+          for (let k = 0; k < 4; k++) {
+            const nr = r + dr * k, nc = c + dc * k;
+            if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS || g[nr][nc] !== p) break;
+            line.push([nr, nc]);
+          }
+          if (line.length === 4) return line;
+        }
+      }
+    }
     return null;
   }
 
@@ -327,6 +351,7 @@
     const col = chooseAiColumn(grid);
     if (col === -1) return;
     const r = drop(grid, col, AI);
+    lastMove = { r, c: col };
     stats.totalMoves++;
     saveStats();
     sfx("click");
@@ -339,21 +364,41 @@
     turnEl.textContent = currentTurn === HUMAN ? "You" : "CPU";
     winsEl.textContent = stats.wins;
     streakEl.textContent = stats.streak;
+    const live = !gameOver && !paused;
+    boardEl.classList.toggle("c4-turn-red", live && currentTurn === HUMAN);
+    boardEl.classList.toggle("c4-turn-yellow", live && currentTurn !== HUMAN);
   }
 
   function render() {
+    hoverCol = -1;
     boardEl.style.gridTemplateColumns = `repeat(${COLS}, minmax(0, 1fr))`;
     boardEl.innerHTML = "";
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
+        const v = grid[r][c];
         const cell = document.createElement("button");
-        cell.className = "cell";
-        cell.style.width = "100%";
-        cell.style.aspectRatio = "1";
-        cell.style.height = "auto";
-        cell.style.fontSize = "clamp(1rem, 5.5vw, 1.6rem)";
-        cell.textContent = grid[r][c] === HUMAN ? "🔴" : grid[r][c] === AI ? "🟡" : "";
-        cell.setAttribute("aria-label", grid[r][c] === HUMAN ? "Red disc" : grid[r][c] === AI ? "Yellow disc" : "Empty cell");
+        cell.type = "button";
+        cell.className = "c4-cell";
+        cell.dataset.r = r;
+        cell.dataset.c = c;
+
+        const label = v === HUMAN ? "Red disc" : v === AI ? "Yellow disc" : "empty";
+        cell.setAttribute("aria-label", `Row ${r + 1}, column ${c + 1}: ${label}`);
+
+        if (winCells && winCells.some(([wr, wc]) => wr === r && wc === c)) {
+          cell.classList.add("c4-win");
+        }
+
+        if (v) {
+          const disc = document.createElement("span");
+          disc.className = "c4-disc " + (v === HUMAN ? "c4-disc--red" : "c4-disc--yellow");
+          if (lastMove && lastMove.r === r && lastMove.c === c) {
+            disc.classList.add("c4-disc--drop");
+            disc.style.setProperty("--fall", `${-(r + 1) * 120}%`);
+          }
+          cell.appendChild(disc);
+        }
+
         boardEl.appendChild(cell);
       }
     }
@@ -373,6 +418,7 @@
     if (gameOver || paused || currentTurn !== HUMAN) return;
     if (!valid(col)) return;
     const r = drop(grid, col, HUMAN);
+    lastMove = { r, c: col };
     moveCount++;
     stats.totalMoves++;
     saveStats();
@@ -386,6 +432,7 @@
     gameOver = true;
     paused = false;
     clearAiTimer();
+    winCells = (result === HUMAN || result === AI) ? findWin(grid, result) : null;
     stats.games++;
     if (result === "draw") {
       stats.draws++;
@@ -439,6 +486,9 @@
     currentTurn = HUMAN;
     gameOver = false;
     paused = false;
+    lastMove = null;
+    winCells = null;
+    hoverCol = -1;
     aiDepth = parseInt(aiDiffSel.value, 10) || 6;
     currentDiff = DIFF_NAMES[aiDiffSel.value] || "normal";
     moveCount = 0;
@@ -493,16 +543,54 @@
     }
   }
 
+  function clearHover() {
+    if (hoverCol === -1) return;
+    for (const cell of boardEl.children) cell.classList.remove("c4-col-hover", "c4-preview");
+    hoverCol = -1;
+  }
+
+  // Highlight the hovered column and ghost the disc where it would land.
+  function onBoardOver(e) {
+    if (gameOver || paused || currentTurn !== HUMAN) {
+      clearHover();
+      return;
+    }
+    const cell = e.target && e.target.closest ? e.target.closest(".c4-cell") : null;
+    if (!cell) {
+      clearHover();
+      return;
+    }
+    const col = Number(cell.dataset.c);
+    if (!Number.isFinite(col) || col === hoverCol) return;
+    clearHover();
+    hoverCol = col;
+
+    let land = -1;
+    for (let r = ROWS - 1; r >= 0; r--) {
+      if (grid[r][col] === "") { land = r; break; }
+    }
+    if (land === -1) { hoverCol = -1; return; }
+
+    for (let r = 0; r < ROWS; r++) {
+      const el = boardEl.children[r * COLS + col];
+      if (el) el.classList.add("c4-col-hover");
+    }
+    const landEl = boardEl.children[land * COLS + col];
+    if (landEl) landEl.classList.add("c4-preview");
+  }
+
   function onBoardClick(e) {
-    const cell = e.target && e.target.closest ? e.target.closest(".cell") : null;
+    const cell = e.target && e.target.closest ? e.target.closest(".c4-cell") : null;
     if (!cell) return;
     audio.unlock();
-    const idx = [...boardEl.children].indexOf(cell);
-    if (idx >= 0) playColumn(idx % COLS);
+    const col = Number(cell.dataset.c);
+    if (Number.isFinite(col)) playColumn(col);
   }
 
   function bindEvents() {
     boardEl.addEventListener("click", onBoardClick);
+    boardEl.addEventListener("mouseover", onBoardOver);
+    boardEl.addEventListener("mouseleave", clearHover);
     newGameBtn.addEventListener("click", () => { sfx("click"); newGame(); });
     aiDiffSel.addEventListener("change", () => { sfx("click"); newGame(); });
 
@@ -569,6 +657,9 @@
       gameOver = false;
       paused = false;
       moveCount = 0;
+      lastMove = null;
+      winCells = null;
+      hoverCol = -1;
       hideOverlay();
       render();
     },
