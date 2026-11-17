@@ -1,8 +1,8 @@
 # 🎮 Offline Arcade
 
-**51 games** · **0 dependencies** · **100% offline** · **MIT licensed**
+**52 games** · **0 dependencies** · **100% offline** · **MIT licensed**
 
-A self-contained, fully offline collection of **51 browser games** — a local take on
+A self-contained, fully offline collection of **52 browser games** — a local take on
 the "just a bunch of games to play" vibe. No server, no build step, no internet, no
 ads, no accounts, no tracking. Just open `index.html` in any modern browser and pick
 a game.
@@ -24,7 +24,7 @@ That's it — no Node, no npm, nothing to install.
 
 ## Highlights
 
-- **51 games** across 9 categories — Arcade, Card, Dice, Logic, Pattern, Puzzle,
+- **52 games** across 9 categories — Arcade, Card, Dice, Logic, Pattern, Puzzle,
   Reflex, Strategy and Word.
 - **Shared core** (`js/arcade-core.js`) provides storage, sound, toasts, overlays,
   confetti, badges and theming; each game keeps its own rules and rendering.
@@ -39,7 +39,7 @@ That's it — no Node, no npm, nothing to install.
 
 ---
 
-## Games (51)
+## Games (52)
 
 | Game | Type | Play |
 |------|------|------|
@@ -57,6 +57,7 @@ That's it — no Node, no npm, nothing to install.
 | 🎰 Farkle | Dice | Push your luck — reach 3000 in 10 turns — 14 badges |
 | 🎴 Video Poker | Card | Jacks or Better — hold, draw, hit the target — 14 badges |
 | ♣️ FreeCell | Card | Classic open solitaire — free cells, foundations, undo — 14 badges |
+| ⚪ Nine Men's Morris | Strategy | Form mills, remove pieces, outthink the CPU — 14 badges |
 | ❌ Tic-Tac-Toe | Strategy | Perfect AI, 3 levels + 2-player — 24 badges |
 | 🏓 Pong | Arcade | Mouse or ↑/↓ vs the computer — 14 badges |
 | 🧨 Breakout | Arcade | Bounce the ball and smash every brick — 14 badges |
@@ -145,7 +146,7 @@ never interfere with each other. Games may bundle extra data files — for examp
 
 ---
 
-## Adding a new game (game #51+)
+## Adding a new game (game #52+)
 
 1. Create `games/<name>/index.html` and `games/<name>/script.js`.
    Copy any existing game's `index.html` as a starting point — it already has the
