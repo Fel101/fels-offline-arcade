@@ -130,7 +130,7 @@
     }
 
     /* Falling-disc animation (distance set inline via --fall). */
-    .c4-disc--drop { animation: c4Drop 0.46s cubic-bezier(0.3, 0.9, 0.4, 1.15); }
+    .c4-disc--drop { animation: c4Drop 0.64s cubic-bezier(0.3, 0.9, 0.4, 1.15); }
     @keyframes c4Drop {
       0% { transform: translateY(var(--fall, -120%)); }
       70% { transform: translateY(0); }
@@ -149,8 +149,8 @@
       box-shadow:
         0 0 0 3px rgba(255, 255, 255, 0.95),
         0 0 18px 5px rgba(255, 215, 80, 0.9);
-      animation: c4WinRing 0.9s ease-in-out infinite;
-      animation-delay: 0.15s;
+      animation: c4WinRing 1.2s ease-in-out infinite;
+      animation-delay: 0.2s;
     }
     @keyframes c4WinRing {
       0%, 100% { opacity: 0.55; transform: scale(1); }
