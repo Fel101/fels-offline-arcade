@@ -47,7 +47,7 @@ No Node, no npm, nothing to install. Works from a local folder or a USB stick.
 | 🟠 Checkers | Strategy | Mandatory captures vs the computer — 14 badges |
 | 🁫 Dominoes | Strategy | Draw, Block or All Fives — 3 AI levels, 24 badges |
 | ⚫ Othello | Strategy | Flip discs to your colour — 14 badges |
-| 🚢 Battleship | Strategy | Hunt and sink the enemy fleet |
+| 🚢 Battleship | Strategy | Hunt and sink the enemy fleet — 14 badges |
 | 🪙 Nim | Strategy | Take 1–3 — perfect play vs the CPU, 14 badges |
 | 🔷 Dots & Boxes | Strategy | Draw lines, claim the most boxes |
 | 🧩 Nonogram | Logic | Solve the picture from the number clues — 14 badges |
