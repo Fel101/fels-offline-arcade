@@ -147,6 +147,13 @@
       .die--empty { font-size: 1.6rem; }
       .dice-row { gap: 8px; }
     }
+    @media (max-width: 400px) {
+      .die { width: 50px; height: 50px; font-size: 2.1rem; }
+      .die--empty { font-size: 1.4rem; }
+      .dice-row { gap: 5px; }
+      .score-sheet th, .score-sheet td { padding: 6px 8px; }
+      .score-btn { min-width: 46px; padding: 3px 6px; }
+    }
   </style>
 </head>
 <body>
@@ -154,11 +161,19 @@
     <header class="game-header">
       <a class="back-btn" href="../../index.html">← Back to Games</a>
       <h1>Yahtzee</h1>
+      <span class="game-header__spacer"></span>
+      <button class="icon-btn" id="sound-btn" type="button" aria-pressed="true" aria-label="Mute sound" title="Mute sound">
+        <span id="sound-icon" aria-hidden="true">🔊</span>
+      </button>
+      <button class="icon-btn" id="badges-btn" type="button" aria-label="Badges and achievements" title="Badges &amp; achievements">
+        <span aria-hidden="true">🏆</span><span class="icon-btn__count" id="badge-count">0</span>
+      </button>
     </header>
     <main class="game-area">
-      <div class="status-bar">
+      <div class="status-bar" aria-live="polite">
         <div class="status-bar__item"><span class="status-bar__label">Turn</span><span id="turn" class="status-bar__value">1</span></div>
         <div class="status-bar__item"><span class="status-bar__label">Best</span><span id="best" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Games</span><span id="games" class="status-bar__value">0</span></div>
       </div>
       <div class="yz-layout">
         <div class="yz-play">
@@ -166,8 +181,9 @@
           <div class="game-controls">
             <button id="roll" class="btn">Roll (3 left)</button>
             <button id="new-game" class="btn btn--ghost">New Game</button>
+            <button id="badges2" class="btn btn--ghost" type="button">🏆 Badges</button>
           </div>
-          <p class="game-info__hint">Roll up to 3 times. Click a die to hold it.<br>Then pick a category on the sheet to score.</p>
+          <p class="game-info__hint">Roll up to 3 times. Click a die to hold it.<br>Then pick a category on the sheet to score. P pauses.</p>
         </div>
         <table id="score-sheet" class="score-sheet">
           <thead>
@@ -178,6 +194,22 @@
       </div>
     </main>
   </div>
+
+  <div class="snake-toasts" id="toasts" aria-live="polite"></div>
+
+  <div class="snake-modal" id="achv-modal" hidden>
+    <div class="snake-modal__backdrop" data-close></div>
+    <div class="snake-modal__panel" role="dialog" aria-modal="true" aria-labelledby="achv-title">
+      <header class="snake-modal__head">
+        <h2 id="achv-title">🏆 Badges <small id="achv-count">0 / 0</small></h2>
+        <button class="icon-btn" type="button" data-close aria-label="Close badges">✕</button>
+      </header>
+      <div class="achv-records" id="achv-records"></div>
+      <div class="achv-grid" id="achv-grid"></div>
+    </div>
+  </div>
+
+  <script src="../../js/arcade-core.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
