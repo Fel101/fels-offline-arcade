@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Match 3 — Offline Arcade</title>
+  <meta name="description" content="Swap gems, match three, chain cascades — 14 badges.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Match 3 — Offline Arcade">
+  <meta property="og:description" content="Swap gems, match three, chain cascades — 14 badges.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%AE%3C/text%3E%3C/svg%3E">
+  <meta name="theme-color" content="#0e0e11">
+  <meta name="color-scheme" content="dark light">
+  <script>
+    // Apply the saved theme before first paint to avoid a flash.
+    // "system" (or anything unrecognized) leaves <html> without data-theme,
+    // so CSS falls back to prefers-color-scheme, then dark.
+    (() => {
+      try {
+        var saved = localStorage.getItem("offline-arcade:theme:v1");
+        var theme = "system";
+        if (saved) {
+          try {
+            var parsed = JSON.parse(saved);
+            if (parsed === "dark" || parsed === "light" || parsed === "kids") theme = parsed;
+          } catch (_) {
+            if (saved === "dark" || saved === "light" || saved === "kids") theme = saved;
+          }
+        }
+        if (theme !== "system") document.documentElement.dataset.theme = theme;
+      } catch (_) {
+        /* storage blocked - fall back to system default */
+      }
+    })();
+  </script>
+  <link rel="stylesheet" href="../../css/styles.css">
+  <style>
+    .gemboard {
+      display: grid;
+      grid-template-columns: repeat(8, minmax(0, 1fr));
+      gap: 4px;
+      width: 100%;
+      max-width: min(92vw, 420px);
+      aspect-ratio: 1;
+      margin: 0 auto;
+      padding: 8px;
+      background: linear-gradient(170deg, rgba(255,255,255,0.09), rgba(255,255,255,0.03));
+      border-radius: 16px;
+      border: 1px solid var(--glass-border);
+      box-shadow: 0 16px 36px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.12);
+      touch-action: manipulation;
+    }
+    .gem {
+      aspect-ratio: 1;
+      border-radius: 9px;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: clamp(0.85rem, 4.1vw, 1.45rem);
+      font-weight: 800;
+      cursor: pointer;
+      padding: 0;
+      font-family: inherit;
+      line-height: 1;
+      transition: transform 0.1s ease, box-shadow 0.12s ease, filter 0.12s ease;
+    }
+    .gem--0 { background: rgba(255, 94, 94, 0.9); color: #fff; }
+    .gem--1 { background: rgba(90, 150, 255, 0.9); color: #fff; }
+    .gem--2 { background: rgba(90, 209, 140, 0.9); color: #06231f; }
+    .gem--3 { background: rgba(255, 217, 77, 0.92); color: #3a2e00; }
+    .gem--4 { background: rgba(167, 139, 250, 0.92); color: #1a1033; }
+    .gem--5 { background: rgba(90, 220, 230, 0.9); color: #06231f; }
+    .gem:hover:not(:disabled) { filter: brightness(1.1); }
+    .gem--sel { box-shadow: 0 0 0 3px var(--accent); transform: scale(0.93); }
+    .gem:disabled { cursor: default; }
+    .status-bar { gap: 18px; }
+  </style>
+</head>
+<body>
+  <div class="game-shell">
+    <header class="game-header">
+      <a class="back-btn" href="../../index.html">← Back to Games</a>
+      <h1>Match 3</h1>
+      <span class="game-header__spacer"></span>
+      <button class="icon-btn" id="sound-btn" type="button" aria-pressed="true" aria-label="Mute sound" title="Mute sound">
+        <span id="sound-icon" aria-hidden="true">🔊</span>
+      </button>
+      <button class="icon-btn" id="badges-btn" type="button" aria-label="Badges and achievements" title="Badges &amp; achievements">
+        <span aria-hidden="true">🏆</span><span class="icon-btn__count" id="badge-count">0</span>
+      </button>
+    </header>
+    <main class="game-area">
+      <div class="status-bar" aria-live="polite">
+        <div class="status-bar__item"><span class="status-bar__label">Score</span><span id="score" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Target</span><span id="target" class="status-bar__value">2500</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Moves</span><span id="moves" class="status-bar__value">30</span></div>
+      </div>
+      <p class="game-info__title" style="text-align:center;">Swap neighbours · match 3+ · chain cascades</p>
+      <div id="board" class="gemboard" aria-label="Match 3 board"></div>
+      <div class="game-controls">
+        <button id="new-game" class="btn">New Game</button>
+        <button id="badges2" class="btn btn--ghost" type="button">🏆 Badges</button>
+      </div>
+      <p id="hint" class="game-info__hint" aria-live="polite">Click a gem, then an adjacent gem to swap. Match 3 or more in a row to clear them. Reach 2,500 points in 30 moves. P pauses.</p>
+    </main>
+  </div>
+
+  <div class="snake-toasts" id="toasts" aria-live="polite"></div>
+
+  <div class="snake-modal" id="achv-modal" hidden>
+    <div class="snake-modal__backdrop" data-close></div>
+    <div class="snake-modal__panel" role="dialog" aria-modal="true" aria-labelledby="achv-title">
+      <header class="snake-modal__head">
+        <h2 id="achv-title">🏆 Badges <small id="achv-count">0 / 0</small></h2>
+        <button class="icon-btn" type="button" data-close aria-label="Close badges">✕</button>
+      </header>
+      <div class="achv-records" id="achv-records"></div>
+      <div class="achv-grid" id="achv-grid"></div>
+    </div>
+  </div>
+
+  <script src="../../js/arcade-core.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
