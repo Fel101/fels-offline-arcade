@@ -61,7 +61,7 @@ No Node, no npm, nothing to install. Works from a local folder or a USB stick.
 | 🏗️ Stack | Arcade | Drop blocks on the tower — how high? 14 badges |
 | 🐤 Flappy | Arcade | Tap to flap through the endless pipes — 14 badges |
 | 🐸 Frogger | Arcade | Dodge traffic, ride logs, fill five home bays — 25 badges |
-| 🔍 Word Search | Word | Find the hidden themed words |
+| 🔍 Word Search | Word | Find the hidden themed words — 14 badges |
 | 🔡 Boggle | Word | Connect adjacent letters — 4×4 and 5×5, 24 badges |
 | 🪢 Hangman | Word | Guess the word before the gallows completes — 14 badges |
 | 🔀 Jumble | Word | Unscramble the letters from the clue — 14 badges |

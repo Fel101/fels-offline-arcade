@@ -123,9 +123,16 @@
     <header class="game-header">
       <a class="back-btn" href="../../index.html">← Back to Games</a>
       <h1>Word Search</h1>
+      <span class="game-header__spacer"></span>
+      <button class="icon-btn" id="sound-btn" type="button" aria-pressed="true" aria-label="Mute sound" title="Mute sound">
+        <span id="sound-icon" aria-hidden="true">🔊</span>
+      </button>
+      <button class="icon-btn" id="badges-btn" type="button" aria-label="Badges and achievements" title="Badges &amp; achievements">
+        <span aria-hidden="true">🏆</span><span class="icon-btn__count" id="badge-count">0</span>
+      </button>
     </header>
     <main class="game-area">
-      <div class="status-bar">
+      <div class="status-bar" aria-live="polite">
         <div class="status-bar__item"><span class="status-bar__label">Found</span><span id="found" class="status-bar__value">0/7</span></div>
         <div class="status-bar__item"><span class="status-bar__label">Time</span><span id="time" class="status-bar__value">0</span></div>
         <div class="status-bar__item"><span class="status-bar__label">Wins</span><span id="wins" class="status-bar__value">0</span></div>
@@ -139,7 +146,7 @@
       </div>
       <div class="game-controls">
         <button id="new-game" class="btn">New Game</button>
-        <select id="theme" class="btn btn--ghost" style="padding:8px 12px;">
+        <select id="theme" class="btn btn--ghost" style="padding:8px 12px;" aria-label="Theme">
           <option value="Animals" selected>Animals</option>
           <option value="Space">Space</option>
           <option value="Ocean">Ocean</option>
@@ -147,15 +154,32 @@
           <option value="Sports">Sports</option>
           <option value="Dinosaurs">Dinosaurs</option>
         </select>
-        <select id="difficulty" class="btn btn--ghost" style="padding:8px 12px;">
+        <select id="difficulty" class="btn btn--ghost" style="padding:8px 12px;" aria-label="Difficulty">
           <option value="easy">Easy (5 words)</option>
           <option value="normal" selected>Normal (7 words)</option>
           <option value="hard">Hard (9 words)</option>
         </select>
+        <button id="badges2" class="btn btn--ghost" type="button">🏆 Badges</button>
       </div>
-      <p class="game-info__hint">Click the first letter of a word, then click its last letter — any direction, even diagonal and backwards.</p>
+      <p class="game-info__hint">Click the first letter of a word, then click its last letter — any direction, even diagonal and backwards. Esc pauses.</p>
     </main>
   </div>
+
+  <div class="snake-toasts" id="toasts" aria-live="polite"></div>
+
+  <div class="snake-modal" id="achv-modal" hidden>
+    <div class="snake-modal__backdrop" data-close></div>
+    <div class="snake-modal__panel" role="dialog" aria-modal="true" aria-labelledby="achv-title">
+      <header class="snake-modal__head">
+        <h2 id="achv-title">🏆 Badges <small id="achv-count">0 / 0</small></h2>
+        <button class="icon-btn" type="button" data-close aria-label="Close badges">✕</button>
+      </header>
+      <div class="achv-records" id="achv-records"></div>
+      <div class="achv-grid" id="achv-grid"></div>
+    </div>
+  </div>
+
+  <script src="../../js/arcade-core.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
