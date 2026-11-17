@@ -725,6 +725,26 @@ a { color: var(--accent); text-decoration: none; }
   filter: none;
 }
 
+/* Native <select> controls (difficulty, level, theme, ...) inherit the
+   .btn--ghost look, but its translucent gradient leaves the control with a
+   transparent background-color. The dropdown popup then renders on a default
+   white surface while keeping the light --text color, so the options are
+   barely readable in the dark theme. Give the control and its options an
+   opaque, theme-aware surface. */
+select.btn {
+  background: var(--panel);
+  color: var(--text);
+}
+select.btn option,
+select.btn optgroup {
+  background: var(--panel);
+  color: var(--text);
+}
+select.btn option:checked {
+  background: var(--accent);
+  color: var(--chip-active-ink);
+}
+
 /* Canvas games */
 canvas {
   background: var(--canvas-bg);
