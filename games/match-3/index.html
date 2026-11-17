@@ -162,7 +162,7 @@
 
     /* Swap slide: the gem starts offset toward the cell it came from. */
     .gem--swap { z-index: 5; }
-    .gem--swap .gem__shape { animation: gemSwap 0.18s ease; }
+    .gem--swap .gem__shape { animation: gemSwap 0.22s ease; }
     @keyframes gemSwap {
       0% { transform: translate(var(--sx, 0), var(--sy, 0)); }
       100% { transform: translate(0, 0); }
@@ -179,7 +179,7 @@
     }
 
     /* Match clear: gems pop and fade out. */
-    .gem--clear .gem__shape { animation: gemClear 0.2s ease forwards; }
+    .gem--clear .gem__shape { animation: gemClear 0.26s ease forwards; }
     @keyframes gemClear {
       0% { transform: scale(1); opacity: 1; }
       55% { transform: scale(1.18); opacity: 1; }
@@ -188,7 +188,7 @@
 
     /* Gravity: gems drop into place after a clear. */
     .gem--fall { z-index: 4; }
-    .gem--fall .gem__shape { animation: gemFall 0.24s cubic-bezier(0.34, 0.9, 0.42, 1.12) both; }
+    .gem--fall .gem__shape { animation: gemFall 0.34s cubic-bezier(0.34, 0.9, 0.42, 1.12) both; }
     @keyframes gemFall {
       0% { transform: translateY(var(--fall, -134%)); }
       100% { transform: translateY(0); }

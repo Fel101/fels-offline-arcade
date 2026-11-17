@@ -503,7 +503,7 @@
 
     // Frame 0: the swapped board, with the two gems sliding in.
     render({ grid: swapGrid, swap: swapInfo, locked: true });
-    later(step, 170);
+    later(step, 240);
 
     function step() {
       if (token !== animToken) return;
@@ -514,10 +514,10 @@
       const f = trace[i++];
       if (f.kind === "clear") {
         render({ grid: f.grid, clearing: f.matched, locked: true });
-        later(step, 180);
+        later(step, 260);
       } else {
         render({ grid: f.grid, fall: f.fall, locked: true });
-        later(step, 240);
+        later(step, 360);
       }
     }
   }
