@@ -55,6 +55,7 @@
         0 20px 44px rgba(0, 0, 0, 0.5),
         inset 0 2px 0 rgba(255, 255, 255, 0.14),
         inset 0 -8px 18px rgba(0, 0, 0, 0.5);
+      overflow: hidden;
       touch-action: manipulation;
     }
 
@@ -177,10 +178,28 @@
       80% { transform: translateX(8%); }
     }
 
+    /* Match clear: gems pop and fade out. */
+    .gem--clear .gem__shape { animation: gemClear 0.2s ease forwards; }
+    @keyframes gemClear {
+      0% { transform: scale(1); opacity: 1; }
+      55% { transform: scale(1.18); opacity: 1; }
+      100% { transform: scale(0.15); opacity: 0; }
+    }
+
+    /* Gravity: gems drop into place after a clear. */
+    .gem--fall { z-index: 4; }
+    .gem--fall .gem__shape { animation: gemFall 0.24s cubic-bezier(0.34, 0.9, 0.42, 1.12) both; }
+    @keyframes gemFall {
+      0% { transform: translateY(var(--fall, -134%)); }
+      100% { transform: translateY(0); }
+    }
+
     @media (prefers-reduced-motion: reduce) {
       .gem, .gem__shape { transition: none; }
       .gem--swap .gem__shape,
       .gem--bad .gem__shape,
+      .gem--clear .gem__shape,
+      .gem--fall .gem__shape,
       .gem--sel::after { animation: none; }
       .gem--sel::after { opacity: 1; }
     }

@@ -181,6 +181,8 @@
   let selected; // {r,c} | null
   let gameOver;
   let paused;
+  let animTimer = null; // pending animation step (browser only)
+  let animToken = 0; // invalidates in-flight animation steps
 
   // ---------- Grid helpers ----------
   function newGrid() {
@@ -293,11 +295,41 @@
     }
   }
 
+  // Same result and RNG order as collapse(), but also reports how many rows each
+  // gem fell (new gems report a full column drop) so the UI can animate gravity.
+  function collapseWithFall(g) {
+    const fall = Array.from({ length: SIZE }, () => new Array(SIZE).fill(0));
+    for (let c = 0; c < SIZE; c++) {
+      const survivors = [];
+      for (let r = SIZE - 1; r >= 0; r--) {
+        if (g[r][c] !== -1) survivors.push({ t: g[r][c], old: r });
+      }
+      const fresh = SIZE - survivors.length;
+      for (let i = 0; i < survivors.length; i++) {
+        const nr = SIZE - 1 - i;
+        g[nr][c] = survivors[i].t;
+        fall[nr][c] = nr - survivors[i].old;
+      }
+      // Keep the original descending RNG call order.
+      for (let r = fresh - 1; r >= 0; r--) {
+        g[r][c] = randType();
+        fall[r][c] = fresh;
+      }
+    }
+    return fall;
+  }
+
+  function cloneGrid(g) {
+    return g.map((row) => row.slice());
+  }
+
   /**
    * Resolve all matches and cascades in place.
    * Returns { cleared, cascades, points, fives }.
+   * When `trace` is an array, records { kind, grid, matched|fall } frames so the
+   * UI can replay the clears and gravity drops.
    */
-  function resolve(g) {
+  function resolve(g, trace) {
     let cleared = 0;
     let cascades = 0;
     let points = 0;
@@ -311,6 +343,10 @@
       cascades++;
       fives += f;
 
+      if (trace) {
+        trace.push({ kind: "clear", grid: cloneGrid(g), matched: matched.map((row) => row.slice()) });
+      }
+
       let count = 0;
       for (let r = 0; r < SIZE; r++) {
         for (let c = 0; c < SIZE; c++) {
@@ -323,7 +359,10 @@
 
       cleared += count;
       points += count * 10 * cascades;
-      collapse(g);
+      const fall = collapseWithFall(g);
+      if (trace) {
+        trace.push({ kind: "fall", grid: cloneGrid(g), fall });
+      }
     }
 
     return { cleared, cascades, points, fives };
@@ -331,6 +370,7 @@
 
   // ---------- Flow ----------
   function newGame() {
+    cancelAnim();
     grid = generateGrid();
     score = 0;
     moves = START_MOVES;
@@ -358,18 +398,23 @@
 
   function render(opts) {
     opts = opts || {};
+    const g = opts.grid || grid;
     const swap = opts.swap || null;
     const bad = opts.bad || null;
+    const clearing = opts.clearing || null;
+    const fall = opts.fall || null;
+    const locked = !!opts.locked;
     boardEl.innerHTML = "";
     for (let r = 0; r < SIZE; r++) {
       for (let c = 0; c < SIZE; c++) {
         const btn = document.createElement("button");
         btn.type = "button";
-        const t = grid[r][c];
+        const t = g[r][c];
         let cls = "gem";
         if (t >= 0) cls += " gem--" + t;
         if (selected && selected.r === r && selected.c === c) cls += " gem--sel";
         if (bad && bad.some((b) => b[0] === r && b[1] === c)) cls += " gem--bad";
+        if (clearing && clearing[r][c]) cls += " gem--clear";
 
         // If this gem just slid in from a neighbour, offset its start position.
         let moving = false;
@@ -388,8 +433,13 @@
         }
         if (moving) cls += " gem--swap";
 
+        // How far this gem fell during the last collapse (rows).
+        let drop = 0;
+        if (fall && t >= 0) drop = fall[r][c] || 0;
+        if (drop > 0) cls += " gem--fall";
+
         btn.className = cls;
-        btn.disabled = gameOver || paused;
+        btn.disabled = locked || gameOver || paused;
         btn.setAttribute("data-r", String(r));
         btn.setAttribute("data-c", String(c));
         btn.setAttribute(
@@ -407,6 +457,10 @@
           btn.style.setProperty("--sx", offsetCss(mdx));
           btn.style.setProperty("--sy", offsetCss(mdy));
         }
+        if (drop > 0) {
+          // 1 row ≈ 134% of a gem's own height (82% of the cell + the grid gap).
+          btn.style.setProperty("--fall", `${-drop * 134}%`);
+        }
 
         boardEl.appendChild(btn);
       }
@@ -418,12 +472,64 @@
     return Math.abs(r1 - r2) + Math.abs(c1 - c2) === 1;
   }
 
+  // ---------- Animation playback ----------
+  // Resolution is synchronous (tests rely on it); the trace is a cosmetic replay.
+  // window.setTimeout is used so the Node harness's stub never fires it.
+  function prefersReducedMotion() {
+    return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  }
+
+  function cancelAnim() {
+    animToken++;
+    if (animTimer !== null) {
+      window.clearTimeout(animTimer);
+      animTimer = null;
+    }
+  }
+
+  function later(fn, ms) {
+    const token = animToken;
+    animTimer = window.setTimeout(() => {
+      animTimer = null;
+      if (token === animToken) fn();
+    }, ms);
+  }
+
+  // Play: swap slide -> for each cascade (clear -> fall) -> settle on final board.
+  function startTrace(trace, swapInfo, swapGrid) {
+    cancelAnim();
+    const token = animToken;
+    let i = 0;
+
+    // Frame 0: the swapped board, with the two gems sliding in.
+    render({ grid: swapGrid, swap: swapInfo, locked: true });
+    later(step, 170);
+
+    function step() {
+      if (token !== animToken) return;
+      if (i >= trace.length) {
+        render(); // settle on the real, final board
+        return;
+      }
+      const f = trace[i++];
+      if (f.kind === "clear") {
+        render({ grid: f.grid, clearing: f.matched, locked: true });
+        later(step, 180);
+      } else {
+        render({ grid: f.grid, fall: f.fall, locked: true });
+        later(step, 240);
+      }
+    }
+  }
+
   function trySwap(r1, c1, r2, c2) {
     if (gameOver || paused) return false;
     if (!adjacent(r1, c1, r2, c2)) return false;
 
     swapCells(grid, r1, c1, r2, c2);
-    const res = resolve(grid);
+    const swapGrid = cloneGrid(grid);
+    const trace = [];
+    const res = resolve(grid, trace);
 
     if (res.cleared === 0) {
       swapCells(grid, r1, c1, r2, c2); // revert the invalid swap
@@ -454,15 +560,29 @@
       toast.show("No moves", "The board was reshuffled.", "🔀");
     }
 
-    // Slide the two swapped gems in from their old cells (unless the board was
-    // reshuffled, in which case the positions are brand new).
-    render(reshuffled ? {} : { swap: { r1, c1, r2, c2 } });
+    if (reshuffled) {
+      render();
+      checkEnd();
+      return true;
+    }
+
+    // Evaluate the end state first: a win/loss overlay should not fight the replay.
     checkEnd();
+    if (gameOver) return true;
+
+    if (trace.length && !prefersReducedMotion()) {
+      startTrace(trace, { r1, c1, r2, c2 }, swapGrid);
+      return true;
+    }
+
+    // No animation (reduced motion): show the swap slide on the final board.
+    render({ swap: { r1, c1, r2, c2 } });
     return true;
   }
 
   function selectCell(r, c) {
     if (gameOver || paused) return;
+    cancelAnim();
     if (!selected) {
       selected = { r, c };
       sfx("click");
@@ -492,6 +612,7 @@
   }
 
   function endGame(won) {
+    cancelAnim();
     gameOver = true;
     paused = false;
     stats.games++;
@@ -527,6 +648,7 @@
   // ---------- Pause ----------
   function setPaused(p) {
     if (gameOver || paused === p) return;
+    cancelAnim();
     paused = p;
     if (p) {
       showOverlay("Paused", "Take a breath — press P or hit Resume.", [
@@ -632,6 +754,7 @@
     // Test-only: install a position.
     setState: (s) => {
       s = s || {};
+      cancelAnim();
       if (s.grid) grid = s.grid.map((row) => row.slice());
       if (Number.isFinite(s.score)) score = s.score;
       if (Number.isFinite(s.moves)) moves = s.moves;
