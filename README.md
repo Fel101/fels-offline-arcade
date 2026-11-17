@@ -1,8 +1,8 @@
 # 🎮 Offline Arcade
 
-**63 games** · **0 dependencies** · **100% offline** · **MIT licensed**
+**64 games** · **0 dependencies** · **100% offline** · **MIT licensed**
 
-A self-contained, fully offline collection of **63 browser games** — a local take on
+A self-contained, fully offline collection of **64 browser games** — a local take on
 the "just a bunch of games to play" vibe. No server, no build step, no internet, no
 ads, no accounts, no tracking. Just open `index.html` in any modern browser and pick
 a game.
@@ -24,7 +24,7 @@ That's it — no Node, no npm, nothing to install.
 
 ## Highlights
 
-- **63 games** across 9 categories — Arcade, Card, Dice, Logic, Pattern, Puzzle,
+- **64 games** across 9 categories — Arcade, Card, Dice, Logic, Pattern, Puzzle,
   Reflex, Strategy and Word.
 - **Shared core** (`js/arcade-core.js`) provides storage, sound, toasts, overlays,
   confetti, badges and theming; each game keeps its own rules and rendering.
@@ -39,7 +39,7 @@ That's it — no Node, no npm, nothing to install.
 
 ---
 
-## Games (63)
+## Games (64)
 
 | Game | Type | Play |
 |------|------|------|
@@ -68,6 +68,7 @@ That's it — no Node, no npm, nothing to install.
 | ⚫ Go | Strategy | Place stones, surround territory, outplay the CPU on 9×9 — 14 badges |
 | 🎲 Backgammon | Board | Race home, hit blots, bear off — classic backgammon vs the CPU — 14 badges |
 | 🏰 Tower Defense | Strategy | Build towers, stop the waves, protect the base — 14 badges |
+| 🔮 Rune Defense | Strategy | Advanced tower defense — 8 rune towers, status effects, 15 waves and a boss — 14 badges |
 | 🃏 Hearts | Card | Dodge hearts and the queen, shoot the moon — 4-player hearts — 14 badges |
 | ❌ Tic-Tac-Toe | Strategy | Perfect AI, 3 levels + 2-player — 24 badges |
 | 🏓 Pong | Arcade | Mouse or ↑/↓ vs the computer — 14 badges |
@@ -157,7 +158,7 @@ never interfere with each other. Games may bundle extra data files — for examp
 
 ---
 
-## Adding a new game (game #63+)
+## Adding a new game (game #64+)
 
 1. Create `games/<name>/index.html` and `games/<name>/script.js`.
    Copy any existing game's `index.html` as a starting point — it already has the
