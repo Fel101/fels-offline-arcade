@@ -303,24 +303,32 @@
     boardEl.innerHTML = "";
     for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
       const cell = document.createElement("button");
-      cell.className = "cell";
+      const dark = isDark(r, c);
+      cell.className = "cell checker-cell " + (dark ? "checker-cell--dark" : "checker-cell--light");
+      cell.type = "button";
       cell.style.width = "100%";
       cell.style.aspectRatio = "1";
       cell.style.padding = "0";
-      cell.style.fontSize = "clamp(1.1rem, 5vw, 2.2rem)";
-      const dark = isDark(r, c);
-      cell.style.background = dark ? "#1f7a49" : "#35a866";
-      if (!dark) { cell.disabled = true; cell.style.cursor = "default"; }
+      if (!dark) { cell.disabled = true; }
+
       const p = board[r][c];
       if (p) {
+        cell.classList.add("checker-piece", "checker-piece--" + p.c, "checker-piece--" + p.t);
         cell.textContent = GLYPH[p.t];
-        cell.style.color = p.c === "r" ? "#ff6b6b" : "#14141f";
-        cell.style.textShadow = p.c === "r"
-          ? "0 0 3px #3a0d0d, 0 1px 2px #000"
-          : "0 0 5px #eef0ff, 0 1px 2px #000";
+        cell.style.color = p.c === "r" ? "#ff6b6b" : "#f4ecdc";
+        cell.setAttribute("aria-label", (p.c === "r" ? "Red " : "Black ") + (p.t === "k" ? "king" : "man"));
       }
-      if (selected && selected.r === r && selected.c === c) cell.style.boxShadow = "inset 0 0 0 3px var(--accent-2)";
-      else if (targets.some((t) => t.tr === r && t.tc === c)) cell.style.boxShadow = "inset 0 0 0 3px var(--accent)";
+
+      let shadow = "";
+      if (selected && selected.r === r && selected.c === c) {
+        shadow = "inset 0 0 0 3px var(--accent-2), inset 0 0 18px rgba(255, 217, 77, 0.45)";
+        cell.classList.add("checker-cell--selected");
+      } else if (targets.some((t) => t.tr === r && t.tc === c)) {
+        shadow = "inset 0 0 0 3px var(--accent)";
+        cell.classList.add("checker-cell--target");
+      }
+      if (shadow) cell.style.boxShadow = shadow;
+
       cell.addEventListener("click", () => { audio.unlock(); onCellClick(r, c); });
       boardEl.appendChild(cell);
     }

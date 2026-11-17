@@ -539,28 +539,35 @@
     for (let r = 0; r < 8; r++) {
       for (let c = 0; c < 8; c++) {
         const cell = document.createElement("button");
-        cell.className = "cell chess-cell";
+        const dark = (r + c) % 2 === 1;
+        cell.className = "cell chess-cell " + (dark ? "chess-cell--dark" : "chess-cell--light");
         cell.type = "button";
         cell.style.width = "100%";
         cell.style.aspectRatio = "1";
-        cell.style.background = (r + c) % 2 === 0 ? "#f6d7a6" : "#c08247";
+
         const p = board[r][c];
         if (p) {
+          cell.classList.add("chess-cell--piece", "chess-cell--" + p.c);
+          if (p.t === "k" || p.t === "q") cell.classList.add("chess-cell--royal");
           cell.textContent = GLYPH[p.c][p.t];
-          cell.style.color = p.c === "w" ? "#fffdf4" : "#2b1d12";
-          cell.style.textShadow =
-            p.c === "w"
-              ? "0 1px 1px rgba(60,30,0,.45), 0 0 8px rgba(255,255,255,.35)"
-              : "0 1px 1px rgba(255,255,255,.3)";
         }
+
+        let shadow = "";
         if (selected && selected.r === r && selected.c === c) {
-          cell.style.boxShadow = "inset 0 0 0 3px var(--accent-2)";
+          shadow = "inset 0 0 0 3px var(--accent-2), inset 0 0 18px rgba(255, 217, 77, 0.45)";
         }
         const isTarget = targets.some((t) => t.tr === r && t.tc === c);
-        if (isTarget) cell.style.boxShadow = "inset 0 0 0 3px var(--accent)";
-        if (kingInCheck && kingInCheck[0] === r && kingInCheck[1] === c) {
-          cell.style.background = "#ff6b6b";
+        if (isTarget) {
+          cell.classList.add("chess-cell--target");
+          if (p) cell.classList.add("chess-cell--capture");
+          shadow += (shadow ? ", " : "") + "inset 0 0 0 3px var(--accent)";
         }
+        if (kingInCheck && kingInCheck[0] === r && kingInCheck[1] === c) {
+          cell.classList.add("chess-cell--check");
+          shadow += (shadow ? ", " : "") + "inset 0 0 0 3px #ff5a5a, inset 0 0 22px rgba(255, 70, 70, 0.8)";
+        }
+        if (shadow) cell.style.boxShadow = shadow;
+
         const label = `Row ${r + 1}, column ${c + 1}, ${p ? (p.c === "w" ? "white " : "black ") + p.t : "empty"}`;
         cell.setAttribute("aria-label", label);
         cell.addEventListener("click", () => onCellClick(r, c));

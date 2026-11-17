@@ -35,9 +35,134 @@
   </script>
   <link rel="stylesheet" href="../../css/styles.css">
   <style>
-    /* Let the 8x8 grid shrink below the glyph's intrinsic width. */
-    #board { min-width: 0; }
-    #board .cell { min-width: 0; padding: 0; font-size: clamp(1rem, 5.6vw, 2.4rem); }
+    /* Chess — wooden board and 3D piece tokens.
+       Scoped to #board/.chess-cell so shared board styles stay untouched. */
+    .game-area { gap: 10px; }
+
+    #board {
+      min-width: 0;
+      gap: 0;
+      padding: clamp(7px, 2vw, 12px);
+      border-radius: clamp(10px, 2.4vw, 16px);
+      border: none;
+      background: linear-gradient(145deg, #6b4426 0%, #4a2c15 55%, #352012 100%);
+      box-shadow:
+        0 18px 40px rgba(0, 0, 0, 0.5),
+        inset 0 2px 0 rgba(255, 255, 255, 0.08),
+        0 0 0 2px rgba(0, 0, 0, 0.35),
+        inset 0 0 0 6px rgba(255, 255, 255, 0.05);
+      overflow: hidden;
+    }
+
+    #board .chess-cell {
+      position: relative;
+      isolation: isolate;
+      min-width: 0;
+      padding: 0;
+      border: none;
+      border-radius: 2px;
+      transition: filter 0.12s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #board .chess-cell--light { background: linear-gradient(145deg, #f6e6c4 0%, #e9cf9e 100%); }
+    #board .chess-cell--dark { background: linear-gradient(145deg, #b9855a 0%, #9a673f 100%); }
+    #board .chess-cell--light:hover:not(:disabled) { background: linear-gradient(145deg, #fbf0d6 0%, #efdaab 100%); }
+    #board .chess-cell--dark:hover:not(:disabled) { background: linear-gradient(145deg, #c6926a 0%, #a67249 100%); }
+    #board .chess-cell:active { transform: none; }
+    #board .chess-cell:focus-visible { outline: 3px solid var(--accent-2); outline-offset: -3px; z-index: 3; }
+
+    /* Piece token: a disc behind the glyph. */
+    #board .chess-cell--piece {
+      font-size: clamp(1.05rem, 6.1vw, 2.45rem);
+      line-height: 1;
+      font-weight: 600;
+    }
+    #board .chess-cell--piece::before {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 80%;
+      height: 80%;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      z-index: -1;
+      transition: transform 0.14s var(--ease-pop), box-shadow 0.14s ease;
+    }
+    #board .chess-cell--w::before {
+      background: radial-gradient(circle at 38% 30%, #ffffff 0%, #f7f0de 52%, #dccbaa 100%);
+      border: 1px solid #b7a582;
+      box-shadow:
+        0 3px 5px rgba(0, 0, 0, 0.38),
+        inset 0 2px 2px rgba(255, 255, 255, 0.95),
+        inset 0 -4px 5px rgba(140, 115, 75, 0.35);
+    }
+    #board .chess-cell--b::before {
+      background: radial-gradient(circle at 38% 30%, #4d4d5a 0%, #24242d 55%, #0e0e13 100%);
+      border: 1px solid #050509;
+      box-shadow:
+        0 3px 5px rgba(0, 0, 0, 0.5),
+        inset 0 2px 2px rgba(255, 255, 255, 0.2),
+        inset 0 -4px 5px rgba(0, 0, 0, 0.55);
+    }
+    #board .chess-cell--royal::before {
+      border-color: #d4af37;
+      box-shadow:
+        0 3px 5px rgba(0, 0, 0, 0.4),
+        0 0 0 2px rgba(212, 175, 55, 0.55),
+        inset 0 2px 2px rgba(255, 255, 255, 0.4),
+        inset 0 -4px 5px rgba(0, 0, 0, 0.3);
+    }
+    #board .chess-cell--w { color: #3a2a18; text-shadow: 0 0 1px currentColor, 0 1px 0 rgba(255, 255, 255, 0.55); }
+    #board .chess-cell--b { color: #f7f1e3; text-shadow: 0 0 1px currentColor, 0 1px 2px rgba(0, 0, 0, 0.85); }
+
+    /* Move targets: a dot on empty squares, a ring around captures. */
+    #board .chess-cell--target::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 24%;
+      height: 24%;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 10px var(--accent);
+      opacity: 0.95;
+      pointer-events: none;
+      z-index: 2;
+    }
+    #board .chess-cell--capture::after {
+      content: "";
+      position: absolute;
+      inset: 5%;
+      width: auto;
+      height: auto;
+      transform: none;
+      border-radius: 50%;
+      background: transparent;
+      border: 3px solid var(--accent);
+      box-shadow: 0 0 12px var(--accent), inset 0 0 10px rgba(0, 0, 0, 0.25);
+      opacity: 0.95;
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    #board .chess-cell--check { animation: chessCheckPulse 1.2s ease-in-out infinite; }
+    @keyframes chessCheckPulse {
+      0%, 100% { outline: 3px solid rgba(255, 80, 80, 0.95); outline-offset: -3px; }
+      50% { outline: 3px solid rgba(255, 80, 80, 0.35); outline-offset: -3px; }
+    }
+
+    @media (max-width: 430px) {
+      #board { border-radius: 10px; padding: 6px; }
+      #board .chess-cell--piece { font-size: clamp(1rem, 6.6vw, 1.7rem); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      #board .chess-cell--piece::before { transition: none; }
+      #board .chess-cell--check { animation: none; outline: 3px solid #ff5050; outline-offset: -3px; }
+    }
   </style>
 </head>
 <body>
