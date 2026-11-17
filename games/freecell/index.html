@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FreeCell — Offline Arcade</title>
+  <meta name="description" content="The classic open solitaire — free cells, foundations, undo. 14 badges.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="FreeCell — Offline Arcade">
+  <meta property="og:description" content="The classic open solitaire — free cells, foundations, undo. 14 badges.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%AE%3C/text%3E%3C/svg%3E">
+  <meta name="theme-color" content="#0e0e11">
+  <meta name="color-scheme" content="dark light">
+  <script>
+    // Apply the saved theme before first paint to avoid a flash.
+    // "system" (or anything unrecognized) leaves <html> without data-theme,
+    // so CSS falls back to prefers-color-scheme, then dark.
+    (() => {
+      try {
+        var saved = localStorage.getItem("offline-arcade:theme:v1");
+        var theme = "system";
+        if (saved) {
+          try {
+            var parsed = JSON.parse(saved);
+            if (parsed === "dark" || parsed === "light" || parsed === "kids") theme = parsed;
+          } catch (_) {
+            if (saved === "dark" || saved === "light" || saved === "kids") theme = saved;
+          }
+        }
+        if (theme !== "system") document.documentElement.dataset.theme = theme;
+      } catch (_) {
+        /* storage blocked - fall back to system default */
+      }
+    })();
+  </script>
+  <link rel="stylesheet" href="../../css/styles.css">
+  <style>
+    .freecell-board { --cw: clamp(36px, 10.5vw, 60px); }
+    .top-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .free-cells, .foundations { display: flex; gap: 5px; }
+    .slot {
+      width: var(--cw);
+      aspect-ratio: 0.72;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.04);
+      border: 1px dashed var(--glass-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      position: relative;
+      flex: 0 0 auto;
+    }
+    .slot--found { cursor: pointer; }
+    .slot--found:hover { background: rgba(255,255,255,0.08); }
+    .fcard {
+      width: var(--cw);
+      aspect-ratio: 0.72;
+      border-radius: 8px;
+      background: linear-gradient(180deg, #ffffff, #e4e4e4);
+      color: #14141a;
+      border: 1px solid rgba(0,0,0,0.18);
+      display: flex;
+      align-items: flex-start;
+      justify-content: flex-start;
+      padding: 2px 4px;
+      font-weight: 800;
+      font-size: clamp(0.72rem, 3.1vw, 1rem);
+      cursor: pointer;
+      box-shadow: 0 2px 0 rgba(0,0,0,0.25), 0 4px 8px rgba(0,0,0,0.25);
+      position: relative;
+      user-select: none;
+      flex: 0 0 auto;
+      line-height: 1;
+      font-family: inherit;
+    }
+    .fcard--red { color: #d21f2b; }
+    .fcard--sel {
+      box-shadow: 0 0 0 3px var(--accent), 0 4px 10px rgba(0,0,0,0.3);
+    }
+    .fcard--found { cursor: default; }
+    .columns {
+      display: flex;
+      gap: 5px;
+      align-items: flex-start;
+    }
+    .column {
+      flex: 1 1 0;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: calc(var(--cw) * 3);
+    }
+    .column .fcard + .fcard { margin-top: calc(var(--cw) * -0.95); }
+  </style>
+</head>
+<body>
+  <div class="game-shell">
+    <header class="game-header">
+      <a class="back-btn" href="../../index.html">← Back to Games</a>
+      <h1>FreeCell</h1>
+      <span class="game-header__spacer"></span>
+      <button class="icon-btn" id="sound-btn" type="button" aria-pressed="true" aria-label="Mute sound" title="Mute sound">
+        <span id="sound-icon" aria-hidden="true">🔊</span>
+      </button>
+      <button class="icon-btn" id="badges-btn" type="button" aria-label="Badges and achievements" title="Badges &amp; achievements">
+        <span aria-hidden="true">🏆</span><span class="icon-btn__count" id="badge-count">0</span>
+      </button>
+    </header>
+    <main class="game-area">
+      <div class="status-bar" aria-live="polite">
+        <div class="status-bar__item"><span class="status-bar__label">Moves</span><span id="moves" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Wins</span><span id="wins" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Streak</span><span id="streak" class="status-bar__value">0</span></div>
+      </div>
+      <div class="freecell-board">
+        <div class="top-row">
+          <div class="free-cells" id="free-cells" aria-label="Free cells"></div>
+          <div class="foundations" id="foundations" aria-label="Foundations"></div>
+        </div>
+        <div class="columns" id="columns" aria-label="Tableau"></div>
+      </div>
+      <div class="game-controls">
+        <button id="new-game" class="btn">New Game</button>
+        <button id="undo" class="btn btn--ghost">Undo</button>
+        <button id="give-up" class="btn btn--ghost">Give Up</button>
+        <button id="badges2" class="btn btn--ghost" type="button">🏆 Badges</button>
+      </div>
+      <p id="hint" class="game-info__hint" aria-live="polite">Select a card, then click a destination. Build down in alternating colors; foundations build up by suit from Ace. Any card can start an empty column. P pauses.</p>
+    </main>
+  </div>
+
+  <div class="snake-toasts" id="toasts" aria-live="polite"></div>
+
+  <div class="snake-modal" id="achv-modal" hidden>
+    <div class="snake-modal__backdrop" data-close></div>
+    <div class="snake-modal__panel" role="dialog" aria-modal="true" aria-labelledby="achv-title">
+      <header class="snake-modal__head">
+        <h2 id="achv-title">🏆 Badges <small id="achv-count">0 / 0</small></h2>
+        <button class="icon-btn" type="button" data-close aria-label="Close badges">✕</button>
+      </header>
+      <div class="achv-records" id="achv-records"></div>
+      <div class="achv-grid" id="achv-grid"></div>
+    </div>
+  </div>
+
+  <script src="../../js/arcade-core.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
