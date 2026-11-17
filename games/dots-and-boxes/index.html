@@ -32,8 +32,11 @@
   <style>
     .dboard {
       display: grid;
-      grid-template-columns: 18px 52px 18px 52px 18px 52px 18px 52px 18px;
-      grid-template-rows: 18px 52px 18px 52px 18px 52px 18px 52px 18px;
+      width: 100%;
+      max-width: 352px;
+      aspect-ratio: 1;
+      grid-template-columns: 18fr 52fr 18fr 52fr 18fr 52fr 18fr 52fr 18fr;
+      grid-template-rows: 18fr 52fr 18fr 52fr 18fr 52fr 18fr 52fr 18fr;
       gap: 2px;
       background: var(--bg-soft);
       padding: 10px;
@@ -41,7 +44,7 @@
     }
     .dot { background: var(--text); border-radius: 50%; }
     .line {
-      background: transparent; border: none; padding: 0;
+      background: transparent; border: none; padding: 0; min-width: 0; min-height: 0;
       display: flex; align-items: center; justify-content: center; cursor: pointer;
     }
     .line__bar {
@@ -68,21 +71,46 @@
     <header class="game-header">
       <a class="back-btn" href="../../index.html">← Back to Games</a>
       <h1>Dots &amp; Boxes</h1>
+      <span class="game-header__spacer"></span>
+      <button class="icon-btn" id="sound-btn" type="button" aria-pressed="true" aria-label="Mute sound" title="Mute sound">
+        <span id="sound-icon" aria-hidden="true">🔊</span>
+      </button>
+      <button class="icon-btn" id="badges-btn" type="button" aria-label="Badges and achievements" title="Badges &amp; achievements">
+        <span aria-hidden="true">🏆</span><span class="icon-btn__count" id="badge-count">0</span>
+      </button>
     </header>
     <main class="game-area">
-      <div class="status-bar">
+      <div class="status-bar" aria-live="polite">
         <div class="status-bar__item"><span class="status-bar__label">You</span><span id="you-score" class="status-bar__value">0</span></div>
         <div class="status-bar__item"><span class="status-bar__label">CPU</span><span id="cpu-score" class="status-bar__value">0</span></div>
         <div class="status-bar__item"><span class="status-bar__label">Wins</span><span id="wins" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Streak</span><span id="streak" class="status-bar__value">0</span></div>
       </div>
       <p id="turn-label" class="game-info__title">Your line — draw any segment</p>
       <div id="board" class="dboard" aria-label="Dots and Boxes board"></div>
       <div class="game-controls">
         <button id="new-game" class="btn">New Game</button>
+        <button id="badges2" class="btn btn--ghost" type="button">🏆 Badges</button>
       </div>
-      <p class="game-info__hint">Click a line between two dots to draw it. Complete all 4 sides of a box to claim it and take another turn. Most boxes wins!</p>
+      <p class="game-info__hint">Click a line between two dots to draw it. Complete all 4 sides of a box to claim it and take another turn. Most boxes wins! Esc or P pauses.</p>
     </main>
   </div>
+
+  <div class="snake-toasts" id="toasts" aria-live="polite"></div>
+
+  <div class="snake-modal" id="achv-modal" hidden>
+    <div class="snake-modal__backdrop" data-close></div>
+    <div class="snake-modal__panel" role="dialog" aria-modal="true" aria-labelledby="achv-title">
+      <header class="snake-modal__head">
+        <h2 id="achv-title">🏆 Badges <small id="achv-count">0 / 0</small></h2>
+        <button class="icon-btn" type="button" data-close aria-label="Close badges">✕</button>
+      </header>
+      <div class="achv-records" id="achv-records"></div>
+      <div class="achv-grid" id="achv-grid"></div>
+    </div>
+  </div>
+
+  <script src="../../js/arcade-core.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
