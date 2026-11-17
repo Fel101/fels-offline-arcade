@@ -1,0 +1,33 @@
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+desktop.ini
+*~
+*.swp
+*.swo
+
+# Editor / IDE
+.vscode/
+.idea/
+*.iml
+
+# Logs and temp files
+*.log
+npm-debug.log*
+*.tmp
+*.bak
+*.orig
+
+# Test / verification artifacts that must never be committed
+# (headless-Chrome checkers write a temp _diag.html into each game folder)
+games/**/_diag.html
+games/**/_smoke.html
+games/**/_probe*.html
+_portal_smoke.html
+
+# Node (only if someone adds tooling later)
+node_modules/
+
+# Local env files
+.env
+.env.*

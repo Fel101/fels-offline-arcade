@@ -1,26 +1,46 @@
 # 🎮 Offline Arcade
 
-A self-contained, fully offline collection of browser games — a local take on the
-"just a bunch of games to play" vibe. No server, no build step, no internet, no ads.
-Just open `index.html` in any modern browser and pick a game.
+![46 games](https://img.shields.io/badge/games-46-5ad1b8?style=flat-square)
+![No dependencies](https://img.shields.io/badge/dependencies-0-brightgreen?style=flat-square)
+![Works offline](https://img.shields.io/badge/offline-100%25-ff5ea8?style=flat-square)
+![MIT license](https://img.shields.io/badge/license-MIT-ffd94d?style=flat-square)
 
-## Running it
+A self-contained, fully offline collection of **46 browser games** — a local take on
+the "just a bunch of games to play" vibe. No server, no build step, no internet, no
+ads, no accounts, no tracking. Just open `index.html` in any modern browser and pick
+a game.
 
-Open `index.html` in your browser (double-click it, or drag it into a tab). That's it.
-No Node, no npm, nothing to install. Works from a local folder or a USB stick.
+Everything is plain **HTML, CSS and JavaScript** with **zero dependencies**, so it runs
+from a local folder, a USB stick, or any static host.
 
-## Portal features
+---
 
-- **Search** — filters by name, description, category, or URL slug. Press `/` to focus it.
-- **Category filters** — Arcade, Card, Dice, Logic, Pattern, Puzzle, Reflex, Strategy, Word.
-- **Favorites** — star any game; the "Favorites" filter shows your saved picks.
-- **Recently played** — the last few games you opened from the portal, stored locally.
-- **Random game** — jumps into a random game from the current filter.
-- **Theme** — pick **System** (follows your OS), **Dark** (neutral near-black),
-  **Light** (bright), or **Kids** (chunky, high-contrast, playful). Applies to the
-  portal and every game; your choice is remembered. Defaults to System, then Dark.
-- **New badges** — games with `isNew: true` in the `GAMES` array get a "New" pill.
-- Keyboard: `/` focuses search, `Esc` clears it.
+## Quick start
+
+1. Download or clone this repository.
+2. Double-click **`index.html`** (or drag it into a browser tab).
+3. Pick a game and play.
+
+That's it — no Node, no npm, nothing to install.
+
+---
+
+## Highlights
+
+- **46 games** across 9 categories — Arcade, Card, Dice, Logic, Pattern, Puzzle,
+  Reflex, Strategy and Word.
+- **Shared core** (`js/arcade-core.js`) provides storage, sound, toasts, overlays,
+  confetti, badges and theming; each game keeps its own rules and rendering.
+- **Persistent progress** — high scores, stats and **14–28 badges per game** are saved
+  in `localStorage` (gracefully degrading if storage is blocked).
+- **Four themes** — System, Dark, Light and Kids (high-contrast, playful) — applied to
+  the portal and every game, remembered between visits.
+- **Fully offline** — no network requests, no external assets, no CDN.
+- **Works from `file://`** — no web server required.
+- **Accessible touches** — keyboard shortcuts, ARIA labels, `prefers-reduced-motion`
+  support, and responsive layouts down to 360 px.
+
+---
 
 ## Games (46)
 
@@ -37,7 +57,7 @@ No Node, no npm, nothing to install. Works from a local folder or a USB stick.
 | 🔴 Connect Four | Strategy | Click a column vs the computer — 14 badges |
 | ❌ Tic-Tac-Toe | Strategy | Perfect AI, 3 levels + 2-player — 24 badges |
 | 🏓 Pong | Arcade | Mouse or ↑/↓ vs the computer — 14 badges |
-| 🧨 Breakout | Arcade | Mouse or ◀/▶ — 14 badges |
+| 🧨 Breakout | Arcade | Bounce the ball and smash every brick — 14 badges |
 | 🔨 Whack-a-Mole | Reflex | Whack moles, chain combos — 4 modes, 24 badges |
 | ♠️ Blackjack | Card | Bet, hit, stand vs the dealer — 14 badges |
 | ♟️ Chess | Strategy | Full rules — castling, en passant, promotion + AI — 14 badges |
@@ -73,6 +93,23 @@ No Node, no npm, nothing to install. Works from a local folder or a USB stick.
 | 🟢 Peg Solitaire | Puzzle | Jump and remove, leave one peg — 14 badges |
 | 📦 Sokoban | Puzzle | Push every box onto a target — 14 badges |
 
+---
+
+## Portal features
+
+- **Search** — filters by name, description, category, or URL slug. Press `/` to focus it.
+- **Category filters** — Arcade, Card, Dice, Logic, Pattern, Puzzle, Reflex, Strategy, Word.
+- **Favorites** — star any game; the "Favorites" filter shows your saved picks.
+- **Recently played** — the last few games you opened from the portal, stored locally.
+- **Random game** — jumps into a random game from the current filter.
+- **Theme** — pick **System** (follows your OS), **Dark** (neutral near-black),
+  **Light** (bright), or **Kids** (chunky, high-contrast, playful). Applies to the
+  portal and every game; your choice is remembered. Defaults to System, then Dark.
+- **New badges** — games with `isNew: true` in the `GAMES` array get a "New" pill.
+- Keyboard: `/` focuses search, `Esc` clears it.
+
+---
+
 ## Structure
 
 ```
@@ -104,6 +141,8 @@ Each game is **isolated** in its own folder with a "← Back to Games" button, s
 never interfere with each other. Games may bundle extra data files — for example,
 `games/boggle/words.js` holds the offline dictionary.
 
+---
+
 ## Adding a new game (game #47+)
 
 1. Create `games/<name>/index.html` and `games/<name>/script.js`.
@@ -127,6 +166,8 @@ never interfere with each other. Games may bundle extra data files — for examp
    and category filters update from the array. Use a unique emoji; if you add a new
    category, its filter chip appears automatically.
 
+---
+
 ## Notes
 
 - High scores / tallies use `localStorage`, wrapped in a safe helper so a blocked
@@ -140,3 +181,21 @@ never interfere with each other. Games may bundle extra data files — for examp
   "System" removes the attribute so CSS falls back to `prefers-color-scheme`, then
   dark. Canvas game rendering keeps its own colors; themes restyle the surrounding UI.
 - Pure HTML/CSS/JS — no dependencies, so it stays fast and future-proof offline.
+
+---
+
+## Contributing
+
+Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for adding games,
+code style, and how the project is structured.
+
+## License
+
+Released under the [MIT License](LICENSE) — free to use, modify and share, including
+commercially. Attribution is appreciated but not required.
+
+## Credits
+
+Built by **Fel** ([@Fel101](https://github.com/Fel101)). All games are original
+implementations written for this project; no third-party game code or assets are
+included.
