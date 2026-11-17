@@ -67,7 +67,7 @@ No Node, no npm, nothing to install. Works from a local folder or a USB stick.
 | 🔀 Jumble | Word | Unscramble the letters from the clue — 14 badges |
 | 🪜 Word Ladder | Word | Change one letter at a time — 14 badges |
 | 🕵️ Cryptogram | Word | Decode the secret message — 14 badges |
-| 🔠 Word Square | Word | Every row and column is a word |
+| 🔠 Word Square | Word | Every row and column is a word — 14 badges |
 | 🎯 Mastermind | Logic | Crack the color code — 14 badges |
 | 🗼 Tower of Hanoi | Puzzle | Move the tower, ring by ring — 14 badges |
 | 🟢 Peg Solitaire | Puzzle | Jump and remove, leave one peg — 14 badges |

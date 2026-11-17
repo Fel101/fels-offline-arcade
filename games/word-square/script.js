@@ -1,15 +1,48 @@
-﻿// Word Square â€” puzzle-book word squares, fully offline. Pure vanilla JS.
+﻿// Word Square — puzzle-book word squares, fully offline. Pure vanilla JS.
+// Shared plumbing (storage, audio, toasts, overlay, confetti, badges, modal)
+// comes from ../../js/arcade-core.js.
 (() => {
-  const boardEl = document.getElementById("board");
-  const winsEl = document.getElementById("wins");
-  const timeEl = document.getElementById("time");
-  const puzzleEl = document.getElementById("puzzle");
+  "use strict";
 
-  // Safe storage wrapper â€” file:// can block localStorage in some browsers.
-  const store = {
-    get(k, d = 0) { try { return Number(localStorage.getItem(k)) || d; } catch { return d; } },
-    set(k, v) { try { localStorage.setItem(k, v); } catch {} },
-  };
+  const {
+    store,
+    keys: makeKeys,
+    util,
+    audio,
+    overlay,
+    confetti,
+    badges: badgesApi,
+    modal: modalApi,
+    dom,
+  } = window.Arcade;
+
+  const sfx = audio.sfx;
+  const showOverlay = overlay.show;
+  const hideOverlay = overlay.hide;
+  const formatTime = util.formatTime;
+
+  // ---------- DOM ----------
+  const boardEl = dom.byId("board");
+  const winsEl = dom.byId("wins");
+  const timeEl = dom.byId("time");
+  const bestEl = dom.byId("best");
+  const puzzleEl = dom.byId("puzzle");
+
+  const hintBtn = dom.byId("hint");
+  const resetBtn = dom.byId("reset");
+  const newPuzzleBtn = dom.byId("new-puzzle");
+
+  const badgesBtn = dom.byId("badges-btn");
+  const badgeCountEl = dom.byId("badge-count");
+  const soundBtn = dom.byId("sound-btn");
+  const soundIconEl = dom.byId("sound-icon");
+
+  const achvModal = dom.byId("achv-modal");
+  const achvGrid = dom.byId("achv-grid");
+  const achvCountEl = dom.byId("achv-count");
+  const achvRecordsEl = dom.byId("achv-records");
+
+  const K = makeKeys("word-square");
 
   // 13 puzzles; the solution grid is the five words stacked.
   const PUZZLES = [
@@ -114,24 +147,221 @@
   const WORDS_SET = new Set(WORDS);
 
   const SIZE = 5;
+  const LINE_COUNT = SIZE * 2;
+
+  // ---------- Persistent stats ----------
+  const DEFAULT_STATS = {
+    games: 0,
+    wins: 0,
+    hints: 0,
+    flawless: 0,
+    bestTime: 0,
+    solved: [],
+  };
+
+  const storedStats = store.json(K.stats, null);
+  const stats = Object.assign(
+    {},
+    DEFAULT_STATS,
+    storedStats && typeof storedStats === "object" && !Array.isArray(storedStats) ? storedStats : {}
+  );
+  for (const key of Object.keys(DEFAULT_STATS)) {
+    if (key === "solved") continue;
+    if (!Number.isFinite(stats[key])) stats[key] = DEFAULT_STATS[key];
+  }
+  if (!Array.isArray(stats.solved)) stats.solved = [];
+
+  function saveStats() {
+    store.jsonSet(K.stats, stats);
+  }
+
+  // The pre-core build only kept a win count.
+  function migrateLegacy() {
+    const raw = store.get("wordsquare-wins", null);
+    if (raw !== null && raw !== undefined) {
+      const n = Number(raw);
+      if (Number.isFinite(n) && n > stats.wins) stats.wins = n;
+      store.remove("wordsquare-wins");
+      saveStats();
+    }
+  }
+
+  // "Lower is better" time badges: goal is in seconds, the stat in ms.
+  function timeBadge(id, icon, name, desc, seconds) {
+    const limit = seconds * 1000;
+    return {
+      id,
+      icon,
+      name,
+      desc,
+      stat: "bestTime",
+      goal: seconds,
+      satisfied: () => (stats.bestTime || 0) > 0 && stats.bestTime <= limit,
+      progress: () => {
+        const ms = stats.bestTime || 0;
+        if (!ms) return { pct: 0, text: "No square yet" };
+        if (ms <= limit) return { pct: 100, text: "Unlocked" };
+        return { pct: Math.min(100, (limit / ms) * 100), text: `Best ${formatTime(ms)}` };
+      },
+    };
+  }
+
+  // ---------- Achievements ----------
+  const ACHIEVEMENTS = [
+    { id: "first", icon: "🎉", name: "First Square", desc: "Complete your first word square.", stat: "wins", goal: 1 },
+    { id: "win5", icon: "🔲", name: "Square Deal", desc: "Complete 5 word squares.", stat: "wins", goal: 5 },
+    { id: "win10", icon: "🏅", name: "Grid Smith", desc: "Complete 10 word squares.", stat: "wins", goal: 10 },
+    { id: "win25", icon: "👑", name: "Square Master", desc: "Complete 25 word squares.", stat: "wins", goal: 25 },
+    { id: "games10", icon: "🎮", name: "Ten Grids", desc: "Start 10 word squares.", stat: "games", goal: 10 },
+    { id: "games25", icon: "🗂️", name: "Puzzle Shelf", desc: "Start 25 word squares.", stat: "games", goal: 25 },
+    { id: "hint10", icon: "💡", name: "Nudge", desc: "Use 10 hints.", stat: "hints", goal: 10 },
+    { id: "hint50", icon: "🔦", name: "Hint Happy", desc: "Use 50 hints.", stat: "hints", goal: 50 },
+    timeBadge("quick300", "⏱️", "Under Five", "Finish a square in under 5:00.", 300),
+    timeBadge("quick180", "⚡", "Under Three", "Finish a square in under 3:00.", 180),
+    timeBadge("quick120", "🚀", "Under Two", "Finish a square in under 2:00.", 120),
+    { id: "flawless1", icon: "✨", name: "Clean Square", desc: "Finish without using a hint.", stat: "flawless", goal: 1 },
+    { id: "flawless5", icon: "🧼", name: "Spotless", desc: "Finish 5 squares without hints.", stat: "flawless", goal: 5 },
+    {
+      id: "allSquares",
+      icon: "🗺️",
+      name: "Every Square",
+      desc: "Finish every puzzle in the set.",
+      stat: "wins",
+      goal: PUZZLES.length,
+      satisfied: () => stats.solved.length >= PUZZLES.length,
+      progress: () => ({
+        pct: Math.min(100, (stats.solved.length / PUZZLES.length) * 100),
+        text: `${stats.solved.length} / ${PUZZLES.length} squares`,
+      }),
+    },
+  ];
+
+  // ---------- Badges UI ----------
+  const achv = badgesApi.create(ACHIEVEMENTS, {
+    storageKey: K.achv,
+    getStat: (key) => (Number.isFinite(stats[key]) ? stats[key] : 0),
+    onUnlock: () => {
+      updateBadgeCount();
+      saveStats();
+    },
+    onRender: () => {
+      if (!achvModal.hidden) renderAchvGrid();
+    },
+  });
+
+  function updateBadgeCount() {
+    badgeCountEl.textContent = achv.count();
+    badgesBtn.setAttribute(
+      "aria-label",
+      `Badges and achievements: ${achv.count()} of ${achv.total()} unlocked`
+    );
+  }
+
+  function checkAchievements() {
+    achv.check();
+  }
+
+  function renderAchvGrid() {
+    achv.render(achvGrid, {
+      countEl: achvCountEl,
+      recordsEl: achvRecordsEl,
+      records: () => [
+        ["Puzzles", stats.games],
+        ["Solved", stats.wins],
+        ["Hints", stats.hints],
+        ["Best time", stats.bestTime ? formatTime(stats.bestTime) : "—"],
+        ["Squares", `${stats.solved.length}/${PUZZLES.length}`],
+      ],
+    });
+  }
+
+  const achvModalCtl = modalApi.create(achvModal, {
+    onOpen: () => {
+      renderAchvGrid();
+      if (!gameOver && !paused) setPaused(true);
+    },
+    onClose: () => {
+      if (badgesBtn.focus) badgesBtn.focus();
+    },
+  });
+
+  function openAchv() {
+    achvModalCtl.open();
+  }
+
+  function closeAchv() {
+    achvModalCtl.close();
+  }
+
+  // ---------- Audio ----------
+  audio.bindButton({ btn: soundBtn, icon: soundIconEl, soundKey: K.sound });
+  audio.define("letter", [[620, 0, 0.03, "triangle", 0.02]]);
+  audio.define("erase", [[300, 0, 0.05, "sine", 0.025]]);
+  audio.define("hint", [[440, 0, 0.08, "sine", 0.035], [660, 0.07, 0.1, "sine", 0.035]]);
+
+  // ---------- State ----------
   let puzzleIndex = -1;
-  let solution = [];        // 5x5 letters from the stored solution
+  let solution = [];        // 5x5 letters from the chosen puzzle
   let grid = [];            // 5x5 current letters ("" when empty)
   let locked = [];          // 5x5 booleans (hint-revealed cells)
   let cellEls = [];         // 5x5 button elements
   let selected = { r: 0, c: 0 };
   let gameOver = false;
-  let wins = store.get("wordsquare-wins");
-  let timerId, startTime;
+  let paused = false;
+  let hintsThisPuzzle = 0;
 
-  function startTimer() {
-    clearInterval(timerId);
-    startTime = Date.now();
-    timeEl.textContent = "0";
-    timerId = setInterval(() => { timeEl.textContent = Math.floor((Date.now() - startTime) / 1000); }, 500);
+  // Timer: elapsedMs holds finished segments, runningSince the live one.
+  let elapsedMs = 0;
+  let runningSince = 0;
+  let timerOn = false;
+  let timerId = 0;
+  let solveMs = 0;
+
+  function clockMs() {
+    return elapsedMs + (runningSince ? Date.now() - runningSince : 0);
   }
 
-  function updateStatus() { winsEl.textContent = wins; }
+  function tickClock() {
+    timeEl.textContent = formatTime(clockMs());
+  }
+
+  function startTimer() {
+    if (timerId) clearInterval(timerId);
+    elapsedMs = 0;
+    runningSince = Date.now();
+    timerOn = true;
+    solveMs = 0;
+    tickClock();
+    timerId = setInterval(tickClock, 250);
+  }
+
+  function stopTimer() {
+    if (runningSince) {
+      elapsedMs += Date.now() - runningSince;
+      runningSince = 0;
+    }
+    timerOn = false;
+    if (timerId) clearInterval(timerId);
+    timerId = 0;
+    tickClock();
+  }
+
+  function pauseTimer() {
+    if (timerOn && runningSince) {
+      elapsedMs += Date.now() - runningSince;
+      runningSince = 0;
+    }
+  }
+
+  function resumeTimer() {
+    if (timerOn && !runningSince) runningSince = Date.now();
+  }
+
+  function updateStatus() {
+    winsEl.textContent = stats.wins;
+    bestEl.textContent = stats.bestTime ? formatTime(stats.bestTime) : "—";
+    tickClock();
+  }
 
   // ---- Board ----
   function buildBoard() {
@@ -153,183 +383,483 @@
     refresh();
   }
 
+  function cellLabel(r, c) {
+    const letter = grid[r][c];
+    return (
+      `Row ${r + 1}, column ${c + 1}${letter ? ", " + letter : ", empty"}` +
+      (locked[r][c] ? ", locked" : "")
+    );
+  }
+
   function refresh() {
     for (let r = 0; r < SIZE; r++) {
       for (let c = 0; c < SIZE; c++) {
         const cell = cellEls[r][c];
+        if (!cell) continue;
         cell.textContent = grid[r][c];
         cell.classList.toggle("selected", r === selected.r && c === selected.c);
         cell.classList.toggle("locked", locked[r][c]);
+        cell.setAttribute("aria-label", cellLabel(r, c));
       }
     }
     checkLines();
   }
 
   function selectCell(r, c) {
+    if (gameOver || paused) return false;
+    if (r === selected.r && c === selected.c) return false;
     selected = { r, c };
     refresh();
+    sfx("select");
+    return true;
   }
 
   function lineWords() {
     const lines = [];
-    for (let r = 0; r < SIZE; r++) lines.push({ cells: [[r,0],[r,1],[r,2],[r,3],[r,4]], word: grid[r].join("") });
+    for (let r = 0; r < SIZE; r++) {
+      lines.push({
+        cells: [[r, 0], [r, 1], [r, 2], [r, 3], [r, 4]],
+        word: grid[r].join(""),
+        across: true,
+      });
+    }
     for (let c = 0; c < SIZE; c++) {
       let word = "";
       for (let r = 0; r < SIZE; r++) word += grid[r][c];
-      lines.push({ cells: [[0,c],[1,c],[2,c],[3,c],[4,c]], word });
+      lines.push({
+        cells: [[0, c], [1, c], [2, c], [3, c], [4, c]],
+        word,
+        across: false,
+      });
     }
     return lines;
   }
 
-  // Highlight every row/column that currently spells a dictionary word. Returns count of valid lines.
+  // Highlight every row/column that currently spells a dictionary word.
   function checkLines() {
     const lines = lineWords();
     const validSet = new Set();
     let validCount = 0;
     for (const line of lines) {
-      // grid cells are single chars or ""; a short word means an empty cell somewhere.
+      // An empty cell makes the word shorter than SIZE.
       if (line.word.length === SIZE && WORDS_SET.has(line.word)) {
         validCount++;
         for (const [r, c] of line.cells) validSet.add(r * SIZE + c);
       }
     }
-    for (let r = 0; r < SIZE; r++)
-      for (let c = 0; c < SIZE; c++)
-        cellEls[r][c].classList.toggle("valid", validSet.has(r * SIZE + c));
+    for (let r = 0; r < SIZE; r++) {
+      for (let c = 0; c < SIZE; c++) {
+        const cell = cellEls[r] && cellEls[r][c];
+        if (cell) cell.classList.toggle("valid", validSet.has(r * SIZE + c));
+      }
+    }
     return validCount;
   }
 
   // ---- Input ----
   function typeLetter(ch) {
-    if (gameOver) return;
+    if (gameOver || paused) return false;
     const { r, c } = selected;
-    if (locked[r][c]) { advance(1); return; }
+    if (locked[r][c]) {
+      advance(1);
+      return false;
+    }
     grid[r][c] = ch;
     refresh();
-    winCheck();
-    if (!gameOver) advance(1);
+    sfx("letter");
+    if (winCheck()) return true;
+    advance(1);
+    return true;
   }
 
   function erase() {
-    if (gameOver) return;
-    let { r, c } = selected;
+    if (gameOver || paused) return false;
+    const { r, c } = selected;
     if (!locked[r][c] && grid[r][c]) {
       grid[r][c] = "";
       refresh();
-      return;
+      sfx("erase");
+      return true;
     }
     // Step back to the previous non-locked cell and clear it.
     let idx = r * SIZE + c - 1;
     while (idx >= 0) {
-      const pr = Math.floor(idx / SIZE), pc = idx % SIZE;
+      const pr = Math.floor(idx / SIZE);
+      const pc = idx % SIZE;
       if (!locked[pr][pc]) {
         selected = { r: pr, c: pc };
-        if (grid[pr][pc]) grid[pr][pc] = "";
+        if (grid[pr][pc]) {
+          grid[pr][pc] = "";
+          refresh();
+          sfx("erase");
+          return true;
+        }
         refresh();
-        return;
+        return false;
       }
       idx--;
     }
     refresh();
+    return false;
   }
 
   function advance(delta) {
     let idx = selected.r * SIZE + selected.c;
     for (let i = 0; i < SIZE * SIZE; i++) {
       idx = (idx + delta + SIZE * SIZE) % (SIZE * SIZE);
-      const r = Math.floor(idx / SIZE), c = idx % SIZE;
-      if (!locked[r][c]) { selected = { r, c }; break; }
+      const r = Math.floor(idx / SIZE);
+      const c = idx % SIZE;
+      if (!locked[r][c]) {
+        selected = { r, c };
+        break;
+      }
     }
     refresh();
   }
 
   function moveSelection(dr, dc) {
+    if (gameOver || paused) return false;
     const r = Math.min(SIZE - 1, Math.max(0, selected.r + dr));
     const c = Math.min(SIZE - 1, Math.max(0, selected.c + dc));
+    if (r === selected.r && c === selected.c) return false;
     selected = { r, c };
     refresh();
+    sfx("select");
+    return true;
   }
 
   // ---- Win ----
-  let overlay;
   function winCheck() {
+    if (gameOver) return true;
     for (let r = 0; r < SIZE; r++)
       for (let c = 0; c < SIZE; c++)
         if (!grid[r][c]) return false;
-    if (checkLines() < SIZE * 2) return false;
+    if (checkLines() < LINE_COUNT) return false;
     endGame();
     return true;
   }
 
   function endGame() {
+    if (gameOver) return false;
     gameOver = true;
-    clearInterval(timerId);
-    wins++;
-    store.set("wordsquare-wins", wins);
+    paused = false;
+    stopTimer();
+    solveMs = clockMs();
+
+    stats.wins++;
+    if (hintsThisPuzzle === 0) stats.flawless++;
+    if (puzzleIndex >= 0 && stats.solved.indexOf(puzzleIndex) === -1) {
+      stats.solved.push(puzzleIndex);
+    }
+    const isRecord = solveMs > 0 && (!stats.bestTime || solveMs < stats.bestTime);
+    if (isRecord) stats.bestTime = solveMs;
+    saveStats();
+    checkAchievements();
     updateStatus();
-    if (overlay) overlay.remove();
-    overlay = document.createElement("div");
-    overlay.className = "overlay";
-    overlay.innerHTML = `<div class="overlay__box"><h2>Square Complete! ðŸŽ‰</h2><p>All 5 rows and all 5 columns are words. Nicely done!</p>
-      <button class="btn" id="ov-restart">Play again</button></div>`;
-    document.body.appendChild(overlay);
-    overlay.querySelector("#ov-restart").addEventListener("click", newGame);
+
+    sfx("win");
+    confetti(isRecord ? 90 : 60);
+
+    showOverlay(
+      "Square Complete! 🎉",
+      `All five rows and all five columns are words. Solved in ${formatTime(solveMs)}.` +
+        (isRecord ? " New best time!" : ""),
+      [
+        {
+          label: "Play again",
+          onClick: () => {
+            hideOverlay();
+            newGame();
+          },
+        },
+        { label: "Badges", ghost: true, onClick: () => openAchv() },
+      ]
+    );
+    return true;
   }
 
-  // ---- Buttons ----
+  // ---- Hint / reset ----
   function hint() {
-    if (gameOver) return;
+    if (gameOver || paused) return false;
     const candidates = [];
     for (let r = 0; r < SIZE; r++)
       for (let c = 0; c < SIZE; c++)
         if (!locked[r][c] && grid[r][c] !== solution[r][c]) candidates.push([r, c]);
-    if (candidates.length === 0) return;
+    if (candidates.length === 0) {
+      sfx("error");
+      return false;
+    }
     const [r, c] = candidates[Math.floor(Math.random() * candidates.length)];
     grid[r][c] = solution[r][c];
     locked[r][c] = true;
+    hintsThisPuzzle++;
+    stats.hints++;
+    saveStats();
     refresh();
+    sfx("hint");
+    checkAchievements();
     winCheck();
+    return true;
   }
 
   function reset() {
-    if (overlay) overlay.remove();
+    if (gameOver || paused) return false;
     for (let r = 0; r < SIZE; r++)
       for (let c = 0; c < SIZE; c++)
         if (!locked[r][c]) grid[r][c] = "";
-    gameOver = false;
     startTimer();
     refresh();
+    sfx("erase");
+    return true;
   }
 
-  function newGame() {
-    if (overlay) overlay.remove();
-    let idx = Math.floor(Math.random() * PUZZLES.length);
-    if (PUZZLES.length > 1 && idx === puzzleIndex) idx = (idx + 1) % PUZZLES.length; // never the same back-to-back
+  // ---- Puzzles ----
+  function setPuzzle(index) {
+    const n = Number(index);
+    const idx = Math.max(
+      0,
+      Math.min(PUZZLES.length - 1, Number.isFinite(n) ? Math.floor(n) : 0)
+    );
     puzzleIndex = idx;
-    solution = PUZZLES[puzzleIndex].map(word => word.split(""));
+    solution = PUZZLES[idx].map((word) => word.split(""));
     grid = Array.from({ length: SIZE }, () => new Array(SIZE).fill(""));
     locked = Array.from({ length: SIZE }, () => new Array(SIZE).fill(false));
     selected = { r: 0, c: 0 };
     gameOver = false;
-    puzzleEl.textContent = `${puzzleIndex + 1} / ${PUZZLES.length}`;
+    paused = false;
+    hintsThisPuzzle = 0;
+    solveMs = 0;
+    puzzleEl.textContent = `${idx + 1} / ${PUZZLES.length}`;
+    hideOverlay();
     buildBoard();
     startTimer();
+    updateStatus();
+    return PUZZLES[idx].slice();
   }
 
-  document.getElementById("hint").addEventListener("click", hint);
-  document.getElementById("reset").addEventListener("click", reset);
-  document.getElementById("new-puzzle").addEventListener("click", newGame);
+  function newGame() {
+    let idx = Math.floor(Math.random() * PUZZLES.length);
+    if (PUZZLES.length > 1 && idx === puzzleIndex) idx = (idx + 1) % PUZZLES.length;
+    stats.games++;
+    saveStats();
+    setPuzzle(idx);
+    checkAchievements();
+    updateStatus();
+    return PUZZLES[idx].slice();
+  }
 
-  document.addEventListener("keydown", e => {
-    if (gameOver) return;
-    if (/^[a-zA-Z]$/.test(e.key)) typeLetter(e.key.toUpperCase());
-    else if (e.key === "Backspace") { e.preventDefault(); erase(); }
-    else if (e.key === "ArrowUp") { e.preventDefault(); moveSelection(-1, 0); }
-    else if (e.key === "ArrowDown") { e.preventDefault(); moveSelection(1, 0); }
-    else if (e.key === "ArrowLeft") { e.preventDefault(); moveSelection(0, -1); }
-    else if (e.key === "ArrowRight") { e.preventDefault(); moveSelection(0, 1); }
-  });
+  // ---- Pause ----
+  function canPause() {
+    return !gameOver;
+  }
 
-  updateStatus();
-  newGame();
+  function setPaused(p) {
+    if (!canPause() || paused === p) return;
+    paused = p;
+    if (p) {
+      pauseTimer();
+      showOverlay("Paused", "The clock is stopped — press Esc to resume.", [
+        {
+          label: "Resume",
+          onClick: () => {
+            hideOverlay();
+            setPaused(false);
+          },
+        },
+        { label: "Badges", ghost: true, onClick: () => openAchv() },
+      ]);
+    } else {
+      resumeTimer();
+      hideOverlay();
+    }
+  }
+
+  function togglePause() {
+    setPaused(!paused);
+  }
+
+  // ---- Input ----
+  function onKeyDown(e) {
+    if (!achvModal.hidden) {
+      if (e.key === "Escape") {
+        if (e.preventDefault) e.preventDefault();
+        closeAchv();
+      }
+      return;
+    }
+
+    // Every letter is gameplay input here, so pause lives on Escape.
+    if (e.key === "Escape") {
+      if (e.preventDefault) e.preventDefault();
+      togglePause();
+      return;
+    }
+
+    if (paused || gameOver) return;
+
+    const key = String(e.key || "");
+    if (/^[a-zA-Z]$/.test(key)) {
+      if (e.preventDefault) e.preventDefault();
+      typeLetter(key.toUpperCase());
+    } else if (key === "Backspace" || key === "Delete") {
+      if (e.preventDefault) e.preventDefault();
+      erase();
+    } else if (key === "ArrowUp") {
+      if (e.preventDefault) e.preventDefault();
+      moveSelection(-1, 0);
+    } else if (key === "ArrowDown") {
+      if (e.preventDefault) e.preventDefault();
+      moveSelection(1, 0);
+    } else if (key === "ArrowLeft") {
+      if (e.preventDefault) e.preventDefault();
+      moveSelection(0, -1);
+    } else if (key === "ArrowRight") {
+      if (e.preventDefault) e.preventDefault();
+      moveSelection(0, 1);
+    }
+  }
+
+  function bindEvents() {
+    document.addEventListener("keydown", onKeyDown);
+
+    hintBtn.addEventListener("click", () => {
+      audio.unlock();
+      sfx("click");
+      hint();
+    });
+    resetBtn.addEventListener("click", () => {
+      audio.unlock();
+      sfx("click");
+      reset();
+    });
+    newPuzzleBtn.addEventListener("click", () => {
+      audio.unlock();
+      sfx("click");
+      newGame();
+    });
+
+    badgesBtn.addEventListener("click", () => {
+      sfx("click");
+      openAchv();
+    });
+    const badges2 = dom.byId("badges2");
+    if (badges2)
+      badges2.addEventListener("click", () => {
+        sfx("click");
+        openAchv();
+      });
+
+    window.addEventListener("blur", () => {
+      if (canPause() && !paused && achvModal.hidden) setPaused(true);
+    });
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden && canPause() && !paused && achvModal.hidden) setPaused(true);
+    });
+
+    audio.bindUnlock();
+  }
+
+  // ---- Init ----
+  function init() {
+    migrateLegacy();
+    updateBadgeCount();
+    bindEvents();
+    newGame();
+    renderAchvGrid();
+  }
+
+  // Test hook — harmless in normal play.
+  window.__WORDSQUARE = {
+    PUZZLES,
+    WORDS,
+    WORDS_SET,
+    SIZE,
+    LINE_COUNT,
+    ACHIEVEMENTS,
+    stats,
+    get puzzleIndex() {
+      return puzzleIndex;
+    },
+    get solution() {
+      return solution.map((row) => row.slice());
+    },
+    get grid() {
+      return grid.map((row) => row.slice());
+    },
+    get locked() {
+      return locked.map((row) => row.slice());
+    },
+    get selected() {
+      return { r: selected.r, c: selected.c };
+    },
+    get gameOver() {
+      return gameOver;
+    },
+    get paused() {
+      return paused;
+    },
+    get hintsThisPuzzle() {
+      return hintsThisPuzzle;
+    },
+    get solveMs() {
+      return solveMs;
+    },
+    elapsed: clockMs,
+    cell: (r, c) => (grid[r] ? grid[r][c] : undefined),
+    snap: () => ({
+      puzzleIndex,
+      size: SIZE,
+      solution: solution.map((row) => row.slice()),
+      grid: grid.map((row) => row.slice()),
+      locked: locked.map((row) => row.slice()),
+      selected: { r: selected.r, c: selected.c },
+      gameOver,
+      paused,
+      elapsed: clockMs(),
+      solveMs,
+      hintsThisPuzzle,
+      stats: Object.assign({}, stats, { solved: stats.solved.slice() }),
+      unlocked: achv.list(),
+      overlayTitle: overlay.info().title,
+      overlayMsg: overlay.info().msg,
+    }),
+    lineWords,
+    checkLines,
+    select: selectCell,
+    type: typeLetter,
+    erase,
+    move: moveSelection,
+    advance,
+    hint,
+    reset,
+    setPuzzle,
+    newGame,
+    solve: () => {
+      if (gameOver) return false;
+      for (let r = 0; r < SIZE; r++)
+        for (let c = 0; c < SIZE; c++) grid[r][c] = solution[r][c];
+      refresh();
+      return winCheck();
+    },
+    setElapsed: (ms) => {
+      // Test hook: pin the clock so assertions are deterministic.
+      elapsedMs = Math.max(0, Number(ms) || 0);
+      runningSince = 0;
+      tickClock();
+    },
+    winCheck,
+    endGame,
+    setPaused,
+    togglePause,
+    saveStats,
+    checkAchievements,
+    openAchv,
+    closeAchv,
+    unlocked: () => achv.list(),
+    overlayTitle: () => overlay.info().title,
+    overlayMsg: () => overlay.info().msg,
+    overlay,
+  };
+
+  init();
 })();
