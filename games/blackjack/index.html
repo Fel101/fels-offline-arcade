@@ -36,7 +36,7 @@
     .status-bar { gap: 18px; }
     .status-bar__value { font-size: 1.15rem; }
     .status-bar__label { font-size: 0.62rem; }
-    .hands { display: flex; gap: 10px; justify-content: center; min-height: 94px; }
+    .hands { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; min-height: 94px; }
     .game-info__title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin: 0 0 2px; }
     .hand-score { font-size: 0.85rem; color: var(--muted); min-height: 1.1em; margin-top: 2px; font-variant-numeric: tabular-nums; }
     #result { font-size: 0.92rem; min-height: 1.2em; }
@@ -50,6 +50,12 @@
     .bj-corner--tl { top: 5px; left: 6px; }
     .bj-corner--br { bottom: 5px; right: 6px; transform: rotate(180deg); }
     .bj-card--back { background: repeating-linear-gradient(45deg, #2c3057 0 8px, #232645 8px 16px); box-shadow: 0 3px 6px rgba(0,0,0,0.45), inset 0 0 0 3px #f8f8f4, inset 0 0 0 6px #ff6b6b; }
+    @media (max-width: 430px) {
+      .bj-card { width: 52px; height: 78px; }
+      .bj-big { font-size: 1.5rem; }
+      .hands { gap: 6px; min-height: 78px; }
+      .status-bar { gap: 12px; }
+    }
   </style>
 </head>
 <body>
@@ -57,26 +63,34 @@
     <header class="game-header">
       <a class="back-btn" href="../../index.html">← Back to Games</a>
       <h1>Blackjack</h1>
+      <span class="game-header__spacer"></span>
+      <button class="icon-btn" id="sound-btn" type="button" aria-pressed="true" aria-label="Mute sound" title="Mute sound">
+        <span id="sound-icon" aria-hidden="true">🔊</span>
+      </button>
+      <button class="icon-btn" id="badges-btn" type="button" aria-label="Badges and achievements" title="Badges &amp; achievements">
+        <span aria-hidden="true">🏆</span><span class="icon-btn__count" id="badge-count">0</span>
+      </button>
     </header>
     <main class="game-area">
-      <div class="status-bar">
+      <div class="status-bar" aria-live="polite">
         <div class="status-bar__item"><span class="status-bar__label">Bankroll</span><span id="bank" class="status-bar__value">100</span></div>
         <div class="status-bar__item"><span class="status-bar__label">Bet</span><span id="bet" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Streak</span><span id="streak" class="status-bar__value">0</span></div>
       </div>
 
       <div style="text-align:center;">
         <p class="game-info__title">Dealer</p>
-        <div id="dealer-hand" class="hands"></div>
+        <div id="dealer-hand" class="hands" aria-label="Dealer hand"></div>
         <div id="dealer-score" class="hand-score"></div>
       </div>
 
       <div style="text-align:center;">
         <p class="game-info__title">You</p>
-        <div id="player-hand" class="hands"></div>
+        <div id="player-hand" class="hands" aria-label="Your hand"></div>
         <div id="player-score" class="hand-score"></div>
       </div>
 
-      <div id="result" class="game-info__hint" style="font-size:1.05rem;font-weight:700;color:var(--accent-2);min-height:1.4em;"></div>
+      <div id="result" class="game-info__hint" style="font-size:1.05rem;font-weight:700;color:var(--accent-2);min-height:1.4em;" aria-live="polite"></div>
 
       <div class="game-controls" id="bet-controls">
         <button class="btn bet-btn" data-amt="5">+5</button>
@@ -88,9 +102,28 @@
         <button id="hit" class="btn">Hit</button>
         <button id="stand" class="btn btn--ghost">Stand</button>
       </div>
-      <p class="game-info__hint">Get closer to 21 than the dealer without busting. Ace = 1 or 11.</p>
+      <div class="game-controls">
+        <button id="badges2" class="btn btn--ghost" type="button">🏆 Badges</button>
+      </div>
+      <p class="game-info__hint">Get closer to 21 than the dealer without busting. Ace = 1 or 11. H / S hit or stand, P pauses.</p>
     </main>
   </div>
+
+  <div class="snake-toasts" id="toasts" aria-live="polite"></div>
+
+  <div class="snake-modal" id="achv-modal" hidden>
+    <div class="snake-modal__backdrop" data-close></div>
+    <div class="snake-modal__panel" role="dialog" aria-modal="true" aria-labelledby="achv-title">
+      <header class="snake-modal__head">
+        <h2 id="achv-title">🏆 Badges <small id="achv-count">0 / 0</small></h2>
+        <button class="icon-btn" type="button" data-close aria-label="Close badges">✕</button>
+      </header>
+      <div class="achv-records" id="achv-records"></div>
+      <div class="achv-grid" id="achv-grid"></div>
+    </div>
+  </div>
+
+  <script src="../../js/arcade-core.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
