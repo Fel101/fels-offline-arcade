@@ -698,8 +698,19 @@
         b.className = "sudoku-cell";
         b.dataset.r = r;
         b.dataset.c = c;
-        if (c % 3 === 0 && c !== 0) b.classList.add("box-right");
-        if (r % 3 === 0 && r !== 0) b.classList.add("box-bottom");
+        // Thick 3x3 box separators are per-card: a cell can belong to up to two
+        // cards, so mark it if it's a box edge in any card that owns it. (Local
+        // columns/rows 2 and 5 are the internal 3x3 boundaries of a 9x9 card.)
+        let boxRight = false;
+        let boxBottom = false;
+        for (const i of cardsAt(r, c)) {
+          const lc = c - OFFSETS[i][0];
+          const lr = r - OFFSETS[i][1];
+          if (lc === 2 || lc === 5) boxRight = true;
+          if (lr === 2 || lr === 5) boxBottom = true;
+        }
+        if (boxRight) b.classList.add("box-right");
+        if (boxBottom) b.classList.add("box-bottom");
 
         const val = document.createElement("span");
         val.className = "sudoku-cell__val";
@@ -719,6 +730,22 @@
         notesEls[r][c] = notes;
       }
     }
+
+    // Card outlines: one crisp rectangle per 9x9 board, drawn above the grid so
+    // every card reads as its own sudoku even where cards meet or border a gap.
+    const outlines = document.createElement("div");
+    outlines.className = "super-card-layer";
+    outlines.setAttribute("aria-hidden", "true");
+    for (const [ox, oy] of OFFSETS) {
+      const o = document.createElement("div");
+      o.className = "super-card-outline";
+      o.style.left = (ox / N) * 100 + "%";
+      o.style.top = (oy / N) * 100 + "%";
+      o.style.width = (9 / N) * 100 + "%";
+      o.style.height = (9 / N) * 100 + "%";
+      outlines.appendChild(o);
+    }
+    boardEl.appendChild(outlines);
   }
 
   function unitConflict(r, c, v) {

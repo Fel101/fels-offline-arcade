@@ -1673,6 +1673,7 @@ body.modal-open { overflow: hidden; }
   display: grid;
   grid-template-columns: repeat(21, 1fr);
   grid-template-rows: repeat(21, 1fr);
+  position: relative;
   width: min(760px, 94vw);
   aspect-ratio: 1 / 1;
   background: var(--bg-soft);
@@ -1683,6 +1684,22 @@ body.modal-open { overflow: hidden; }
 }
 
 .super-gap { background: var(--bg); }
+
+/* Card outlines sit above the cells (but ignore the pointer) so all five 9x9
+   boards stay visibly framed, including the edges that face a gap. */
+.super-card-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+.super-card-outline {
+  position: absolute;
+  box-sizing: border-box;
+  border: 2px solid var(--accent);
+  border-radius: 3px;
+  box-shadow: 0 0 10px var(--btn-glow);
+}
 
 .super-board .sudoku-cell {
   font-size: clamp(0.42rem, 1.5vw, 0.95rem);
