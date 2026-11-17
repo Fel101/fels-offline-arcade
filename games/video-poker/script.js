@@ -27,6 +27,7 @@
   const betEl = dom.byId("bet");
   const targetEl = dom.byId("target");
   const messageEl = dom.byId("message");
+  const paytableEl = dom.byId("paytable");
   const actionBtn = dom.byId("action-btn");
   const newGameBtn = dom.byId("new-game");
   const hintEl = dom.byId("hint");
@@ -48,8 +49,22 @@
   const BET = 5;
   const TARGET = 300;
   const SUITS = ["♠", "♥", "♦", "♣"];
+  const SUIT_NAMES = ["spades", "hearts", "diamonds", "clubs"];
   const HINT_DEFAULT =
     "Click cards to hold them, then Draw. Reach 300 credits before you go broke.";
+
+  // Display order for the paytable strip (matches evaluateHand payouts).
+  const PAYTABLE = [
+    { key: "jacks-or-better", name: "Jacks or Better", mult: 2 },
+    { key: "two-pair", name: "Two Pair", mult: 3 },
+    { key: "three-kind", name: "Three of a Kind", mult: 5 },
+    { key: "straight", name: "Straight", mult: 6 },
+    { key: "flush", name: "Flush", mult: 8 },
+    { key: "full-house", name: "Full House", mult: 12 },
+    { key: "four-kind", name: "Four of a Kind", mult: 30 },
+    { key: "straight-flush", name: "Straight Flush", mult: 60 },
+    { key: "royal", name: "Royal Flush", mult: 250 },
+  ];
 
   const K = makeKeys("video-poker");
 
@@ -232,12 +247,137 @@
     return r === 14 ? "A" : r === 13 ? "K" : r === 12 ? "Q" : r === 11 ? "J" : String(r);
   }
 
-  function cardText(card) {
-    return rankLabel(card.r) + SUITS[card.s];
-  }
-
   function isRed(card) {
     return card.s === 1 || card.s === 2;
+  }
+
+  function cardAria(card, held) {
+    return `${rankLabel(card.r)} of ${SUIT_NAMES[card.s]}${held ? ", held" : ""}`;
+  }
+
+  // Build the visual face of a card: two corner indices, a centre emblem
+  // (big suit for numbers/aces, a royal medallion for J/Q/K) and a HELD badge.
+  function buildCardFace(card, i, opts) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "card";
+    if (isRed(card)) btn.className += " card--red";
+    if (held[i]) btn.className += " card--held";
+    if (opts.deal) {
+      btn.className += " card--deal";
+      btn.style.setProperty("--i", String(i));
+    }
+    if (opts.drawn && opts.drawn.indexOf(i) >= 0) btn.className += " card--draw";
+    if (opts.win) btn.className += " card--win";
+
+    const rank = rankLabel(card.r);
+    const suit = SUITS[card.s];
+
+    const tl = document.createElement("span");
+    tl.className = "card__corner card__corner--tl";
+    tl.setAttribute("aria-hidden", "true");
+    const tlRank = document.createElement("span");
+    tlRank.className = "rank";
+    tlRank.textContent = rank;
+    const tlSuit = document.createElement("span");
+    tlSuit.className = "suit";
+    tlSuit.textContent = suit;
+    tl.appendChild(tlRank);
+    tl.appendChild(tlSuit);
+
+    const center = document.createElement("span");
+    center.className = "card__center";
+    center.setAttribute("aria-hidden", "true");
+    if (card.r >= 11 && card.r <= 13) {
+      const wm = document.createElement("span");
+      wm.className = "card__royal-watermark";
+      wm.textContent = suit;
+      center.appendChild(wm);
+      const med = document.createElement("span");
+      med.className = "card__medallion";
+      med.textContent = rank;
+      center.appendChild(med);
+    } else {
+      const big = document.createElement("span");
+      big.className = "card__suit-big";
+      big.textContent = suit;
+      center.appendChild(big);
+    }
+
+    const br = document.createElement("span");
+    br.className = "card__corner card__corner--br";
+    br.setAttribute("aria-hidden", "true");
+    const brRank = document.createElement("span");
+    brRank.className = "rank";
+    brRank.textContent = rank;
+    const brSuit = document.createElement("span");
+    brSuit.className = "suit";
+    brSuit.textContent = suit;
+    br.appendChild(brRank);
+    br.appendChild(brSuit);
+
+    const heldBadge = document.createElement("span");
+    heldBadge.className = "card__held";
+    heldBadge.textContent = "HELD";
+    heldBadge.setAttribute("aria-hidden", "true");
+
+    btn.appendChild(tl);
+    btn.appendChild(center);
+    btn.appendChild(br);
+    btn.appendChild(heldBadge);
+
+    btn.disabled = gameOver || paused || phase !== "hold";
+    btn.setAttribute("aria-label", cardAria(card, held[i]));
+    btn.setAttribute("aria-pressed", held[i] ? "true" : "false");
+    return btn;
+  }
+
+  function buildPaytable() {
+    if (!paytableEl) return;
+    paytableEl.innerHTML = "";
+    for (const row of PAYTABLE) {
+      const chip = document.createElement("span");
+      chip.className = "vp-pay";
+      chip.dataset.key = row.key;
+      const name = document.createElement("b");
+      name.textContent = row.name;
+      const mult = document.createElement("i");
+      mult.textContent = row.mult + "×";
+      chip.appendChild(name);
+      chip.appendChild(mult);
+      paytableEl.appendChild(chip);
+    }
+  }
+
+  // Light up the paytable row for the hand just completed.
+  function updatePaytable() {
+    if (!paytableEl) return;
+    const active = phase === "result" && lastResult && lastResult.mult > 0 ? lastResult.key : null;
+    for (const el of paytableEl.children) {
+      el.classList.toggle("is-win", !!active && el.dataset.key === active);
+    }
+  }
+
+  function updateMessage() {
+    messageEl.classList.remove("is-win");
+    let msg;
+    if (phase === "result" && lastResult && lastResult.mult > 0) {
+      // Show the winning hand even when it also ends the game.
+      msg = `${lastResult.name}! You win ${lastPayout}.`;
+      messageEl.classList.add("is-win");
+    } else if (gameOver) {
+      msg = "Out of credits — deal again.";
+    } else if (phase === "bet") {
+      msg = "Press Deal to play a hand.";
+    } else if (phase === "hold") {
+      const n = held.filter(Boolean).length;
+      msg = n ? `${n} held — press Draw.` : "Click cards to hold, then Draw.";
+    } else if (phase === "result") {
+      msg = "No win — deal again.";
+    } else {
+      msg = "";
+    }
+    messageEl.textContent = msg;
   }
 
   // ---------- Flow ----------
@@ -255,15 +395,17 @@
     lastPayout = 0;
     phase = "hold";
     sfx("place");
-    render();
+    render({ deal: true });
   }
 
   function draw() {
     if (gameOver || paused || phase !== "hold") return;
+    const replaced = [];
     for (let i = 0; i < 5; i++) {
       if (!held[i]) {
         if (deckPos >= deck.length) { deck = freshDeck(); deckPos = 0; }
         hand[i] = deck[deckPos++];
+        replaced.push(i);
       }
     }
 
@@ -288,9 +430,9 @@
     saveStats();
     checkAchievements();
 
-    if (bankroll >= TARGET) return win();
-    if (bankroll < bet) return lose();
-    render();
+    if (bankroll >= TARGET) return win({ drawn: replaced });
+    if (bankroll < bet) return lose({ drawn: replaced });
+    render({ drawn: replaced, win: result.mult > 0 });
   }
 
   function toggleHold(i) {
@@ -298,7 +440,15 @@
     if (i < 0 || i >= 5) return;
     held[i] = !held[i];
     sfx("click");
-    render();
+    // Update just this card in place so the lift animates smoothly.
+    const card = hand[i];
+    const el = handEl.children[i];
+    if (el && card) {
+      el.classList.toggle("card--held", held[i]);
+      el.setAttribute("aria-pressed", held[i] ? "true" : "false");
+      el.setAttribute("aria-label", cardAria(card, held[i]));
+    }
+    updateMessage();
   }
 
   function primaryAction() {
@@ -306,7 +456,7 @@
     else deal();
   }
 
-  function win() {
+  function win(opts) {
     if (gameOver) return;
     gameOver = true;
     phase = "result";
@@ -317,7 +467,7 @@
     stats.bestBankroll = Math.max(stats.bestBankroll, bankroll);
     saveStats();
     checkAchievements();
-    render();
+    render(Object.assign({ win: !!(lastResult && lastResult.mult > 0) }, opts || {}));
     sfx("win");
     confetti(90);
     showOverlay("Target reached! 🎉", `You finished with ${bankroll} credits.`, [
@@ -326,17 +476,19 @@
     ]);
   }
 
-  function lose() {
+  function lose(opts) {
     if (gameOver) return;
     gameOver = true;
     phase = "result";
+    lastResult = null; // don't show a previous hand's result on the loss screen
+    lastPayout = 0;
     stats.games++;
     stats.losses++;
     stats.streak = 0;
     stats.bestBankroll = Math.max(stats.bestBankroll, bankroll);
     saveStats();
     checkAchievements();
-    render();
+    render(Object.assign({}, opts || {}));
     sfx("over");
     showOverlay("Out of credits", `You finished with ${bankroll} credits.`, [
       { label: "Play again", onClick: () => { hideOverlay(); newGame(); } },
@@ -345,7 +497,10 @@
   }
 
   // ---------- Rendering ----------
-  function render() {
+  // opts: { deal } stagger the deal, { drawn: [i] } flip replaced cards,
+  // { win } add the winning glow.
+  function render(opts) {
+    opts = opts || {};
     bankrollEl.textContent = bankroll;
     betEl.textContent = bet;
     targetEl.textContent = TARGET;
@@ -353,42 +508,20 @@
     handEl.innerHTML = "";
     for (let i = 0; i < 5; i++) {
       const card = hand[i];
-      const btn = document.createElement("button");
-      btn.type = "button";
       if (!card) {
-        btn.className = "card card--empty";
-        btn.disabled = true;
-        btn.setAttribute("aria-label", "Empty card slot");
+        const slot = document.createElement("button");
+        slot.type = "button";
+        slot.className = "card card--empty";
+        slot.disabled = true;
+        slot.setAttribute("aria-label", "Empty card slot");
+        handEl.appendChild(slot);
       } else {
-        btn.className = "card";
-        if (isRed(card)) btn.className += " card--red";
-        if (held[i]) btn.className += " card--held";
-        btn.textContent = cardText(card);
-        btn.disabled = gameOver || paused || phase !== "hold";
-        btn.setAttribute(
-          "aria-label",
-          `${rankLabel(card.r)} of ${["spades", "hearts", "diamonds", "clubs"][card.s]}${held[i] ? ", held" : ""}`
-        );
-        btn.setAttribute("aria-pressed", held[i] ? "true" : "false");
+        handEl.appendChild(buildCardFace(card, i, opts));
       }
-      handEl.appendChild(btn);
     }
 
-    if (gameOver) {
-      messageEl.textContent = "Game over.";
-    } else if (phase === "bet") {
-      messageEl.textContent = "Press Deal to play a hand.";
-    } else if (phase === "hold") {
-      const n = held.filter(Boolean).length;
-      messageEl.textContent = n ? `${n} held — press Draw.` : "Click cards to hold, then Draw.";
-    } else if (phase === "result") {
-      messageEl.textContent =
-        lastResult && lastResult.mult > 0
-          ? `${lastResult.name}! You win ${lastPayout}.`
-          : "No win — deal again.";
-    } else {
-      messageEl.textContent = "";
-    }
+    updateMessage();
+    updatePaytable();
 
     actionBtn.textContent = phase === "hold" ? "Draw" : "Deal";
     actionBtn.disabled = gameOver || paused;
@@ -483,6 +616,7 @@
   function init() {
     migrateLegacy();
     updateBadgeCount();
+    buildPaytable();
     bindEvents();
     newGame();
     renderAchvGrid();
