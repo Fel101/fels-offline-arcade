@@ -1,8 +1,8 @@
 # 🎮 Offline Arcade
 
-**60 games** · **0 dependencies** · **100% offline** · **MIT licensed**
+**61 games** · **0 dependencies** · **100% offline** · **MIT licensed**
 
-A self-contained, fully offline collection of **60 browser games** — a local take on
+A self-contained, fully offline collection of **61 browser games** — a local take on
 the "just a bunch of games to play" vibe. No server, no build step, no internet, no
 ads, no accounts, no tracking. Just open `index.html` in any modern browser and pick
 a game.
@@ -24,7 +24,7 @@ That's it — no Node, no npm, nothing to install.
 
 ## Highlights
 
-- **60 games** across 9 categories — Arcade, Card, Dice, Logic, Pattern, Puzzle,
+- **61 games** across 9 categories — Arcade, Card, Dice, Logic, Pattern, Puzzle,
   Reflex, Strategy and Word.
 - **Shared core** (`js/arcade-core.js`) provides storage, sound, toasts, overlays,
   confetti, badges and theming; each game keeps its own rules and rendering.
@@ -39,7 +39,7 @@ That's it — no Node, no npm, nothing to install.
 
 ---
 
-## Games (60)
+## Games (61)
 
 | Game | Type | Play |
 |------|------|------|
@@ -66,6 +66,7 @@ That's it — no Node, no npm, nothing to install.
 | 🔢 KenKen | Puzzle | Fill the grid, satisfy every cage — 12 puzzles, 14 badges |
 | 🔤 Ruzzle | Word | Trace words across the grid before time runs out — 14 badges |
 | ⚫ Go | Strategy | Place stones, surround territory, outplay the CPU on 9×9 — 14 badges |
+| 🎲 Backgammon | Board | Race home, hit blots, bear off — classic backgammon vs the CPU — 14 badges |
 | ❌ Tic-Tac-Toe | Strategy | Perfect AI, 3 levels + 2-player — 24 badges |
 | 🏓 Pong | Arcade | Mouse or ↑/↓ vs the computer — 14 badges |
 | 🧨 Breakout | Arcade | Bounce the ball and smash every brick — 14 badges |
@@ -154,7 +155,7 @@ never interfere with each other. Games may bundle extra data files — for examp
 
 ---
 
-## Adding a new game (game #60+)
+## Adding a new game (game #61+)
 
 1. Create `games/<name>/index.html` and `games/<name>/script.js`.
    Copy any existing game's `index.html` as a starting point — it already has the
