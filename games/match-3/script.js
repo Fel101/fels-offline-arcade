@@ -46,6 +46,7 @@
   const START_MOVES = 30;
   const TARGET = 2500;
   const GLYPHS = ["●", "◆", "▲", "★", "■", "⬢"];
+  const GEM_NAMES = ["red", "blue", "green", "yellow", "purple", "cyan"];
   const HINT_DEFAULT =
     "Click a gem, then an adjacent gem to swap. Match 3 or more in a row to clear them. Reach 2,500 points in 30 moves. P pauses.";
 
@@ -347,7 +348,18 @@
     movesEl.textContent = moves;
   }
 
-  function render() {
+  // Build a CSS calc() offset for the swap slide (one cell + the grid gap).
+  function offsetCss(d) {
+    if (!d) return "0";
+    const pct = d * 100;
+    const px = Math.abs(d * 4);
+    return `calc(${pct}% ${d < 0 ? "-" : "+"} ${px}px)`;
+  }
+
+  function render(opts) {
+    opts = opts || {};
+    const swap = opts.swap || null;
+    const bad = opts.bad || null;
     boardEl.innerHTML = "";
     for (let r = 0; r < SIZE; r++) {
       for (let c = 0; c < SIZE; c++) {
@@ -357,15 +369,45 @@
         let cls = "gem";
         if (t >= 0) cls += " gem--" + t;
         if (selected && selected.r === r && selected.c === c) cls += " gem--sel";
+        if (bad && bad.some((b) => b[0] === r && b[1] === c)) cls += " gem--bad";
+
+        // If this gem just slid in from a neighbour, offset its start position.
+        let moving = false;
+        let mdx = 0;
+        let mdy = 0;
+        if (swap) {
+          if (r === swap.r1 && c === swap.c1) {
+            mdx = swap.c2 - swap.c1;
+            mdy = swap.r2 - swap.r1;
+            moving = true;
+          } else if (r === swap.r2 && c === swap.c2) {
+            mdx = swap.c1 - swap.c2;
+            mdy = swap.r1 - swap.r2;
+            moving = true;
+          }
+        }
+        if (moving) cls += " gem--swap";
+
         btn.className = cls;
-        btn.textContent = t >= 0 ? GLYPHS[t] : "";
         btn.disabled = gameOver || paused;
         btn.setAttribute("data-r", String(r));
         btn.setAttribute("data-c", String(c));
         btn.setAttribute(
           "aria-label",
-          t >= 0 ? `${GLYPHS[t]} gem, row ${r + 1}, column ${c + 1}` : "Empty"
+          t >= 0 ? `${GEM_NAMES[t]} gem, row ${r + 1}, column ${c + 1}` : "Empty"
         );
+
+        if (t >= 0) {
+          const shape = document.createElement("span");
+          shape.className = "gem__shape";
+          shape.setAttribute("aria-hidden", "true");
+          btn.appendChild(shape);
+        }
+        if (moving) {
+          btn.style.setProperty("--sx", offsetCss(mdx));
+          btn.style.setProperty("--sy", offsetCss(mdy));
+        }
+
         boardEl.appendChild(btn);
       }
     }
@@ -386,7 +428,7 @@
     if (res.cleared === 0) {
       swapCells(grid, r1, c1, r2, c2); // revert the invalid swap
       sfx("bad");
-      render();
+      render({ bad: [[r1, c1], [r2, c2]] });
       return false;
     }
 
@@ -405,12 +447,16 @@
     selected = null;
 
     // Keep the board playable if it has no moves left.
+    let reshuffled = false;
     if (!hasPossibleMove(grid)) {
       grid = generateGrid();
+      reshuffled = true;
       toast.show("No moves", "The board was reshuffled.", "🔀");
     }
 
-    render();
+    // Slide the two swapped gems in from their old cells (unless the board was
+    // reshuffled, in which case the positions are brand new).
+    render(reshuffled ? {} : { swap: { r1, c1, r2, c2 } });
     checkEnd();
     return true;
   }
