@@ -215,6 +215,10 @@
   let cpuEnabled = true;
   let aiPending = false;
   let aiTimer = 0;
+  // The most recent shot, so only that cell plays the impact animation.
+  let lastShotBoard = null;
+  let lastShotKey = null;
+  let lastShotKind = null;
 
   const yourCells = [];
   const enemyCells = [];
@@ -340,6 +344,12 @@
 
   function render() {
     const yourShipCells = new Set(playerFleet.flatMap((s) => s.cells));
+    const yourSunkCells = new Set(
+      playerFleet.filter((s) => s.sunk).flatMap((s) => s.cells)
+    );
+    const enemySunkCells = new Set(
+      aiFleet.filter((s) => s.sunk).flatMap((s) => s.cells)
+    );
     for (let i = 0; i < SIZE * SIZE; i++) {
       const r = Math.floor(i / SIZE);
       const c = i % SIZE;
@@ -352,8 +362,12 @@
       if (aiShots.has(k)) {
         const hit = yourShipCells.has(k);
         yb.classList.add(hit ? "hit" : "miss");
+        if (hit && yourSunkCells.has(k)) yb.classList.add("sunk");
         yb.textContent = hit ? "🔥" : "·";
         yourState = hit ? "hit" : "miss";
+        if (yourBoardEl === lastShotBoard && k === lastShotKey) {
+          yb.classList.add(lastShotKind === "miss" ? "just-miss" : "just-hit");
+        }
       } else if (yourShipCells.has(k)) {
         yb.classList.add("ship");
         yourState = "ship";
@@ -367,14 +381,19 @@
       if (playerShots.has(k)) {
         const hit = aiFleet.some((s) => s.cells.includes(k));
         eb.classList.add(hit ? "hit" : "miss");
+        if (hit && enemySunkCells.has(k)) eb.classList.add("sunk");
         eb.textContent = hit ? "🔥" : "·";
         eb.disabled = true;
         enemyState = hit ? "hit" : "miss";
+        if (enemyBoardEl === lastShotBoard && k === lastShotKey) {
+          eb.classList.add(lastShotKind === "miss" ? "just-miss" : "just-hit");
+        }
       } else {
         eb.disabled = phase !== "battle" || busy || paused;
       }
       eb.setAttribute("aria-label", `Enemy waters, row ${r + 1}, column ${c + 1}, ${enemyState}`);
     }
+    turnLabel.classList.toggle("turn-label--live", phase === "battle" && !busy && !paused);
     yourShipsEl.textContent = playerFleet.filter((s) => !s.sunk).length;
     enemyShipsEl.textContent = aiFleet.filter((s) => !s.sunk).length;
     winsEl.textContent = stats.wins;
@@ -387,8 +406,15 @@
     const span = document.createElement("span");
     span.className = "float-text";
     span.textContent = text;
-    span.style.left = 6 + c * 24 + 11 + "px";
-    span.style.top = 6 + r * 24 + "px";
+    const cell = boardEl.children[r * SIZE + c];
+    if (cell && typeof cell.offsetLeft === "number") {
+      span.style.left = cell.offsetLeft + cell.offsetWidth / 2 + "px";
+      span.style.top = cell.offsetTop - 4 + "px";
+    } else {
+      // Fallback for headless/test DOMs without layout metrics.
+      span.style.left = 6 + c * 24 + 11 + "px";
+      span.style.top = 6 + r * 24 + "px";
+    }
     boardEl.appendChild(span);
     setTimeout(() => span.remove(), 1150);
   }
@@ -398,20 +424,25 @@
     const k = key(r, c);
     shots.add(k);
     const ship = fleet.find((s) => s.cells.includes(k));
+    let result;
     if (!ship) {
+      result = "miss";
       floatText(boardEl, r, c, "Miss!");
       sfx("splash");
-      return "miss";
-    }
-    if (ship.cells.every((cell) => shots.has(cell))) {
+    } else if (ship.cells.every((cell) => shots.has(cell))) {
       ship.sunk = true;
+      result = "sunk";
       floatText(boardEl, r, c, "Sunk!");
       sfx("sink");
-      return "sunk";
+    } else {
+      result = "hit";
+      floatText(boardEl, r, c, "Hit!");
+      sfx("hit");
     }
-    floatText(boardEl, r, c, "Hit!");
-    sfx("hit");
-    return "hit";
+    lastShotBoard = boardEl;
+    lastShotKey = k;
+    lastShotKind = result;
+    return result;
   }
 
   // ---------- Turn flow ----------
@@ -622,6 +653,9 @@
     playerFleet = randomFleet();
     aiFleet = randomFleet();
     shotsThisGame = 0;
+    lastShotBoard = null;
+    lastShotKey = null;
+    lastShotKind = null;
     hideOverlay();
     turnLabel.textContent = "Place your fleet!";
     render();
@@ -782,6 +816,9 @@
       aiTargets = [];
       pendingHits = [];
       shotsThisGame = 0;
+      lastShotBoard = null;
+      lastShotKey = null;
+      lastShotKind = null;
       hideOverlay();
       render();
       return { player: cloneFleet(playerFleet), ai: cloneFleet(aiFleet) };
