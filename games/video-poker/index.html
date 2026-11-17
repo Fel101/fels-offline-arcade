@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Video Poker — Offline Arcade</title>
+  <meta name="description" content="Jacks or Better — hold, draw, and hit the target. 14 badges.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Video Poker — Offline Arcade">
+  <meta property="og:description" content="Jacks or Better — hold, draw, and hit the target. 14 badges.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%AE%3C/text%3E%3C/svg%3E">
+  <meta name="theme-color" content="#0e0e11">
+  <meta name="color-scheme" content="dark light">
+  <script>
+    // Apply the saved theme before first paint to avoid a flash.
+    // "system" (or anything unrecognized) leaves <html> without data-theme,
+    // so CSS falls back to prefers-color-scheme, then dark.
+    (() => {
+      try {
+        var saved = localStorage.getItem("offline-arcade:theme:v1");
+        var theme = "system";
+        if (saved) {
+          try {
+            var parsed = JSON.parse(saved);
+            if (parsed === "dark" || parsed === "light" || parsed === "kids") theme = parsed;
+          } catch (_) {
+            if (saved === "dark" || saved === "light" || saved === "kids") theme = saved;
+          }
+        }
+        if (theme !== "system") document.documentElement.dataset.theme = theme;
+      } catch (_) {
+        /* storage blocked - fall back to system default */
+      }
+    })();
+  </script>
+  <link rel="stylesheet" href="../../css/styles.css">
+  <style>
+    .hand {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      flex-wrap: wrap;
+      padding: 14px 0 18px;
+    }
+    .card {
+      width: clamp(50px, 14vw, 70px);
+      aspect-ratio: 0.72;
+      border-radius: 10px;
+      background: linear-gradient(180deg, #ffffff, #e4e4e4);
+      color: #14141a;
+      border: 1px solid rgba(0,0,0,0.18);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: clamp(1.2rem, 5.5vw, 1.7rem);
+      cursor: pointer;
+      padding: 0;
+      font-family: inherit;
+      line-height: 1;
+      box-shadow: 0 4px 0 rgba(0,0,0,0.28), 0 8px 14px rgba(0,0,0,0.28);
+      transition: transform 0.12s ease, box-shadow 0.12s ease;
+    }
+    .card--red { color: #d21f2b; }
+    .card--held {
+      transform: translateY(-12px);
+      box-shadow: 0 0 0 3px var(--accent), 0 4px 0 rgba(0,0,0,0.28), 0 10px 18px rgba(0,0,0,0.32);
+    }
+    .card--empty {
+      background: rgba(255,255,255,0.05);
+      border: 1px dashed var(--glass-border);
+      box-shadow: none;
+      cursor: default;
+    }
+    .card:disabled { cursor: default; }
+    .message {
+      text-align: center;
+      font-weight: 700;
+      min-height: 1.6em;
+      margin: 0 0 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="game-shell">
+    <header class="game-header">
+      <a class="back-btn" href="../../index.html">← Back to Games</a>
+      <h1>Video Poker</h1>
+      <span class="game-header__spacer"></span>
+      <button class="icon-btn" id="sound-btn" type="button" aria-pressed="true" aria-label="Mute sound" title="Mute sound">
+        <span id="sound-icon" aria-hidden="true">🔊</span>
+      </button>
+      <button class="icon-btn" id="badges-btn" type="button" aria-label="Badges and achievements" title="Badges &amp; achievements">
+        <span aria-hidden="true">🏆</span><span class="icon-btn__count" id="badge-count">0</span>
+      </button>
+    </header>
+    <main class="game-area">
+      <div class="status-bar" aria-live="polite">
+        <div class="status-bar__item"><span class="status-bar__label">Bankroll</span><span id="bankroll" class="status-bar__value">100</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Bet</span><span id="bet" class="status-bar__value">5</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Target</span><span id="target" class="status-bar__value">300</span></div>
+      </div>
+      <div id="hand" class="hand" aria-label="Poker hand"></div>
+      <p id="message" class="message" aria-live="polite">Press Deal to play a hand.</p>
+      <div class="game-controls">
+        <button id="action-btn" class="btn">Deal</button>
+        <button id="new-game" class="btn btn--ghost">New Game</button>
+        <button id="badges2" class="btn btn--ghost" type="button">🏆 Badges</button>
+      </div>
+      <p id="hint" class="game-info__hint" aria-live="polite">Click cards to hold them, then Draw. Reach <b>300</b> credits before you go broke. Pays (× your 5-credit bet): Jacks or Better 2 · Two Pair 3 · Three of a Kind 5 · Straight 6 · Flush 8 · Full House 12 · Four of a Kind 30 · Straight Flush 60 · Royal Flush 250.</p>
+    </main>
+  </div>
+
+  <div class="snake-toasts" id="toasts" aria-live="polite"></div>
+
+  <div class="snake-modal" id="achv-modal" hidden>
+    <div class="snake-modal__backdrop" data-close></div>
+    <div class="snake-modal__panel" role="dialog" aria-modal="true" aria-labelledby="achv-title">
+      <header class="snake-modal__head">
+        <h2 id="achv-title">🏆 Badges <small id="achv-count">0 / 0</small></h2>
+        <button class="icon-btn" type="button" data-close aria-label="Close badges">✕</button>
+      </header>
+      <div class="achv-records" id="achv-records"></div>
+      <div class="achv-grid" id="achv-grid"></div>
+    </div>
+  </div>
+
+  <script src="../../js/arcade-core.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
