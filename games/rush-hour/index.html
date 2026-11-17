@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rush Hour — Offline Arcade</title>
+  <meta name="description" content="Slide the cars, free the red car — 12 hand-tuned levels, 14 badges.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Rush Hour — Offline Arcade">
+  <meta property="og:description" content="Slide the cars, free the red car — 12 hand-tuned levels, 14 badges.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%AE%3C/text%3E%3C/svg%3E">
+  <meta name="theme-color" content="#0e0e11">
+  <meta name="color-scheme" content="dark light">
+  <script>
+    // Apply the saved theme before first paint to avoid a flash.
+    // "system" (or anything unrecognized) leaves <html> without data-theme,
+    // so CSS falls back to prefers-color-scheme, then dark.
+    (() => {
+      try {
+        var saved = localStorage.getItem("offline-arcade:theme:v1");
+        var theme = "system";
+        if (saved) {
+          try {
+            var parsed = JSON.parse(saved);
+            if (parsed === "dark" || parsed === "light" || parsed === "kids") theme = parsed;
+          } catch (_) {
+            if (saved === "dark" || saved === "light" || saved === "kids") theme = saved;
+          }
+        }
+        if (theme !== "system") document.documentElement.dataset.theme = theme;
+      } catch (_) {
+        /* storage blocked - fall back to system default */
+      }
+    })();
+  </script>
+  <link rel="stylesheet" href="../../css/styles.css">
+  <style>
+    .rh-board {
+      width: 100%;
+      max-width: min(92vw, 430px);
+      margin: 0 auto;
+      padding: 10px;
+      border-radius: 18px;
+      background: linear-gradient(170deg, rgba(255,255,255,0.09), rgba(255,255,255,0.03));
+      border: 1px solid var(--glass-border);
+      box-shadow: 0 16px 36px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.12);
+    }
+    .rh-grid {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1;
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      grid-template-rows: repeat(6, 1fr);
+      touch-action: none;
+    }
+    .rh-cell {
+      border-radius: 7px;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.045);
+      background: rgba(255,255,255,0.02);
+    }
+    .rh-car {
+      position: absolute;
+      border: none;
+      padding: 0;
+      margin: 0;
+      border-radius: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: clamp(0.8rem, 3.6vw, 1.25rem);
+      font-weight: 800;
+      line-height: 1;
+      color: rgba(0,0,0,0.5);
+      cursor: grab;
+      transform: scale(0.94);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3),
+                  inset 0 2px 0 rgba(255,255,255,0.4),
+                  inset 0 -3px 0 rgba(0,0,0,0.18);
+      touch-action: none;
+      transition: box-shadow 0.12s ease, filter 0.12s ease;
+      font-family: inherit;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+    .rh-car--target { color: rgba(255,255,255,0.92); }
+    .rh-car--sel {
+      box-shadow: 0 0 0 3px var(--accent), 0 6px 14px rgba(0,0,0,0.36);
+      filter: brightness(1.08);
+    }
+    .rh-car--drag { cursor: grabbing; z-index: 6; filter: brightness(1.12); }
+    .rh-car--hint { animation: rh-pulse 0.7s ease-in-out infinite; }
+    @keyframes rh-pulse {
+      0%, 100% { box-shadow: 0 0 0 3px var(--accent), 0 4px 10px rgba(0,0,0,0.3); }
+      50% { box-shadow: 0 0 0 6px rgba(90, 209, 184, 0.35), 0 4px 10px rgba(0,0,0,0.3); }
+    }
+    .status-bar { gap: 18px; }
+    .level-name { text-align: center; opacity: 0.85; }
+  </style>
+</head>
+<body>
+  <div class="game-shell">
+    <header class="game-header">
+      <a class="back-btn" href="../../index.html">← Back to Games</a>
+      <h1>Rush Hour</h1>
+      <span class="game-header__spacer"></span>
+      <button class="icon-btn" id="sound-btn" type="button" aria-pressed="true" aria-label="Mute sound" title="Mute sound">
+        <span id="sound-icon" aria-hidden="true">🔊</span>
+      </button>
+      <button class="icon-btn" id="badges-btn" type="button" aria-label="Badges and achievements" title="Badges &amp; achievements">
+        <span aria-hidden="true">🏆</span><span class="icon-btn__count" id="badge-count">0</span>
+      </button>
+    </header>
+    <main class="game-area">
+      <div class="status-bar" aria-live="polite">
+        <div class="status-bar__item"><span class="status-bar__label">Level</span><span id="level" class="status-bar__value">1/12</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Moves</span><span id="moves" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Par</span><span id="par" class="status-bar__value">0</span></div>
+      </div>
+      <p id="level-name" class="game-info__title level-name">First Gear</p>
+      <div class="rh-board">
+        <div id="grid" class="rh-grid" aria-label="Rush Hour board"></div>
+      </div>
+      <div class="game-controls">
+        <button id="prev" class="btn btn--ghost" type="button">◀ Prev</button>
+        <button id="restart" class="btn">Restart</button>
+        <button id="undo" class="btn btn--ghost" type="button">↶ Undo</button>
+        <button id="hint" class="btn btn--ghost" type="button">💡 Hint</button>
+      </div>
+      <div class="game-controls">
+        <button id="next" class="btn btn--ghost" type="button">Next ▶</button>
+        <button id="badges2" class="btn btn--ghost" type="button">🏆 Badges</button>
+      </div>
+      <p id="hint" class="game-info__hint" aria-live="polite">Click a car, then use the arrow keys (or drag it) to slide along its lane. Each cell you slide counts as a move. Free the red car at the right edge. P pauses.</p>
+    </main>
+  </div>
+
+  <div class="snake-toasts" id="toasts" aria-live="polite"></div>
+
+  <div class="snake-modal" id="achv-modal" hidden>
+    <div class="snake-modal__backdrop" data-close></div>
+    <div class="snake-modal__panel" role="dialog" aria-modal="true" aria-labelledby="achv-title">
+      <header class="snake-modal__head">
+        <h2 id="achv-title">🏆 Badges <small id="achv-count">0 / 0</small></h2>
+        <button class="icon-btn" type="button" data-close aria-label="Close badges">✕</button>
+      </header>
+      <div class="achv-records" id="achv-records"></div>
+      <div class="achv-grid" id="achv-grid"></div>
+    </div>
+  </div>
+
+  <script src="../../js/arcade-core.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
