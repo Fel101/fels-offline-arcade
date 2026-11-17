@@ -101,7 +101,7 @@ build step, no dependencies, no framework.
 | `modal` | Accessible show/hide dialog shell with scroll lock |
 | `loop` | Delta-clamped `requestAnimationFrame` loop |
 
-Changes here affect all 46 games, so please be conservative and test broadly.
+Changes here affect all 47 games, so please be conservative and test broadly.
 
 ## Checks
 

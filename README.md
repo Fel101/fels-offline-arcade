@@ -1,8 +1,8 @@
 # 🎮 Offline Arcade
 
-**46 games** · **0 dependencies** · **100% offline** · **MIT licensed**
+**47 games** · **0 dependencies** · **100% offline** · **MIT licensed**
 
-A self-contained, fully offline collection of **46 browser games** — a local take on
+A self-contained, fully offline collection of **47 browser games** — a local take on
 the "just a bunch of games to play" vibe. No server, no build step, no internet, no
 ads, no accounts, no tracking. Just open `index.html` in any modern browser and pick
 a game.
@@ -24,7 +24,7 @@ That's it — no Node, no npm, nothing to install.
 
 ## Highlights
 
-- **46 games** across 9 categories — Arcade, Card, Dice, Logic, Pattern, Puzzle,
+- **47 games** across 9 categories — Arcade, Card, Dice, Logic, Pattern, Puzzle,
   Reflex, Strategy and Word.
 - **Shared core** (`js/arcade-core.js`) provides storage, sound, toasts, overlays,
   confetti, badges and theming; each game keeps its own rules and rendering.
@@ -39,7 +39,7 @@ That's it — no Node, no npm, nothing to install.
 
 ---
 
-## Games (46)
+## Games (47)
 
 | Game | Type | Play |
 |------|------|------|
@@ -52,6 +52,7 @@ That's it — no Node, no npm, nothing to install.
 | 🔢 2048 | Puzzle | Merge tiles — 3 sizes, undo, 24 badges |
 | 🧠 Memory | Pattern | Flip pairs — 4 modes, 3 sizes, 24 badges |
 | 🔴 Connect Four | Strategy | Click a column vs the computer — 14 badges |
+| 🔵 Gomoku | Strategy | Five in a row vs the computer — 14 badges |
 | ❌ Tic-Tac-Toe | Strategy | Perfect AI, 3 levels + 2-player — 24 badges |
 | 🏓 Pong | Arcade | Mouse or ↑/↓ vs the computer — 14 badges |
 | 🧨 Breakout | Arcade | Bounce the ball and smash every brick — 14 badges |
