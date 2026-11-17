@@ -41,7 +41,7 @@ No Node, no npm, nothing to install. Works from a local folder or a USB stick.
 | 🔨 Whack-a-Mole | Reflex | Whack moles, chain combos — 4 modes, 24 badges |
 | ♠️ Blackjack | Card | Bet, hit, stand vs the dealer — 14 badges |
 | ♟️ Chess | Strategy | Full rules — castling, en passant, promotion + AI |
-| 🃏 Solitaire | Card | Klondike, click to move |
+| 🃏 Solitaire | Card | Klondike, click to move — 14 badges |
 | 🚩 Minesweeper Variants | Logic | Classic flood-fill or Saturation mode |
 | 🏍️ Tron | Arcade | Light-cycle duel vs the computer |
 | 🟠 Checkers | Strategy | Mandatory captures vs the computer — 14 badges |

@@ -67,6 +67,17 @@
       .card, .slot, .sol-col { width: 54px; height: 78px; }
       .rank { font-size: 0.95rem; } .suit-big { font-size: 1.2rem; }
       .sol-col .card { margin-top: -62px; }
+      .sol-top, .sol-tableau { gap: 8px; }
+    }
+    @media (max-width: 400px) {
+      .card, .slot, .sol-col { width: 44px; height: 64px; }
+      .rank { font-size: 0.82rem; }
+      .suit-big { font-size: 1rem; }
+      .suit-small { font-size: 0.8rem; bottom: 4px; right: 5px; }
+      .sol-col .card { margin-top: -50px; }
+      .sol-top, .sol-tableau { gap: 5px; }
+      .sol-spacer { width: 8px; }
+      .slot__label { font-size: 1.2rem; }
     }
   </style>
 </head>
@@ -75,25 +86,50 @@
     <header class="game-header">
       <a class="back-btn" href="../../index.html">← Back to Games</a>
       <h1>Solitaire</h1>
+      <span class="game-header__spacer"></span>
+      <button class="icon-btn" id="sound-btn" type="button" aria-pressed="true" aria-label="Mute sound" title="Mute sound">
+        <span id="sound-icon" aria-hidden="true">🔊</span>
+      </button>
+      <button class="icon-btn" id="badges-btn" type="button" aria-label="Badges and achievements" title="Badges &amp; achievements">
+        <span aria-hidden="true">🏆</span><span class="icon-btn__count" id="badge-count">0</span>
+      </button>
     </header>
     <main class="game-area">
-      <div class="status-bar">
+      <div class="status-bar" aria-live="polite">
         <div class="status-bar__item"><span class="status-bar__label">Moves</span><span id="moves" class="status-bar__value">0</span></div>
         <div class="status-bar__item"><span class="status-bar__label">Wins</span><span id="wins" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Streak</span><span id="streak" class="status-bar__value">0</span></div>
       </div>
       <div class="sol-top">
-        <div id="stock" class="slot"><span class="slot__label">↻</span></div>
-        <div id="waste" class="sol-pile"></div>
+        <div id="stock" class="slot" aria-label="Stock"></div>
+        <div id="waste" class="sol-pile" aria-label="Waste"></div>
         <div class="sol-spacer"></div>
         <div id="foundations" class="sol-top" style="gap:10px;"></div>
       </div>
       <div id="tableau" class="sol-tableau"></div>
       <div class="game-controls">
         <button id="new-game" class="btn">New Game</button>
+        <button id="badges2" class="btn btn--ghost" type="button">🏆 Badges</button>
       </div>
-      <p class="game-info__hint">Click a card to move it. Send cards to the foundations (A→K by suit). Double-click to fan a card home.</p>
+      <p class="game-info__hint">Click a card to move it. Send cards to the foundations (A→K by suit). Double-click to fan a card home. P pauses.</p>
     </main>
   </div>
+
+  <div class="snake-toasts" id="toasts" aria-live="polite"></div>
+
+  <div class="snake-modal" id="achv-modal" hidden>
+    <div class="snake-modal__backdrop" data-close></div>
+    <div class="snake-modal__panel" role="dialog" aria-modal="true" aria-labelledby="achv-title">
+      <header class="snake-modal__head">
+        <h2 id="achv-title">🏆 Badges <small id="achv-count">0 / 0</small></h2>
+        <button class="icon-btn" type="button" data-close aria-label="Close badges">✕</button>
+      </header>
+      <div class="achv-records" id="achv-records"></div>
+      <div class="achv-grid" id="achv-grid"></div>
+    </div>
+  </div>
+
+  <script src="../../js/arcade-core.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
