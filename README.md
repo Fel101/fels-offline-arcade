@@ -1,8 +1,8 @@
 # 🎮 Offline Arcade
 
-**55 games** · **0 dependencies** · **100% offline** · **MIT licensed**
+**56 games** · **0 dependencies** · **100% offline** · **MIT licensed**
 
-A self-contained, fully offline collection of **55 browser games** — a local take on
+A self-contained, fully offline collection of **56 browser games** — a local take on
 the "just a bunch of games to play" vibe. No server, no build step, no internet, no
 ads, no accounts, no tracking. Just open `index.html` in any modern browser and pick
 a game.
@@ -24,7 +24,7 @@ That's it — no Node, no npm, nothing to install.
 
 ## Highlights
 
-- **55 games** across 9 categories — Arcade, Card, Dice, Logic, Pattern, Puzzle,
+- **56 games** across 9 categories — Arcade, Card, Dice, Logic, Pattern, Puzzle,
   Reflex, Strategy and Word.
 - **Shared core** (`js/arcade-core.js`) provides storage, sound, toasts, overlays,
   confetti, badges and theming; each game keeps its own rules and rendering.
@@ -39,7 +39,7 @@ That's it — no Node, no npm, nothing to install.
 
 ---
 
-## Games (55)
+## Games (56)
 
 | Game | Type | Play |
 |------|------|------|
@@ -61,6 +61,7 @@ That's it — no Node, no npm, nothing to install.
 | 👾 Space Invaders | Arcade | Defend Earth from waves of descending aliens — 14 badges |
 | 💎 Match 3 | Puzzle | Swap gems, match three, chain cascades — 14 badges |
 | 🟡 Maze Chase | Arcade | Eat the dots, dodge the ghosts, grab power pellets — 14 badges |
+| 🖱️ Aim Trainer | Reflex | Click the targets fast — chase accuracy and reaction time — 14 badges |
 | ❌ Tic-Tac-Toe | Strategy | Perfect AI, 3 levels + 2-player — 24 badges |
 | 🏓 Pong | Arcade | Mouse or ↑/↓ vs the computer — 14 badges |
 | 🧨 Breakout | Arcade | Bounce the ball and smash every brick — 14 badges |
@@ -149,7 +150,7 @@ never interfere with each other. Games may bundle extra data files — for examp
 
 ---
 
-## Adding a new game (game #55+)
+## Adding a new game (game #56+)
 
 1. Create `games/<name>/index.html` and `games/<name>/script.js`.
    Copy any existing game's `index.html` as a starting point — it already has the
