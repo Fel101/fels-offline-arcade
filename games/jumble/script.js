@@ -1,23 +1,49 @@
 // Jumble — puzzle-book style word unscrambling. Pure vanilla JS, fully offline.
+// Shared plumbing (storage, audio, toasts, overlay, confetti, badges, modal)
+// comes from ../../js/arcade-core.js.
 (() => {
-  const scrambleEl = document.getElementById("scramble");
-  const clueEl = document.getElementById("clue");
-  const answerEl = document.getElementById("answer");
-  const attemptsEl = document.getElementById("attempts");
-  const keyboardEl = document.getElementById("keyboard");
-  const winsEl = document.getElementById("wins");
-  const streakEl = document.getElementById("streak");
-  const bestEl = document.getElementById("best-streak");
-  const hintBtn = document.getElementById("hint-btn");
-  const clearBtn = document.getElementById("clear-btn");
-  const newWordBtn = document.getElementById("new-word");
+  "use strict";
 
-  // Safe storage wrapper — file:// can block localStorage in some browsers.
-  const store = {
-    get(k, d = 0) { try { return Number(localStorage.getItem(k)) || d; } catch { return d; } },
-    set(k, v) { try { localStorage.setItem(k, v); } catch {} },
-  };
+  const {
+    store,
+    keys: makeKeys,
+    audio,
+    overlay,
+    confetti,
+    badges: badgesApi,
+    modal: modalApi,
+    dom,
+  } = window.Arcade;
 
+  const sfx = audio.sfx;
+  const showOverlay = overlay.show;
+  const hideOverlay = overlay.hide;
+
+  // ---------- DOM ----------
+  const scrambleEl = dom.byId("scramble");
+  const clueEl = dom.byId("clue");
+  const answerEl = dom.byId("answer");
+  const attemptsEl = dom.byId("attempts");
+  const keyboardEl = dom.byId("keyboard");
+  const winsEl = dom.byId("wins");
+  const streakEl = dom.byId("streak");
+  const bestEl = dom.byId("best-streak");
+
+  const hintBtn = dom.byId("hint-btn");
+  const clearBtn = dom.byId("clear-btn");
+  const newWordBtn = dom.byId("new-word");
+
+  const badgesBtn = dom.byId("badges-btn");
+  const badgeCountEl = dom.byId("badge-count");
+  const soundBtn = dom.byId("sound-btn");
+  const soundIconEl = dom.byId("sound-icon");
+
+  const achvModal = dom.byId("achv-modal");
+  const achvGrid = dom.byId("achv-grid");
+  const achvCountEl = dom.byId("achv-count");
+  const achvRecordsEl = dom.byId("achv-records");
+
+  // ---------- Constants ----------
   // Kid-friendly 5–7 letter words with short clues.
   const WORDS = [
     { w: "TIGER", clue: "Orange cat with black stripes" },
@@ -104,10 +130,136 @@
     { w: "TRAPEZE", clue: "Circus bar that swings high" },
   ];
 
-  let wins = store.get("jumble-wins");
-  let streak = store.get("jumble-streak");
-  let bestStreak = store.get("jumble-best-streak");
+  const KEY_ROWS = ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"];
 
+  const K = makeKeys("jumble");
+
+  // ---------- Persistent stats ----------
+  const DEFAULT_STATS = {
+    games: 0,
+    wins: 0,
+    streak: 0,
+    bestStreak: 0,
+    hints: 0,
+    letters: 0,
+    flawless: 0,
+    wrongGuesses: 0,
+  };
+
+  const storedStats = store.json(K.stats, null);
+  const stats = Object.assign(
+    {},
+    DEFAULT_STATS,
+    storedStats && typeof storedStats === "object" && !Array.isArray(storedStats) ? storedStats : {}
+  );
+  for (const key of Object.keys(DEFAULT_STATS)) {
+    if (!Number.isFinite(stats[key])) stats[key] = DEFAULT_STATS[key];
+  }
+
+  function saveStats() {
+    store.jsonSet(K.stats, stats);
+  }
+
+  // The pre-core build kept three loose counters.
+  function migrateLegacy() {
+    const legacy = [
+      ["jumble-wins", "wins"],
+      ["jumble-streak", "streak"],
+      ["jumble-best-streak", "bestStreak"],
+    ];
+    for (const [oldKey, statKey] of legacy) {
+      const raw = store.get(oldKey, null);
+      if (raw !== null && raw !== undefined) {
+        const n = Number(raw);
+        if (Number.isFinite(n) && n > stats[statKey]) stats[statKey] = n;
+        store.remove(oldKey);
+      }
+    }
+    saveStats();
+  }
+
+  // ---------- Achievements ----------
+  const ACHIEVEMENTS = [
+    { id: "first", icon: "🎉", name: "First Solve", desc: "Unscramble your first word.", stat: "wins", goal: 1 },
+    { id: "win5", icon: "🔤", name: "Word Finder", desc: "Solve 5 words.", stat: "wins", goal: 5 },
+    { id: "win10", icon: "📚", name: "Wordsmith", desc: "Solve 10 words.", stat: "wins", goal: 10 },
+    { id: "win25", icon: "👑", name: "Jumble Master", desc: "Solve 25 words.", stat: "wins", goal: 25 },
+    { id: "streak2", icon: "🔥", name: "Two in a Row", desc: "Solve 2 words in a row.", stat: "bestStreak", goal: 2 },
+    { id: "streak3", icon: "🎩", name: "Hat Trick", desc: "Solve 3 words in a row.", stat: "bestStreak", goal: 3 },
+    { id: "streak5", icon: "🚀", name: "Unstoppable", desc: "Solve 5 words in a row.", stat: "bestStreak", goal: 5 },
+    { id: "games10", icon: "🎮", name: "Ten Words", desc: "Start 10 words.", stat: "games", goal: 10 },
+    { id: "games25", icon: "🗂️", name: "Word Shelf", desc: "Start 25 words.", stat: "games", goal: 25 },
+    { id: "hint10", icon: "💡", name: "Nudge", desc: "Use 10 hints.", stat: "hints", goal: 10 },
+    { id: "hint50", icon: "🔦", name: "Hint Happy", desc: "Use 50 hints.", stat: "hints", goal: 50 },
+    { id: "letters100", icon: "⌨️", name: "Letter Drop", desc: "Type 100 letters.", stat: "letters", goal: 100 },
+    { id: "letters500", icon: "🖋️", name: "Typist", desc: "Type 500 letters.", stat: "letters", goal: 500 },
+    { id: "flawless5", icon: "✨", name: "Spotless", desc: "Solve 5 words without hints.", stat: "flawless", goal: 5 },
+  ];
+
+  // ---------- Badges UI ----------
+  const achv = badgesApi.create(ACHIEVEMENTS, {
+    storageKey: K.achv,
+    getStat: (key) => (Number.isFinite(stats[key]) ? stats[key] : 0),
+    onUnlock: () => {
+      updateBadgeCount();
+      saveStats();
+    },
+    onRender: () => {
+      if (!achvModal.hidden) renderAchvGrid();
+    },
+  });
+
+  function updateBadgeCount() {
+    badgeCountEl.textContent = achv.count();
+    badgesBtn.setAttribute(
+      "aria-label",
+      `Badges and achievements: ${achv.count()} of ${achv.total()} unlocked`
+    );
+  }
+
+  function checkAchievements() {
+    achv.check();
+  }
+
+  function renderAchvGrid() {
+    achv.render(achvGrid, {
+      countEl: achvCountEl,
+      recordsEl: achvRecordsEl,
+      records: () => [
+        ["Words", stats.games],
+        ["Solved", stats.wins],
+        ["Best streak", stats.bestStreak],
+        ["Hints", stats.hints],
+        ["Clean solves", stats.flawless],
+      ],
+    });
+  }
+
+  const achvModalCtl = modalApi.create(achvModal, {
+    onOpen: () => {
+      renderAchvGrid();
+      if (!roundOver && !paused) setPaused(true);
+    },
+    onClose: () => {
+      if (badgesBtn.focus) badgesBtn.focus();
+    },
+  });
+
+  function openAchv() {
+    achvModalCtl.open();
+  }
+
+  function closeAchv() {
+    achvModalCtl.close();
+  }
+
+  // ---------- Audio ----------
+  audio.bindButton({ btn: soundBtn, icon: soundIconEl, soundKey: K.sound });
+  audio.define("letter", [[620, 0, 0.03, "triangle", 0.02]]);
+  audio.define("erase", [[300, 0, 0.05, "sine", 0.025]]);
+  audio.define("hint", [[440, 0, 0.08, "sine", 0.035], [660, 0.07, 0.1, "sine", 0.035]]);
+
+  // ---------- State ----------
   let current = null;
   let scrambled = "";
   let answer = [];
@@ -115,16 +267,24 @@
   let selected = null;
   let attempts = 0;
   let roundOver = false;
-  let overlay = null;
+  let paused = false;
+  let hintsThisWord = 0;
 
-  const KEY_ROWS = ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"];
+  function updateStatus() {
+    winsEl.textContent = stats.wins;
+    streakEl.textContent = stats.streak;
+    bestEl.textContent = stats.bestStreak;
+  }
 
+  // ---------- Scramble ----------
   function shuffleWord(word) {
     const arr = word.split("");
     for (let t = 0; t < 60; t++) {
       for (let i = arr.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
-        const tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
+        const tmp = arr[i];
+        arr[i] = arr[j];
+        arr[j] = tmp;
       }
       if (arr.join("") !== word) return arr.join("");
     }
@@ -132,26 +292,23 @@
     return arr.slice(1).join("") + arr[0];
   }
 
+  // Bounded so a stubborn random stream can never hang the page.
   function pickWord(exclude) {
-    let next;
-    do {
-      next = WORDS[Math.floor(Math.random() * WORDS.length)];
-    } while (exclude && next.w === exclude);
-    return next;
+    const start = Math.floor(Math.random() * WORDS.length);
+    for (let i = 0; i < WORDS.length; i++) {
+      const cand = WORDS[(start + i) % WORDS.length];
+      if (!exclude || cand.w !== exclude) return cand;
+    }
+    return WORDS[start];
   }
 
-  function updateStatus() {
-    winsEl.textContent = wins;
-    streakEl.textContent = streak;
-    bestEl.textContent = bestStreak;
-  }
-
+  // ---------- Rendering ----------
   function renderScramble() {
     scrambleEl.innerHTML = "";
     for (let i = 0; i < scrambled.length; i++) {
       const tile = document.createElement("div");
       tile.className = "scramble__tile";
-      tile.style.animationDelay = (i * 60) + "ms";
+      tile.style.animationDelay = i * 60 + "ms";
       tile.textContent = scrambled[i];
       scrambleEl.appendChild(tile);
     }
@@ -161,6 +318,7 @@
     answerEl.innerHTML = "";
     for (let i = 0; i < answer.length; i++) {
       const box = document.createElement("button");
+      box.type = "button";
       box.className = "answer-box";
       if (answer[i]) box.classList.add("filled");
       if (locked[i]) box.classList.add("answer-box--locked");
@@ -177,6 +335,7 @@
     clueEl.textContent = "Clue: " + current.clue;
   }
 
+  // ---------- Play ----------
   function firstEmptyUnlocked() {
     for (let i = 0; i < answer.length; i++) {
       if (!locked[i] && answer[i] === "") return i;
@@ -185,117 +344,184 @@
   }
 
   function insertLetter(ch) {
-    if (roundOver) return;
+    if (roundOver || paused) return false;
     let idx = -1;
     if (selected !== null && !locked[selected]) idx = selected;
     else idx = firstEmptyUnlocked();
-    if (idx === -1) return;
+    if (idx === -1) return false;
     answer[idx] = ch;
+    stats.letters++;
+    saveStats();
     selected = firstEmptyUnlocked();
     if (selected === -1) selected = null;
     renderAnswer();
+    sfx("letter");
+    checkAchievements();
     checkComplete();
+    return true;
   }
 
   function removeLetter() {
-    if (roundOver) return;
+    if (roundOver || paused) return false;
     let idx = -1;
     if (selected !== null && !locked[selected] && answer[selected]) idx = selected;
     else {
       for (let i = answer.length - 1; i >= 0; i--) {
-        if (!locked[i] && answer[i]) { idx = i; break; }
+        if (!locked[i] && answer[i]) {
+          idx = i;
+          break;
+        }
       }
     }
-    if (idx === -1) return;
+    if (idx === -1) return false;
     answer[idx] = "";
     selected = idx;
     renderAnswer();
+    sfx("erase");
+    return true;
   }
 
   function selectBox(i) {
-    if (roundOver || locked[i]) return;
-    selected = (selected === i) ? null : i;
+    if (roundOver || paused || locked[i]) return false;
+    selected = selected === i ? null : i;
     renderAnswer();
+    return true;
   }
 
   function clearAnswer() {
-    if (roundOver) return;
+    if (roundOver || paused) return false;
     for (let i = 0; i < answer.length; i++) {
       if (!locked[i]) answer[i] = "";
     }
     selected = null;
     renderAnswer();
+    sfx("erase");
+    return true;
   }
 
   function useHint() {
-    if (roundOver) return;
+    if (roundOver || paused) return false;
     const w = current.w;
     let idx = -1;
     for (let i = 0; i < w.length; i++) {
-      if (answer[i] !== w[i]) { idx = i; break; }
+      if (answer[i] !== w[i]) {
+        idx = i;
+        break;
+      }
     }
-    if (idx === -1) return;
+    if (idx === -1) {
+      sfx("error");
+      return false;
+    }
     answer[idx] = w[idx];
     locked[idx] = true;
-    streak = 0;
-    store.set("jumble-streak", 0);
+    hintsThisWord++;
+    stats.hints++;
+    stats.streak = 0;
+    saveStats();
     updateStatus();
     selected = firstEmptyUnlocked();
     if (selected === -1) selected = null;
     renderAnswer();
+    sfx("hint");
+    checkAchievements();
     checkComplete();
+    return true;
   }
 
   function checkComplete() {
-    if (answer.some(l => l === "")) return;
+    if (answer.some((l) => l === "")) return false;
     attempts++;
     const guess = answer.join("");
     if (guess === current.w) {
-      roundOver = true;
-      wins++;
-      streak++;
-      if (streak > bestStreak) bestStreak = streak;
-      store.set("jumble-wins", wins);
-      store.set("jumble-streak", streak);
-      store.set("jumble-best-streak", bestStreak);
-      updateStatus();
-      const boxes = answerEl.querySelectorAll(".answer-box");
-      boxes.forEach(b => b.classList.add("answer-box--correct"));
-      showOverlay();
-    } else {
-      streak = 0;
-      store.set("jumble-streak", 0);
-      updateStatus();
-      answerEl.classList.add("answer-row--wrong");
-      setTimeout(() => answerEl.classList.remove("answer-row--wrong"), 500);
-      renderAnswer();
+      endGame();
+      return true;
     }
+    stats.wrongGuesses++;
+    stats.streak = 0;
+    saveStats();
+    updateStatus();
+    checkAchievements();
+    sfx("error");
+    answerEl.classList.add("answer-row--wrong");
+    setTimeout(() => answerEl.classList.remove("answer-row--wrong"), 500);
+    renderAnswer();
+    return false;
   }
 
-  function showOverlay() {
-    if (overlay) overlay.remove();
-    overlay = document.createElement("div");
-    overlay.className = "overlay";
-    overlay.innerHTML = `<div class="overlay__box"><h2>You got it! 🎉</h2><p>The word was ${current.w}.</p><p>Solved with ${attempts} ${attempts === 1 ? "attempt" : "attempts"}. Current streak: ${streak}.</p>
-      <button class="btn" id="ov-restart">Next word</button></div>`;
-    document.body.appendChild(overlay);
-    overlay.querySelector("#ov-restart").addEventListener("click", () => newWord(current.w));
+  // ---------- Win ----------
+  function endGame() {
+    if (roundOver) return false;
+    roundOver = true;
+    paused = false;
+    // The last letter was rendered before checkComplete ran, so refresh the
+    // attempt label and mark the winning boxes here.
+    const boxes = answerEl.children || [];
+    for (let i = 0; i < boxes.length; i++) {
+      if (boxes[i] && boxes[i].classList) boxes[i].classList.add("answer-box--correct");
+    }
+    attemptsEl.textContent = "Attempts: " + attempts;
+    const prevBest = stats.bestStreak;
+    stats.wins++;
+    stats.streak++;
+    if (stats.streak > stats.bestStreak) stats.bestStreak = stats.streak;
+    if (hintsThisWord === 0) stats.flawless++;
+    saveStats();
+    checkAchievements();
+    updateStatus();
+    hideOverlay();
+
+    const isRecord = stats.bestStreak > prevBest;
+    sfx("win");
+    confetti(isRecord ? 90 : 60);
+
+    showOverlay(
+      "You got it! 🎉",
+      `The word was ${current.w}. Solved with ${attempts} ${attempts === 1 ? "attempt" : "attempts"}. Streak ${stats.streak}.` +
+        (isRecord ? " New best streak!" : ""),
+      [
+        {
+          label: "Next word",
+          onClick: () => {
+            hideOverlay();
+            newWord(current.w);
+          },
+        },
+        { label: "Badges", ghost: true, onClick: () => openAchv() },
+      ]
+    );
+    return true;
   }
 
-  function newWord(exclude) {
-    if (overlay) overlay.remove();
-    current = pickWord(exclude);
+  // ---------- New word ----------
+  function loadWord(word, clue) {
+    current = { w: String(word).toUpperCase(), clue: clue || "test" };
     scrambled = shuffleWord(current.w);
     answer = new Array(current.w.length).fill("");
     locked = new Array(current.w.length).fill(false);
     selected = null;
     attempts = 0;
     roundOver = false;
+    paused = false;
+    hintsThisWord = 0;
+    hideOverlay();
     renderScramble();
     renderClue();
     renderAnswer();
+    updateStatus();
   }
 
+  function newWord(exclude) {
+    const picked = pickWord(exclude);
+    loadWord(picked.w, picked.clue);
+    stats.games++;
+    saveStats();
+    checkAchievements();
+    updateStatus();
+    return picked;
+  }
+
+  // ---------- Keyboard ----------
   function buildKeyboard() {
     keyboardEl.innerHTML = "";
     KEY_ROWS.forEach((letters, r) => {
@@ -303,45 +529,224 @@
       rowEl.className = "keyboard__row";
       for (const ch of letters) {
         const btn = document.createElement("button");
+        btn.type = "button";
         btn.className = "key";
         btn.textContent = ch;
-        btn.addEventListener("click", () => insertLetter(ch));
+        btn.addEventListener("click", () => {
+          audio.unlock();
+          insertLetter(ch);
+        });
         rowEl.appendChild(btn);
       }
       if (r === 2) {
         const back = document.createElement("button");
+        back.type = "button";
         back.className = "key key--wide";
         back.textContent = "⌫";
         back.setAttribute("aria-label", "Backspace");
-        back.addEventListener("click", removeLetter);
+        back.addEventListener("click", () => {
+          audio.unlock();
+          removeLetter();
+        });
         rowEl.appendChild(back);
       }
       keyboardEl.appendChild(rowEl);
     });
   }
 
-  document.addEventListener("keydown", e => {
-    if (roundOver) {
-      if (e.key === "Enter" && overlay) {
-        e.preventDefault();
-        newWord(current.w);
+  // ---------- Pause ----------
+  function canPause() {
+    return !roundOver;
+  }
+
+  function setPaused(p) {
+    if (!canPause() || paused === p) return;
+    paused = p;
+    if (p) {
+      showOverlay("Paused", "Take a breath — press Esc to resume.", [
+        {
+          label: "Resume",
+          onClick: () => {
+            hideOverlay();
+            setPaused(false);
+          },
+        },
+        { label: "Badges", ghost: true, onClick: () => openAchv() },
+      ]);
+    } else {
+      hideOverlay();
+    }
+  }
+
+  function togglePause() {
+    setPaused(!paused);
+  }
+
+  // ---------- Input ----------
+  function onKeyDown(e) {
+    if (!achvModal.hidden) {
+      if (e.key === "Escape") {
+        if (e.preventDefault) e.preventDefault();
+        closeAchv();
       }
       return;
     }
-    if (/^[a-zA-Z]$/.test(e.key)) {
-      e.preventDefault();
+
+    // P is a word letter here, so pause lives on Escape.
+    if (e.key === "Escape") {
+      if (e.preventDefault) e.preventDefault();
+      togglePause();
+      return;
+    }
+
+    if (paused) return;
+
+    if (roundOver) {
+      if (e.key === "Enter") {
+        if (e.preventDefault) e.preventDefault();
+        newWord(current && current.w);
+      }
+      return;
+    }
+
+    if (/^[a-zA-Z]$/.test(e.key || "")) {
+      if (e.preventDefault) e.preventDefault();
       insertLetter(e.key.toUpperCase());
     } else if (e.key === "Backspace") {
-      e.preventDefault();
+      if (e.preventDefault) e.preventDefault();
       removeLetter();
     }
-  });
+  }
 
-  hintBtn.addEventListener("click", useHint);
-  clearBtn.addEventListener("click", clearAnswer);
-  newWordBtn.addEventListener("click", () => newWord(current && current.w));
+  function bindEvents() {
+    document.addEventListener("keydown", onKeyDown);
 
-  buildKeyboard();
-  updateStatus();
-  newWord(null);
+    hintBtn.addEventListener("click", () => {
+      audio.unlock();
+      sfx("click");
+      useHint();
+    });
+    clearBtn.addEventListener("click", () => {
+      audio.unlock();
+      sfx("click");
+      clearAnswer();
+    });
+    newWordBtn.addEventListener("click", () => {
+      audio.unlock();
+      sfx("click");
+      newWord(current && current.w);
+    });
+
+    badgesBtn.addEventListener("click", () => {
+      sfx("click");
+      openAchv();
+    });
+    const badges2 = dom.byId("badges2");
+    if (badges2)
+      badges2.addEventListener("click", () => {
+        sfx("click");
+        openAchv();
+      });
+
+    window.addEventListener("blur", () => {
+      if (canPause() && !paused && achvModal.hidden) setPaused(true);
+    });
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden && canPause() && !paused && achvModal.hidden) setPaused(true);
+    });
+
+    audio.bindUnlock();
+  }
+
+  // ---------- Init ----------
+  function init() {
+    migrateLegacy();
+    updateBadgeCount();
+    bindEvents();
+    buildKeyboard();
+    newWord(null);
+    renderAchvGrid();
+  }
+
+  // Test hook — harmless in normal play.
+  window.__JUMBLE = {
+    WORDS,
+    KEY_ROWS,
+    ACHIEVEMENTS,
+    stats,
+    get current() {
+      return current ? { w: current.w, clue: current.clue } : null;
+    },
+    get scrambled() {
+      return scrambled;
+    },
+    get answer() {
+      return answer.slice();
+    },
+    get locked() {
+      return locked.slice();
+    },
+    get selected() {
+      return selected;
+    },
+    get attempts() {
+      return attempts;
+    },
+    get roundOver() {
+      return roundOver;
+    },
+    get paused() {
+      return paused;
+    },
+    get hintsThisWord() {
+      return hintsThisWord;
+    },
+    snap: () => ({
+      word: current ? current.w : null,
+      clue: current ? current.clue : null,
+      scrambled,
+      answer: answer.slice(),
+      locked: locked.slice(),
+      selected,
+      attempts,
+      roundOver,
+      paused,
+      hintsThisWord,
+      stats: Object.assign({}, stats),
+      unlocked: achv.list(),
+      overlayTitle: overlay.info().title,
+      overlayMsg: overlay.info().msg,
+    }),
+    shuffleWord,
+    pickWord,
+    insert: insertLetter,
+    remove: removeLetter,
+    select: selectBox,
+    clear: clearAnswer,
+    hint: useHint,
+    checkComplete,
+    solve: () => {
+      for (let i = 0; i < answer.length; i++) answer[i] = current.w[i];
+      renderAnswer();
+      return checkComplete();
+    },
+    typeWord: (word) => {
+      for (const ch of String(word).toUpperCase()) insertLetter(ch);
+    },
+    loadWord,
+    newWord,
+    endGame,
+    setPaused,
+    togglePause,
+    saveStats,
+    checkAchievements,
+    openAchv,
+    closeAchv,
+    unlocked: () => achv.list(),
+    overlayTitle: () => overlay.info().title,
+    overlayMsg: () => overlay.info().msg,
+    overlay,
+  };
+
+  init();
 })();

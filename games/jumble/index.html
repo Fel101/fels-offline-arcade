@@ -163,28 +163,52 @@
     <header class="game-header">
       <a class="back-btn" href="../../index.html">← Back to Games</a>
       <h1>Jumble</h1>
+      <span class="game-header__spacer"></span>
+      <button class="icon-btn" id="sound-btn" type="button" aria-pressed="true" aria-label="Mute sound" title="Mute sound">
+        <span id="sound-icon" aria-hidden="true">🔊</span>
+      </button>
+      <button class="icon-btn" id="badges-btn" type="button" aria-label="Badges and achievements" title="Badges &amp; achievements">
+        <span aria-hidden="true">🏆</span><span class="icon-btn__count" id="badge-count">0</span>
+      </button>
     </header>
     <main class="game-area">
-      <div class="status-bar">
+      <div class="status-bar" aria-live="polite">
         <div class="status-bar__item"><span class="status-bar__label">Wins</span><span id="wins" class="status-bar__value">0</span></div>
         <div class="status-bar__item"><span class="status-bar__label">Streak</span><span id="streak" class="status-bar__value">0</span></div>
         <div class="status-bar__item"><span class="status-bar__label">Best Streak</span><span id="best-streak" class="status-bar__value">0</span></div>
       </div>
       <div class="jumble">
-        <div id="scramble" class="scramble"></div>
+        <div id="scramble" class="scramble" aria-label="Scrambled letters"></div>
         <p id="clue" class="jumble__clue"></p>
-        <div id="answer" class="answer-row"></div>
+        <div id="answer" class="answer-row" aria-label="Your answer"></div>
         <p id="attempts" class="game-info__hint">Attempts: 0</p>
       </div>
-      <div id="keyboard" class="keyboard"></div>
+      <div id="keyboard" class="keyboard" aria-label="Letter keyboard"></div>
       <div class="game-controls">
         <button id="hint-btn" class="btn btn--ghost">💡 Hint</button>
         <button id="clear-btn" class="btn btn--ghost">Clear</button>
         <button id="new-word" class="btn">New Word</button>
+        <button id="badges2" class="btn btn--ghost" type="button">🏆 Badges</button>
       </div>
-      <p class="game-info__hint">Unscramble the letters to answer the clue. Tap a box to select it, or just type!</p>
+      <p class="game-info__hint">Unscramble the letters to answer the clue. Tap a box to select it, or just type. Esc pauses.</p>
     </main>
   </div>
+
+  <div class="snake-toasts" id="toasts" aria-live="polite"></div>
+
+  <div class="snake-modal" id="achv-modal" hidden>
+    <div class="snake-modal__backdrop" data-close></div>
+    <div class="snake-modal__panel" role="dialog" aria-modal="true" aria-labelledby="achv-title">
+      <header class="snake-modal__head">
+        <h2 id="achv-title">🏆 Badges <small id="achv-count">0 / 0</small></h2>
+        <button class="icon-btn" type="button" data-close aria-label="Close badges">✕</button>
+      </header>
+      <div class="achv-records" id="achv-records"></div>
+      <div class="achv-grid" id="achv-grid"></div>
+    </div>
+  </div>
+
+  <script src="../../js/arcade-core.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
