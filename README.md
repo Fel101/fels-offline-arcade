@@ -71,7 +71,7 @@ No Node, no npm, nothing to install. Works from a local folder or a USB stick.
 | 🎯 Mastermind | Logic | Crack the color code — 14 badges |
 | 🗼 Tower of Hanoi | Puzzle | Move the tower, ring by ring — 14 badges |
 | 🟢 Peg Solitaire | Puzzle | Jump and remove, leave one peg — 14 badges |
-| 📦 Sokoban | Puzzle | Push every box onto a target |
+| 📦 Sokoban | Puzzle | Push every box onto a target — 14 badges |
 
 ## Structure
 
