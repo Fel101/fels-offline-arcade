@@ -55,7 +55,7 @@ No Node, no npm, nothing to install. Works from a local folder or a USB stick.
 | 🔤 Word Tile | Word | Guess the 5-letter word in 6 tries — 14 badges |
 | 💡 Lights Out | Puzzle | One click toggles a cross — 3 sizes, 24 badges |
 | 🧮 15 Puzzle | Puzzle | Slide into order — 3 sizes, hints, 24 badges |
-| 🌈 Flow | Puzzle | Connect matching pipes, fill every cell |
+| 🌈 Flow | Puzzle | Connect matching pipes, fill every cell — 14 badges |
 | 🎵 Simon | Reflex | Repeat the sequence — 4 modes, 3 pad sets, 24 badges |
 | 🎲 Yahtzee | Dice | Roll and re-roll — beat your best total |
 | 🏗️ Stack | Arcade | Drop blocks on the tower — how high? |
