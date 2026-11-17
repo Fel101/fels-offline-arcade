@@ -29,25 +29,87 @@
     })();
   </script>
   <link rel="stylesheet" href="../../css/styles.css">
+  <style>
+    .game-area { padding-bottom: 16px; }
+    #game {
+      display: block;
+      max-width: 100%;
+      height: auto;
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      touch-action: none;
+      background: #0a0b18;
+    }
+    .status-bar { gap: 22px; }
+    .tron-pad {
+      display: grid;
+      grid-template-columns: repeat(3, 52px);
+      grid-template-rows: repeat(2, 42px);
+      gap: 6px;
+      justify-content: center;
+      margin: 14px auto 0;
+    }
+    .tron-pad__btn {
+      min-width: 0;
+      padding: 0;
+      font-size: 1.05rem;
+      line-height: 1;
+    }
+    .tron-pad__up { grid-column: 2; grid-row: 1; }
+    .tron-pad__left { grid-column: 1; grid-row: 2; }
+    .tron-pad__down { grid-column: 2; grid-row: 2; }
+    .tron-pad__right { grid-column: 3; grid-row: 2; }
+  </style>
 </head>
 <body>
   <div class="game-shell">
     <header class="game-header">
       <a class="back-btn" href="../../index.html">← Back to Games</a>
       <h1>Tron</h1>
+      <span class="game-header__spacer"></span>
+      <button class="icon-btn" id="sound-btn" type="button" aria-pressed="true" aria-label="Mute sound" title="Mute sound">
+        <span id="sound-icon" aria-hidden="true">🔊</span>
+      </button>
+      <button class="icon-btn" id="badges-btn" type="button" aria-label="Badges and achievements" title="Badges &amp; achievements">
+        <span aria-hidden="true">🏆</span><span class="icon-btn__count" id="badge-count">0</span>
+      </button>
     </header>
     <main class="game-area">
-      <div class="status-bar">
-        <div class="status-bar__item"><span class="status-bar__label">Wins</span><span id="score" class="status-bar__value">0</span></div>
+      <div class="status-bar" aria-live="polite">
+        <div class="status-bar__item"><span class="status-bar__label">Wins</span><span id="wins" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Streak</span><span id="streak" class="status-bar__value">0</span></div>
         <div class="status-bar__item"><span class="status-bar__label">Best</span><span id="best" class="status-bar__value">0</span></div>
       </div>
-      <canvas id="game" width="480" height="480"></canvas>
+      <canvas id="game" width="480" height="480" aria-label="Tron light-cycle arena"></canvas>
+      <div class="tron-pad" role="group" aria-label="Direction controls">
+        <button class="btn btn--ghost tron-pad__btn tron-pad__up" type="button" data-dir="up" aria-label="Turn up">↑</button>
+        <button class="btn btn--ghost tron-pad__btn tron-pad__left" type="button" data-dir="left" aria-label="Turn left">←</button>
+        <button class="btn btn--ghost tron-pad__btn tron-pad__down" type="button" data-dir="down" aria-label="Turn down">↓</button>
+        <button class="btn btn--ghost tron-pad__btn tron-pad__right" type="button" data-dir="right" aria-label="Turn right">→</button>
+      </div>
       <div class="game-controls">
         <button id="restart" class="btn">Restart</button>
+        <button id="badges2" class="btn btn--ghost" type="button">🏆 Badges</button>
       </div>
-      <p class="game-info__hint">Arrow keys or WASD to steer. Don't hit a wall or a trail.</p>
+      <p class="game-info__hint">Arrows / WASD to steer, or swipe the arena. Make the enemy cycle crash first! P pauses.</p>
     </main>
   </div>
+
+  <div class="snake-toasts" id="toasts" aria-live="polite"></div>
+
+  <div class="snake-modal" id="achv-modal" hidden>
+    <div class="snake-modal__backdrop" data-close></div>
+    <div class="snake-modal__panel" role="dialog" aria-modal="true" aria-labelledby="achv-title">
+      <header class="snake-modal__head">
+        <h2 id="achv-title">🏆 Badges <small id="achv-count">0 / 0</small></h2>
+        <button class="icon-btn" type="button" data-close aria-label="Close badges">✕</button>
+      </header>
+      <div class="achv-records" id="achv-records"></div>
+      <div class="achv-grid" id="achv-grid"></div>
+    </div>
+  </div>
+
+  <script src="../../js/arcade-core.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
