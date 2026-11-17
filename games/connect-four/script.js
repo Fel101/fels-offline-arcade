@@ -46,7 +46,8 @@
   const HUMAN = "R", AI = "Y";
   const DIFF_NAMES = { "4": "easy", "6": "normal", "8": "hard" };
   const FAST_MOVES = 12; // a win inside this many of your own drops counts as "fast"
-  const AI_DELAY = 250;
+  const DROP_MS = 640; // keep in sync with the CSS c4Drop duration
+  const AI_DELAY = 720; // let the human's disc finish falling before the CPU replies
   const HINT_DEFAULT = "Click a column to drop your disc (🔴). Get four in a row. P pauses.";
 
   const K = makeKeys("connect-four");
@@ -188,6 +189,28 @@
   let lastMove = null; // { r, c } of the most recent drop, for the fall animation
   let winCells = null; // [[r,c] x4] of the winning line, for the highlight
   let hoverCol = -1; // column currently under the pointer, for the preview
+  let humanReady = true; // false while the CPU's disc is still falling
+  let readyTimer = null;
+
+  // Keep human input locked until the CPU's drop animation has finished, so a
+  // quick click can't cut it short. (window.setTimeout never fires in the Node
+  // harness, but the CPU's non-terminal move path isn't exercised there.)
+  function unlockHuman() {
+    if (readyTimer !== null) {
+      window.clearTimeout(readyTimer);
+      readyTimer = null;
+    }
+    humanReady = true;
+  }
+
+  function lockHumanForDrop() {
+    if (readyTimer !== null) window.clearTimeout(readyTimer);
+    humanReady = false;
+    readyTimer = window.setTimeout(() => {
+      readyTimer = null;
+      humanReady = true;
+    }, DROP_MS + 20);
+  }
 
   function newGrid() { return Array.from({ length: ROWS }, () => new Array(COLS).fill("")); }
 
@@ -357,6 +380,8 @@
     sfx("click");
     render();
     afterMove(AI, col, r);
+    // If play continues, hold input until the CPU's disc has landed.
+    if (!gameOver && currentTurn === HUMAN) lockHumanForDrop();
   }
 
   // ---------- Rendering & flow ----------
@@ -415,7 +440,7 @@
   }
 
   function playColumn(col) {
-    if (gameOver || paused || currentTurn !== HUMAN) return;
+    if (gameOver || paused || currentTurn !== HUMAN || !humanReady) return;
     if (!valid(col)) return;
     const r = drop(grid, col, HUMAN);
     lastMove = { r, c: col };
@@ -429,6 +454,7 @@
 
   function endGame(result) {
     if (gameOver) return;
+    unlockHuman();
     gameOver = true;
     paused = false;
     clearAiTimer();
@@ -482,6 +508,7 @@
 
   function newGame() {
     clearAiTimer();
+    unlockHuman();
     grid = newGrid();
     currentTurn = HUMAN;
     gameOver = false;
@@ -506,6 +533,7 @@
   // ---------- Pause ----------
   function setPaused(p) {
     if (gameOver || paused === p) return;
+    unlockHuman();
     paused = p;
     if (p) {
       clearAiTimer();
@@ -551,7 +579,7 @@
 
   // Highlight the hovered column and ghost the disc where it would land.
   function onBoardOver(e) {
-    if (gameOver || paused || currentTurn !== HUMAN) {
+    if (gameOver || paused || currentTurn !== HUMAN || !humanReady) {
       clearHover();
       return;
     }
@@ -660,6 +688,7 @@
       lastMove = null;
       winCells = null;
       hoverCol = -1;
+      unlockHuman();
       hideOverlay();
       render();
     },
