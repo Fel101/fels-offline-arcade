@@ -42,7 +42,7 @@ No Node, no npm, nothing to install. Works from a local folder or a USB stick.
 | ♠️ Blackjack | Card | Bet, hit, stand vs the dealer — 14 badges |
 | ♟️ Chess | Strategy | Full rules — castling, en passant, promotion + AI — 14 badges |
 | 🃏 Solitaire | Card | Klondike, click to move — 14 badges |
-| 🚩 Minesweeper Variants | Logic | Classic flood-fill or Saturation mode |
+| 🚩 Minesweeper Variants | Logic | Classic flood-fill or Saturation mode — 14 badges |
 | 🏍️ Tron | Arcade | Light-cycle duel vs the computer — 14 badges |
 | 🟠 Checkers | Strategy | Mandatory captures vs the computer — 14 badges |
 | 🁫 Dominoes | Strategy | Draw, Block or All Fives — 3 AI levels, 24 badges |
