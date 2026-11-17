@@ -202,17 +202,35 @@
     return RED.has(card.s);
   }
 
-  function renderCard(card, hidden) {
+  function renderCard(card, hidden, index) {
     const el = document.createElement("div");
     if (hidden) {
       el.className = "bj-card bj-card--back";
+      el.innerHTML = `<span class="bj-back__inner"><span class="bj-back__emblem">♠</span></span>`;
       el.setAttribute("aria-label", "Hidden card");
+      card._seen = true;
+      card._wasHidden = true;
       return el;
     }
-    el.className = "bj-card" + (isRed(card) ? " bj-card--red" : "");
+
+    const isNew = !card._seen;
+    const wasHidden = card._wasHidden === true;
+    card._seen = true;
+    card._wasHidden = false;
+
+    let cls = "bj-card" + (isRed(card) ? " bj-card--red" : "");
+    if (isNew) cls += " bj-card--deal";
+    if (wasHidden) cls += " bj-card--flip";
+    el.className = cls;
+    if (isNew && index) el.style.animationDelay = index * 55 + "ms";
+
+    const royal = card.r === "J" || card.r === "Q" || card.r === "K";
+    const center = royal
+      ? `<span class="bj-royal-watermark">${card.s}</span><span class="bj-medallion">${card.r}</span>`
+      : `<span class="bj-suit-big">${card.s}</span>`;
     el.innerHTML =
       `<span class="bj-corner bj-corner--tl">${card.r}<br><span class="bj-suit">${card.s}</span></span>` +
-      `<span class="bj-big">${card.s}</span>` +
+      `<span class="bj-center">${center}</span>` +
       `<span class="bj-corner bj-corner--br">${card.r}<br><span class="bj-suit">${card.s}</span></span>`;
     return el;
   }
@@ -220,19 +238,28 @@
   function render(revealDealer) {
     playerHandEl.innerHTML = "";
     dealerHandEl.innerHTML = "";
-    player.forEach((c) => playerHandEl.appendChild(renderCard(c)));
+    player.forEach((c, i) => playerHandEl.appendChild(renderCard(c, false, i)));
     dealer.forEach((c, i) => {
       const hidden = revealDealer === false && i === 1;
-      dealerHandEl.appendChild(renderCard(c, hidden));
+      dealerHandEl.appendChild(renderCard(c, hidden, i));
     });
+
+    const pVal = player.length ? handValue(player) : 0;
     playerScoreEl.textContent = player.length ? handValue(player) : "";
+    playerScoreEl.classList.toggle("is-21", player.length > 0 && pVal === 21);
+    playerScoreEl.classList.toggle("is-bust", pVal > 21);
+
     if (!dealer.length) {
       dealerScoreEl.textContent = "";
+      dealerScoreEl.classList.remove("is-21", "is-bust");
     } else if (revealDealer === false) {
       dealerScoreEl.textContent = String(handValue([dealer[0]]));
+      dealerScoreEl.classList.remove("is-21", "is-bust");
     } else {
       const dVal = handValue(dealer);
       dealerScoreEl.textContent = dVal + (dVal === 21 && dealer.length === 2 ? " (Blackjack)" : "");
+      dealerScoreEl.classList.toggle("is-21", dVal === 21);
+      dealerScoreEl.classList.toggle("is-bust", dVal > 21);
     }
   }
 

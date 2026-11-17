@@ -35,31 +35,331 @@
   </script>
   <link rel="stylesheet" href="../../css/styles.css">
   <style>
+    /* Blackjack — felt table, realistic cards, deal/flip effects.
+       Scoped to this page's .bj-* classes so the shared styles are untouched. */
     .game-area { gap: 8px; padding: 10px 16px 14px; justify-content: flex-start; }
     .game-header { padding: 8px 20px; }
     .game-header h1 { font-size: 1.1rem; }
     .status-bar { gap: 18px; }
     .status-bar__value { font-size: 1.15rem; }
     .status-bar__label { font-size: 0.62rem; }
-    .hands { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; min-height: 94px; }
-    .game-info__title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin: 0 0 2px; }
-    .hand-score { font-size: 0.85rem; color: var(--muted); min-height: 1.1em; margin-top: 2px; font-variant-numeric: tabular-nums; }
-    #result { font-size: 0.92rem; min-height: 1.2em; }
-    .game-info__hint { font-size: 0.72rem; }
-    /* Card look */
-    .bj-card { position: relative; width: 64px; height: 94px; border-radius: 9px; background: #f8f8f4; box-shadow: 0 3px 6px rgba(0,0,0,0.45), inset 0 0 0 1px rgba(0,0,0,0.18); color: #14141f; font-weight: 800; user-select: none; }
-    .bj-card--red { color: #c92a2a; }
-    .bj-big { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 1.9rem; }
-    .bj-corner { position: absolute; font-size: 0.72rem; line-height: 1.05; text-align: center; }
-    .bj-corner .bj-suit { font-size: 0.66rem; }
-    .bj-corner--tl { top: 5px; left: 6px; }
-    .bj-corner--br { bottom: 5px; right: 6px; transform: rotate(180deg); }
-    .bj-card--back { background: repeating-linear-gradient(45deg, #2c3057 0 8px, #232645 8px 16px); box-shadow: 0 3px 6px rgba(0,0,0,0.45), inset 0 0 0 3px #f8f8f4, inset 0 0 0 6px #ff6b6b; }
+
+    /* ---- Table ---- */
+    .bj-table {
+      position: relative;
+      width: 100%;
+      max-width: 620px;
+      margin: 0 auto;
+      padding: clamp(12px, 3.2vw, 22px) clamp(10px, 4vw, 26px) clamp(14px, 3.6vw, 24px);
+      border-radius: 24px;
+      background:
+        radial-gradient(130% 100% at 50% -20%, rgba(255, 255, 255, 0.16), transparent 52%),
+        radial-gradient(120% 120% at 50% 120%, #0a3524 0%, #0e4631 45%, #14573d 100%);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      box-shadow:
+        0 20px 44px rgba(0, 0, 0, 0.46),
+        inset 0 2px 0 rgba(255, 255, 255, 0.16),
+        inset 0 -16px 30px rgba(0, 0, 0, 0.4),
+        inset 0 0 0 7px rgba(0, 0, 0, 0.16);
+      overflow: hidden;
+    }
+    /* Woven felt weave. */
+    .bj-table::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      pointer-events: none;
+      background-image:
+        repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.03) 0 2px, transparent 2px 4px),
+        repeating-linear-gradient(-45deg, rgba(0, 0, 0, 0.055) 0 2px, transparent 2px 4px);
+      opacity: 0.75;
+    }
+    /* Soft vignette so the cards pop. */
+    .bj-table::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      pointer-events: none;
+      background: radial-gradient(120% 90% at 50% 42%, transparent 55%, rgba(0, 0, 0, 0.32) 100%);
+    }
+    .bj-hand, .bj-rule { position: relative; z-index: 1; }
+
+    .bj-hand__head {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      margin: 0 0 6px;
+    }
+    .bj-hand__name {
+      font-size: 0.64rem;
+      font-weight: 800;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.66);
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    }
+    .bj-score {
+      display: inline-grid;
+      place-items: center;
+      min-width: 2.1em;
+      padding: 0.04em 0.5em;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 900;
+      font-variant-numeric: tabular-nums;
+      color: #f2f3f7;
+      background: rgba(0, 0, 0, 0.3);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.16), 0 1px 2px rgba(0, 0, 0, 0.35);
+      transition: color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+      white-space: nowrap;
+    }
+    .bj-score.is-21 {
+      color: #241800;
+      background: linear-gradient(180deg, #ffe9a0, #ffc12e);
+      box-shadow: 0 0 16px rgba(255, 193, 46, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+    }
+    .bj-score.is-bust {
+      color: #fff;
+      background: linear-gradient(180deg, #ef4b52, #b0141d);
+      box-shadow: 0 0 14px rgba(239, 75, 82, 0.6), inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+    }
+
+    .hands {
+      display: flex;
+      flex-wrap: wrap;
+      gap: clamp(4px, 1.6vw, 9px);
+      justify-content: center;
+      align-items: flex-end;
+      min-height: 96px;
+      perspective: 720px;
+    }
+
+    .bj-rule {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin: clamp(6px, 1.8vw, 10px) auto;
+      font-size: clamp(0.48rem, 1.9vw, 0.6rem);
+      font-weight: 800;
+      letter-spacing: 0.22em;
+      color: rgba(255, 255, 255, 0.36);
+      text-align: center;
+      text-transform: uppercase;
+    }
+    .bj-rule::before,
+    .bj-rule::after {
+      content: "";
+      flex: 1 1 auto;
+      max-width: 90px;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.24), transparent);
+    }
+
+    /* ---- Cards ---- */
+    .bj-card {
+      position: relative;
+      flex: 0 1 auto;
+      width: clamp(48px, 14.5vw, 70px);
+      aspect-ratio: 0.7;
+      border-radius: 10px;
+      background: linear-gradient(158deg, #ffffff 0%, #f5f6f9 52%, #e4e6ec 100%);
+      color: #17171c;
+      font-weight: 800;
+      user-select: none;
+      transform-origin: 50% 100%;
+      box-shadow:
+        0 2px 0 rgba(0, 0, 0, 0.28),
+        0 8px 16px rgba(0, 0, 0, 0.34),
+        inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    }
+    .bj-card--red { color: #cf1f2c; }
+    /* Glossy sheen. */
+    .bj-card::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      pointer-events: none;
+      background: linear-gradient(122deg, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0) 40%);
+      opacity: 0.55;
+    }
+    .bj-corner {
+      position: absolute;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      line-height: 0.92;
+      font-size: clamp(0.6rem, 2.6vw, 0.95rem);
+      letter-spacing: -0.04em;
+      pointer-events: none;
+    }
+    .bj-corner .bj-suit { font-size: 0.84em; line-height: 1; }
+    .bj-corner--tl { top: 6%; left: 9%; }
+    .bj-corner--br { bottom: 6%; right: 9%; transform: rotate(180deg); }
+
+    .bj-center {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      display: grid;
+      place-items: center;
+      pointer-events: none;
+    }
+    .bj-suit-big {
+      font-size: clamp(1.35rem, 6.4vw, 2.1rem);
+      line-height: 1;
+      opacity: 0.92;
+    }
+    .bj-royal-watermark {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      font-size: clamp(2rem, 10vw, 3.2rem);
+      line-height: 1;
+      opacity: 0.11;
+    }
+    .bj-medallion {
+      display: grid;
+      place-items: center;
+      width: 62%;
+      aspect-ratio: 1 / 1;
+      border-radius: 50%;
+      font-size: clamp(1rem, 4.6vw, 1.55rem);
+      font-weight: 900;
+      color: currentColor;
+      background: radial-gradient(circle at 50% 30%, #ffffff, #eceef3 68%, #dde0e7 100%);
+      border: 2px solid currentColor;
+      box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.8), 0 1px 3px rgba(0, 0, 0, 0.2);
+      z-index: 1;
+    }
+
+    /* Card back. */
+    .bj-card--back {
+      color: #f6d98c;
+      background:
+        repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.07) 0 6px, transparent 6px 12px),
+        repeating-linear-gradient(-45deg, rgba(0, 0, 0, 0.12) 0 6px, transparent 6px 12px),
+        linear-gradient(158deg, #9a1f2f 0%, #741421 60%, #5c0f1b 100%);
+      box-shadow:
+        0 2px 0 rgba(0, 0, 0, 0.3),
+        0 8px 16px rgba(0, 0, 0, 0.36),
+        inset 0 0 0 3px #f8f8f4,
+        inset 0 0 0 5px #8f1d2c;
+    }
+    .bj-back__inner {
+      position: absolute;
+      inset: 12%;
+      border-radius: 5px;
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      display: grid;
+      place-items: center;
+      background:
+        repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.07) 0 4px, transparent 4px 8px),
+        repeating-linear-gradient(-45deg, rgba(0, 0, 0, 0.1) 0 4px, transparent 4px 8px);
+    }
+    .bj-back__emblem {
+      font-size: clamp(0.95rem, 3.8vw, 1.5rem);
+      line-height: 1;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+      opacity: 0.92;
+    }
+
+    /* Deal-in + hole-card flip. */
+    .bj-card--deal { animation: bjDeal 0.42s var(--ease-pop) backwards; }
+    @keyframes bjDeal {
+      0% { opacity: 0; transform: translateY(-26px) rotate(-5deg) scale(0.9); }
+      100% { opacity: 1; transform: translateY(0) rotate(0deg) scale(1); }
+    }
+    .bj-card--flip { animation: bjFlip 0.48s ease; }
+    @keyframes bjFlip {
+      0% { transform: rotateY(88deg) scale(0.96); }
+      100% { transform: rotateY(0deg) scale(1); }
+    }
+
+    /* ---- Result line ---- */
+    .bj-result {
+      min-height: 1.7em;
+      font-size: clamp(0.94rem, 3.3vw, 1.08rem);
+      font-weight: 800;
+      letter-spacing: 0.01em;
+      color: var(--accent-2);
+      text-align: center;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    }
+
+    /* ---- Casino chips + deal button ---- */
+    .bet-btn {
+      width: clamp(46px, 13vw, 54px);
+      height: clamp(46px, 13vw, 54px);
+      padding: 0;
+      border-radius: 50%;
+      font-size: clamp(0.82rem, 3vw, 0.95rem);
+      font-weight: 900;
+      color: #fff;
+      text-shadow: 0 1px 1px rgba(0, 0, 0, 0.4);
+      background:
+        repeating-conic-gradient(from 0deg, rgba(255, 255, 255, 0.16) 0deg 10deg, transparent 10deg 45deg),
+        radial-gradient(circle at 50% 36%, #3f8ef0, #1c56a8 68%, #123a78 100%);
+      box-shadow:
+        0 4px 0 rgba(0, 0, 0, 0.38),
+        0 8px 16px rgba(0, 0, 0, 0.35),
+        inset 0 0 0 4px rgba(255, 255, 255, 0.2);
+      transition: transform 0.12s var(--ease-pop), box-shadow 0.12s ease, filter 0.12s ease;
+    }
+    .bet-btn[data-amt="10"] {
+      background:
+        repeating-conic-gradient(from 0deg, rgba(255, 255, 255, 0.16) 0deg 10deg, transparent 10deg 45deg),
+        radial-gradient(circle at 50% 36%, #37c98a, #12855a 68%, #0a5c3e 100%);
+    }
+    .bet-btn[data-amt="25"] {
+      background:
+        repeating-conic-gradient(from 0deg, rgba(255, 255, 255, 0.16) 0deg 10deg, transparent 10deg 45deg),
+        radial-gradient(circle at 50% 36%, #ff7b6e, #c62f28 68%, #8f1a17 100%);
+    }
+    .bet-btn:hover {
+      transform: translateY(-3px);
+      filter: brightness(1.06);
+      box-shadow: 0 6px 0 rgba(0, 0, 0, 0.38), 0 12px 20px rgba(0, 0, 0, 0.34), inset 0 0 0 4px rgba(255, 255, 255, 0.2);
+    }
+    .bet-btn:active {
+      transform: translateY(1px);
+      box-shadow: 0 2px 0 rgba(0, 0, 0, 0.38), inset 0 0 0 4px rgba(255, 255, 255, 0.2);
+    }
+
+    #deal {
+      background: linear-gradient(180deg, #ffe27a, #ffc12e 60%, #e8a512);
+      color: #2a1c00;
+      border-color: rgba(255, 255, 255, 0.4);
+      box-shadow: 0 4px 0 #a8780a, 0 10px 18px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+      text-shadow: none;
+      transition: transform 0.12s var(--ease-pop), box-shadow 0.12s ease, filter 0.12s ease;
+    }
+    #deal:hover {
+      transform: translateY(-2px);
+      filter: brightness(1.05);
+      box-shadow: 0 6px 0 #a8780a, 0 14px 24px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+    }
+    #deal:active {
+      transform: translateY(2px);
+      box-shadow: 0 2px 0 #a8780a, 0 6px 12px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+    }
+
     @media (max-width: 430px) {
-      .bj-card { width: 52px; height: 78px; }
-      .bj-big { font-size: 1.5rem; }
-      .hands { gap: 6px; min-height: 78px; }
+      .hands { min-height: 80px; gap: 5px; }
+      .bj-table { border-radius: 18px; }
       .status-bar { gap: 12px; }
+      .bj-hand__name { font-size: 0.58rem; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .bj-card { transition: none; }
+      .bj-card--deal, .bj-card--flip { animation: none; }
     }
   </style>
 </head>
@@ -83,19 +383,27 @@
         <div class="status-bar__item"><span class="status-bar__label">Streak</span><span id="streak" class="status-bar__value">0</span></div>
       </div>
 
-      <div style="text-align:center;">
-        <p class="game-info__title">Dealer</p>
-        <div id="dealer-hand" class="hands" aria-label="Dealer hand"></div>
-        <div id="dealer-score" class="hand-score"></div>
+      <div class="bj-table">
+        <div class="bj-hand bj-hand--dealer">
+          <div class="bj-hand__head">
+            <span class="bj-hand__name">Dealer</span>
+            <span id="dealer-score" class="bj-score" aria-live="polite"></span>
+          </div>
+          <div id="dealer-hand" class="hands" aria-label="Dealer hand"></div>
+        </div>
+
+        <div class="bj-rule" aria-hidden="true"><span>Blackjack pays 3:2</span></div>
+
+        <div class="bj-hand bj-hand--player">
+          <div class="bj-hand__head">
+            <span class="bj-hand__name">You</span>
+            <span id="player-score" class="bj-score" aria-live="polite"></span>
+          </div>
+          <div id="player-hand" class="hands" aria-label="Your hand"></div>
+        </div>
       </div>
 
-      <div style="text-align:center;">
-        <p class="game-info__title">You</p>
-        <div id="player-hand" class="hands" aria-label="Your hand"></div>
-        <div id="player-score" class="hand-score"></div>
-      </div>
-
-      <div id="result" class="game-info__hint" style="font-size:1.05rem;font-weight:700;color:var(--accent-2);min-height:1.4em;" aria-live="polite"></div>
+      <div id="result" class="bj-result" aria-live="polite"></div>
 
       <div class="game-controls" id="bet-controls">
         <button class="btn bet-btn" data-amt="5">+5</button>
