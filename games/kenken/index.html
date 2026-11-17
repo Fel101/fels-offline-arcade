@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KenKen — Offline Arcade</title>
+  <meta name="description" content="Fill the grid, satisfy every cage — 12 puzzles, 14 badges.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="KenKen — Offline Arcade">
+  <meta property="og:description" content="Fill the grid, satisfy every cage — 12 puzzles, 14 badges.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%AE%3C/text%3E%3C/svg%3E">
+  <meta name="theme-color" content="#0e0e11">
+  <meta name="color-scheme" content="dark light">
+  <script>
+    // Apply the saved theme before first paint to avoid a flash.
+    // "system" (or anything unrecognized) leaves <html> without data-theme,
+    // so CSS falls back to prefers-color-scheme, then dark.
+    (() => {
+      try {
+        var saved = localStorage.getItem("offline-arcade:theme:v1");
+        var theme = "system";
+        if (saved) {
+          try {
+            var parsed = JSON.parse(saved);
+            if (parsed === "dark" || parsed === "light" || parsed === "kids") theme = parsed;
+          } catch (_) {
+            if (saved === "dark" || saved === "light" || saved === "kids") theme = saved;
+          }
+        }
+        if (theme !== "system") document.documentElement.dataset.theme = theme;
+      } catch (_) {
+        /* storage blocked - fall back to system default */
+      }
+    })();
+  </script>
+  <link rel="stylesheet" href="../../css/styles.css">
+  <style>
+    .kk-board {
+      display: grid;
+      grid-template-columns: repeat(var(--n, 4), 1fr);
+      width: 100%;
+      max-width: min(92vw, 420px);
+      aspect-ratio: 1;
+      margin: 0 auto;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid var(--glass-border);
+      box-shadow: 0 16px 36px rgba(0,0,0,0.32);
+      touch-action: manipulation;
+      background: rgba(255,255,255,0.02);
+    }
+    .kk-cell {
+      position: relative;
+      border: 1px solid rgba(255,255,255,0.045);
+      border-radius: 0;
+      background: rgba(255,255,255,0.03);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: clamp(1rem, 5vw, 1.7rem);
+      font-weight: 800;
+      font-family: inherit;
+      color: var(--text, #f2f2f5);
+      cursor: pointer;
+      padding: 0;
+      line-height: 1;
+      transition: background 0.1s ease, color 0.1s ease;
+    }
+    .kk-cell--sel { background: rgba(90, 209, 184, 0.26); }
+    .kk-cell--sel::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      box-shadow: inset 0 0 0 2px var(--accent);
+      pointer-events: none;
+    }
+    .kk-cell--peer { background: rgba(255,255,255,0.07); }
+    .kk-cell--bad { color: #ff8a8a; background: rgba(255, 91, 91, 0.18); }
+    .kk-cell--wrong { color: #ffc2c2; background: rgba(255, 91, 91, 0.26); }
+    .kk-cell--hint { color: #7df9ff; }
+    .kk-cell.bd-t { border-top: 2px solid rgba(255,255,255,0.34); }
+    .kk-cell.bd-b { border-bottom: 2px solid rgba(255,255,255,0.34); }
+    .kk-cell.bd-l { border-left: 2px solid rgba(255,255,255,0.34); }
+    .kk-cell.bd-r { border-right: 2px solid rgba(255,255,255,0.34); }
+    .kk-label {
+      position: absolute;
+      top: 2px;
+      left: 4px;
+      font-size: clamp(0.5rem, 2.2vw, 0.72rem);
+      font-weight: 800;
+      opacity: 0.88;
+      pointer-events: none;
+      line-height: 1;
+      letter-spacing: -0.02em;
+    }
+    .kk-pad {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+      max-width: min(92vw, 420px);
+      margin: 14px auto 0;
+    }
+    .kk-key {
+      width: 48px;
+      height: 48px;
+      border-radius: 11px;
+      border: 1px solid var(--glass-border);
+      background: rgba(255,255,255,0.06);
+      color: var(--text, #f2f2f5);
+      font-size: 1.15rem;
+      font-weight: 800;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.1s ease, transform 0.08s ease;
+    }
+    .kk-key:hover { background: rgba(255,255,255,0.12); }
+    .kk-key:active { transform: scale(0.94); }
+    .kk-key--erase { width: auto; padding: 0 14px; font-size: 0.95rem; }
+    .status-bar { gap: 18px; }
+    .kk-size { text-align: center; opacity: 0.85; }
+  </style>
+</head>
+<body>
+  <div class="game-shell">
+    <header class="game-header">
+      <a class="back-btn" href="../../index.html">← Back to Games</a>
+      <h1>KenKen</h1>
+      <span class="game-header__spacer"></span>
+      <button class="icon-btn" id="sound-btn" type="button" aria-pressed="true" aria-label="Mute sound" title="Mute sound">
+        <span id="sound-icon" aria-hidden="true">🔊</span>
+      </button>
+      <button class="icon-btn" id="badges-btn" type="button" aria-label="Badges and achievements" title="Badges &amp; achievements">
+        <span aria-hidden="true">🏆</span><span class="icon-btn__count" id="badge-count">0</span>
+      </button>
+    </header>
+    <main class="game-area">
+      <div class="status-bar" aria-live="polite">
+        <div class="status-bar__item"><span class="status-bar__label">Puzzle</span><span id="level" class="status-bar__value">1/12</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Size</span><span id="size" class="status-bar__value">4×4</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Mistakes</span><span id="mistakes" class="status-bar__value">0</span></div>
+      </div>
+      <div id="board" class="kk-board" role="grid" aria-label="KenKen board"></div>
+      <div id="pad" class="kk-pad" aria-label="Number pad"></div>
+      <div class="game-controls">
+        <button id="prev" class="btn btn--ghost" type="button">◀ Prev</button>
+        <button id="restart" class="btn">Restart</button>
+        <button id="undo" class="btn btn--ghost" type="button">↶ Undo</button>
+      </div>
+      <div class="game-controls">
+        <button id="check" class="btn btn--ghost" type="button">✓ Check</button>
+        <button id="hint" class="btn btn--ghost" type="button">💡 Hint</button>
+        <button id="next" class="btn btn--ghost" type="button">Next ▶</button>
+      </div>
+      <div class="game-controls">
+        <button id="badges2" class="btn btn--ghost" type="button">🏆 Badges</button>
+      </div>
+      <p id="hint" class="game-info__hint" aria-live="polite">Fill each row and column with 1–N without repeats. Cages must hit their target using the shown operation. Click a cell and type or tap a number. P pauses.</p>
+    </main>
+  </div>
+
+  <div class="snake-toasts" id="toasts" aria-live="polite"></div>
+
+  <div class="snake-modal" id="achv-modal" hidden>
+    <div class="snake-modal__backdrop" data-close></div>
+    <div class="snake-modal__panel" role="dialog" aria-modal="true" aria-labelledby="achv-title">
+      <header class="snake-modal__head">
+        <h2 id="achv-title">🏆 Badges <small id="achv-count">0 / 0</small></h2>
+        <button class="icon-btn" type="button" data-close aria-label="Close badges">✕</button>
+      </header>
+      <div class="achv-records" id="achv-records"></div>
+      <div class="achv-grid" id="achv-grid"></div>
+    </div>
+  </div>
+
+  <script src="../../js/arcade-core.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
