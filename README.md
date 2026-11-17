@@ -66,7 +66,7 @@ No Node, no npm, nothing to install. Works from a local folder or a USB stick.
 | 🪢 Hangman | Word | Guess the word before the gallows completes — 14 badges |
 | 🔀 Jumble | Word | Unscramble the letters from the clue |
 | 🪜 Word Ladder | Word | Change one letter at a time — 14 badges |
-| 🕵️ Cryptogram | Word | Decode the secret message |
+| 🕵️ Cryptogram | Word | Decode the secret message — 14 badges |
 | 🔠 Word Square | Word | Every row and column is a word |
 | 🎯 Mastermind | Logic | Crack the color code — 14 badges |
 | 🗼 Tower of Hanoi | Puzzle | Move the tower, ring by ring — 14 badges |
