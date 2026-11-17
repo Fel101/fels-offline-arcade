@@ -1,9 +1,6 @@
 # 🎮 Offline Arcade
 
-![46 games](https://img.shields.io/badge/games-46-5ad1b8?style=flat-square)
-![No dependencies](https://img.shields.io/badge/dependencies-0-brightgreen?style=flat-square)
-![Works offline](https://img.shields.io/badge/offline-100%25-ff5ea8?style=flat-square)
-![MIT license](https://img.shields.io/badge/license-MIT-ffd94d?style=flat-square)
+**46 games** · **0 dependencies** · **100% offline** · **MIT licensed**
 
 A self-contained, fully offline collection of **46 browser games** — a local take on
 the "just a bunch of games to play" vibe. No server, no build step, no internet, no
