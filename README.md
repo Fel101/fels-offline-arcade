@@ -59,7 +59,7 @@ No Node, no npm, nothing to install. Works from a local folder or a USB stick.
 | 🎵 Simon | Reflex | Repeat the sequence — 4 modes, 3 pad sets, 24 badges |
 | 🎲 Yahtzee | Dice | Roll and re-roll — beat your best total. 14 badges |
 | 🏗️ Stack | Arcade | Drop blocks on the tower — how high? |
-| 🐤 Flappy | Arcade | Tap to flap through the endless pipes |
+| 🐤 Flappy | Arcade | Tap to flap through the endless pipes — 14 badges |
 | 🐸 Frogger | Arcade | Dodge traffic, ride logs, fill five home bays — 25 badges |
 | 🔍 Word Search | Word | Find the hidden themed words |
 | 🔡 Boggle | Word | Connect adjacent letters — 4×4 and 5×5, 24 badges |
