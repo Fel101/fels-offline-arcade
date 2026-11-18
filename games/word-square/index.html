@@ -82,7 +82,51 @@
     .ws-cell.valid.selected {
       box-shadow: 0 0 0 1px var(--accent-2), 0 0 18px rgba(77, 227, 195, 0.6), inset 0 0 10px rgba(77, 227, 195, 0.3);
     }
+
+    /* Plain-language rules with a worked example, so the game is playable
+       without having to guess the genre. */
+    .ws-guide {
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      background: linear-gradient(170deg, rgba(255,255,255,0.09), rgba(255,255,255,0.03));
+      padding: 10px 14px;
+      max-width: 520px;
+      margin: 0 auto;
+    }
+    .ws-guide summary {
+      cursor: pointer;
+      font-weight: 800;
+      font-size: 0.95rem;
+      letter-spacing: 0.02em;
+      color: var(--accent-2);
+    }
+    .ws-guide__body { font-size: 0.85rem; line-height: 1.5; color: var(--muted); }
+    .ws-guide__body b { color: var(--text); }
+    .ws-guide__body p { margin: 8px 0; }
+    .ws-guide__body ul { margin: 6px 0; padding-left: 18px; }
+    .ws-guide__example {
+      display: grid;
+      grid-template-columns: repeat(5, 30px);
+      grid-template-rows: repeat(5, 30px);
+      gap: 3px;
+      justify-content: center;
+      margin: 10px auto 6px;
+    }
+    .ws-guide__example span {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      background: linear-gradient(180deg, #24544a, #1c423a);
+      border: 1px solid rgba(77, 227, 195, 0.45);
+      color: var(--accent);
+      font-weight: 800;
+      font-size: 0.9rem;
+    }
+    .ws-guide__caption { text-align: center; font-size: 0.78rem; }
     @media (max-width: 520px) {
+      .ws-guide { padding: 8px 10px; }
+      .ws-guide__example { grid-template-columns: repeat(5, 26px); grid-template-rows: repeat(5, 26px); }
       .ws-board { grid-template-columns: repeat(5, 52px); grid-template-rows: repeat(5, 52px); gap: 6px; }
       .ws-cell { font-size: 1.35rem; }
     }
@@ -107,15 +151,40 @@
         <div class="status-bar__item"><span class="status-bar__label">Time</span><span id="time" class="status-bar__value">0:00</span></div>
         <div class="status-bar__item"><span class="status-bar__label">Best</span><span id="best" class="status-bar__value">—</span></div>
         <div class="status-bar__item"><span class="status-bar__label">Puzzle</span><span id="puzzle" class="status-bar__value" style="font-size:1.1rem;">1 / 13</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Words</span><span id="words" class="status-bar__value">0/10</span></div>
       </div>
+
+      <details class="ws-guide" id="guide" open>
+        <summary>How to play</summary>
+        <div class="ws-guide__body">
+          <p>Fill the 5×5 grid so <b>every row and every column</b> spells a real five-letter word. The five words are the same read across and down, so once you know a word you can use it twice.</p>
+          <div class="ws-guide__example" aria-hidden="true">
+            <span>B</span><span>E</span><span>A</span><span>C</span><span>H</span>
+            <span>E</span><span>X</span><span>T</span><span>R</span><span>A</span>
+            <span>A</span><span>T</span><span>L</span><span>A</span><span>S</span>
+            <span>C</span><span>R</span><span>A</span><span>F</span><span>T</span>
+            <span>H</span><span>A</span><span>S</span><span>T</span><span>E</span>
+          </div>
+          <p class="ws-guide__caption">Row 1 is BEACH — and column 1 is BEACH too. The same goes for all five words.</p>
+          <ul>
+            <li>Click a cell, then type A–Z to fill it. Arrows move, Backspace clears.</li>
+            <li>A row or column turns <b>green</b> as soon as it spells a valid word.</li>
+            <li>Stuck? <b>Starting letters</b> reveals the first letter of each word; <b>Reveal word</b> gives you one whole word. Both count as hints.</li>
+            <li>Esc pauses. The clock stops while you are paused.</li>
+          </ul>
+        </div>
+      </details>
+
       <div id="board" class="ws-board" aria-label="Word square grid"></div>
       <div class="game-controls">
         <button id="hint" class="btn btn--ghost">💡 Hint</button>
+        <button id="starter" class="btn btn--ghost" type="button" title="Reveal the first letter of each word">🔤 Starting letters</button>
+        <button id="reveal-word" class="btn btn--ghost" type="button" title="Reveal one of the five words">📖 Reveal word</button>
         <button id="reset" class="btn btn--ghost">Reset</button>
         <button id="new-puzzle" class="btn">New Puzzle</button>
         <button id="badges2" class="btn btn--ghost" type="button">🏆 Badges</button>
       </div>
-      <p class="game-info__hint">Every row and every column must spell a 5-letter word. Click a cell to select, type to fill, arrows to move. Esc pauses.</p>
+      <p class="game-info__hint">Rows and columns must all spell 5-letter words. Click a cell and type; green means a word. Open “How to play” above for an example.</p>
     </main>
   </div>
 

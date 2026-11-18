@@ -27,8 +27,11 @@
   const timeEl = dom.byId("time");
   const bestEl = dom.byId("best");
   const puzzleEl = dom.byId("puzzle");
+  const wordsEl = dom.byId("words");
 
   const hintBtn = dom.byId("hint");
+  const starterBtn = dom.byId("starter");
+  const revealWordBtn = dom.byId("reveal-word");
   const resetBtn = dom.byId("reset");
   const newPuzzleBtn = dom.byId("new-puzzle");
 
@@ -402,7 +405,8 @@
         cell.setAttribute("aria-label", cellLabel(r, c));
       }
     }
-    checkLines();
+    const valid = checkLines();
+    if (wordsEl) wordsEl.textContent = valid + "/" + LINE_COUNT;
   }
 
   function selectCell(r, c) {
@@ -602,6 +606,64 @@
     return true;
   }
 
+  // Reveal solution letters, lock them, and charge one hint per letter
+  // (the same accounting as the single-cell Hint).
+  function revealCells(cells) {
+    let changed = 0;
+    for (const [r, c] of cells) {
+      if (locked[r][c]) continue;
+      grid[r][c] = solution[r][c];
+      locked[r][c] = true;
+      changed++;
+    }
+    if (!changed) return 0;
+    hintsThisPuzzle += changed;
+    stats.hints += changed;
+    saveStats();
+    refresh();
+    sfx("hint");
+    checkAchievements();
+    winCheck();
+    return changed;
+  }
+
+  function startingLetters() {
+    if (gameOver || paused) return 0;
+    // In a symmetric word square, the diagonal is the first letter of
+    // each of the five words.
+    const cells = [];
+    for (let i = 0; i < SIZE; i++) if (!locked[i][i]) cells.push([i, i]);
+    if (!cells.length) {
+      sfx("error");
+      return 0;
+    }
+    return revealCells(cells);
+  }
+
+  function revealWord() {
+    if (gameOver || paused) return 0;
+    // Offer a row that is not already fully revealed.
+    const rows = [];
+    for (let r = 0; r < SIZE; r++) {
+      let complete = true;
+      for (let c = 0; c < SIZE; c++) {
+        if (!locked[r][c]) {
+          complete = false;
+          break;
+        }
+      }
+      if (!complete) rows.push(r);
+    }
+    if (!rows.length) {
+      sfx("error");
+      return 0;
+    }
+    const r = rows[Math.floor(Math.random() * rows.length)];
+    const cells = [];
+    for (let c = 0; c < SIZE; c++) cells.push([r, c]);
+    return revealCells(cells);
+  }
+
   function reset() {
     if (gameOver || paused) return false;
     for (let r = 0; r < SIZE; r++)
@@ -727,6 +789,18 @@
       sfx("click");
       hint();
     });
+    if (starterBtn)
+      starterBtn.addEventListener("click", () => {
+        audio.unlock();
+        sfx("click");
+        startingLetters();
+      });
+    if (revealWordBtn)
+      revealWordBtn.addEventListener("click", () => {
+        audio.unlock();
+        sfx("click");
+        revealWord();
+      });
     resetBtn.addEventListener("click", () => {
       audio.unlock();
       sfx("click");
@@ -831,6 +905,8 @@
     move: moveSelection,
     advance,
     hint,
+    startingLetters,
+    revealWord,
     reset,
     setPuzzle,
     newGame,

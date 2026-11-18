@@ -113,7 +113,7 @@ function makeEl(tag = "div", id = "") {
 }
 
 const ids = [
-  "board", "wins", "time", "best", "puzzle", "hint", "reset", "new-puzzle",
+  "board", "wins", "time", "best", "puzzle", "words", "hint", "starter", "reveal-word", "reset", "new-puzzle",
   "badges-btn", "badge-count", "badges2", "sound-btn", "sound-icon", "toasts",
   "achv-modal", "achv-grid", "achv-count", "achv-records",
 ];
@@ -609,6 +609,58 @@ const validCount = () => {
   ok(storage.has("word-square-stats-v1"), "stats persisted");
   ok(storage.has("word-square-achv-v1"), "badges persisted");
   eq(storage.has("wordsquare-wins"), false, "legacy key stays removed");
+}
+
+// ---------- K. Onboarding aids: progress, starting letters, word reveal ----------
+{
+  W.setPuzzle(0);
+  eq(elements.get("words").textContent, "0/10", "an empty square shows no valid words");
+  const sol = W.solution;
+
+  // The diagonal carries the first letter of each word.
+  eq(W.startingLetters(), 5, "Starting letters reveals five cells");
+  for (let i = 0; i < 5; i++) {
+    eq(W.cell(i, i), sol[i][i], "diagonal cell " + i + " is revealed");
+    eq(W.locked[i][i], true, "diagonal cell " + i + " is locked");
+  }
+  ok(W.stats.hints >= 5, "starting letters count as hints");
+  eq(W.startingLetters(), 0, "starting letters cannot be spent twice");
+
+  // Revealing a word finishes one row (the diagonal letter is already there).
+  const hintsBefore = W.stats.hints;
+  const revealed = W.revealWord();
+  ok(revealed >= 4 && revealed <= 5, "Reveal word fills the rest of a row");
+  ok(W.stats.hints >= hintsBefore + 4, "revealing a word counts as hints");
+  let fullRow = -1;
+  for (let r = 0; r < 5; r++) {
+    if (W.grid[r].every((ch, c) => ch === sol[r][c]) && W.locked[r].every(Boolean)) fullRow = r;
+  }
+  ok(fullRow >= 0, "a whole solution row is revealed and locked");
+
+  // The Words readout tracks completed dictionary lines.
+  W.setPuzzle(0);
+  for (let c = 0; c < 5; c++) {
+    W.select(0, c);
+    W.type(sol[0][c]);
+  }
+  eq(elements.get("words").textContent, "1/10", "one valid word updates the progress readout");
+
+  // Both new buttons are wired up.
+  const starter = elements.get("starter");
+  const reveal = elements.get("reveal-word");
+  ok(!!starter && !!reveal, "the two aid buttons exist");
+  const h1 = W.stats.hints;
+  starter.dispatch("click");
+  ok(W.stats.hints >= h1 + 5, "Starting letters button works");
+  const h2 = W.stats.hints;
+  reveal.dispatch("click");
+  ok(W.stats.hints > h2, "Reveal word button works");
+
+  // Aids are blocked once the square is finished.
+  W.setPuzzle(0);
+  eq(W.solve(), true, "the square can still be solved");
+  eq(W.startingLetters(), 0, "no starting letters after a win");
+  eq(W.revealWord(), 0, "no word reveal after a win");
 }
 
 console.log(`${pass} passed, ${fail} failed`);
