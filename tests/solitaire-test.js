@@ -112,6 +112,7 @@ function makeEl(tag = "div", id = "") {
 
 const ids = [
   "stock", "waste", "foundations", "tableau", "moves", "wins", "streak", "new-game",
+  "stock-count", "draw-mode", "recycle",
   "badges-btn", "badge-count", "sound-btn", "sound-icon", "badges2", "toasts",
   "achv-modal", "achv-grid", "achv-count", "achv-records",
 ];
@@ -549,6 +550,70 @@ function winNow(moveCount) {
   eq(T.stats.recycles, 10, "recycles");
   eq(T.stats.draws, 500, "draws");
   ok(storage.has("solitaire-stats-v1"), "stats persisted under the core key");
+}
+
+// ---------- O. Draw modes and restarting the deck ----------
+{
+  const html = fs.readFileSync(root + "games/solitaire/index.html", "utf8");
+  ok(html.indexOf("id=\"draw-mode\"") !== -1, "draw mode control exists");
+  ok(html.indexOf("id=\"recycle\"") !== -1, "restart deck control exists");
+  ok(html.indexOf("3-card") !== -1, "the hint explains 3-card deals");
+
+  T.newGame();
+  eq(T.drawCount, 1, "one-card deal is the default");
+  eq(elements.get("draw-mode").textContent, "Deal: 1 card", "mode button label");
+  eq(elements.get("stock-count").textContent, 24, "stock counter HUD");
+  eq(storage.get("solitaire-mode"), undefined, "no saved mode yet");
+
+  // Toggle via the real button and persist the choice.
+  elements.get("draw-mode").dispatch("click");
+  eq(T.drawCount, 3, "button switches to three-card deals");
+  eq(elements.get("draw-mode").textContent, "Deal: 3 cards", "label updates");
+  eq(storage.get("solitaire-mode"), "3", "mode persists");
+
+  T.newGame();
+  const draws0 = T.stats.draws;
+  T.drawStock();
+  eq(T.state.stock.length, 21, "three cards leave the stock");
+  eq(T.state.waste.length, 3, "three cards reach the waste");
+  eq(T.stats.draws, draws0 + 3, "each card counts as a draw");
+  eq(T.state.waste.map((c) => c.faceUp).join(","), "false,false,true", "only the third card is visible");
+  eq(elements.get("waste").getAttribute("data-count"), "3", "waste shows the hidden-card count");
+  eq(elements.get("waste").children.length, 1, "only the playable card is rendered");
+  eq(elements.get("stock-count").textContent, 21, "stock counter updates");
+
+  // Playing the top card uncovers the next one in the fan.
+  T.loadState({ waste: [[5, "spades", false], [7, "hearts", false], [1, "clubs", true]] });
+  eq(T.state.waste[1].faceUp, false, "the covered card starts face down");
+  T.handle("waste"); // the exposed ace goes home on its own
+  eq(T.state.waste.length, 2, "top card taken");
+  eq(T.state.waste[1].faceUp, true, "the next card is revealed");
+
+  // Empty stock auto-recycles the whole discard pile, even in 3-card mode.
+  T.loadState({ stock: [], waste: [[1, "spades"], [2, "hearts"], [3, "clubs"]] });
+  const rec0 = T.stats.recycles;
+  T.drawStock();
+  eq(T.state.stock.length, 3, "discard pile returns to the stock");
+  eq(T.state.waste.length, 0, "waste is empty");
+  eq(T.state.stock.every((c) => !c.faceUp), true, "restarted deck is face down");
+  eq(T.stats.recycles, rec0 + 1, "recycle counted");
+
+  // The Restart Deck button works at any time, not only when the stock is empty.
+  T.loadState({ stock: [[4, "spades"]], waste: [[6, "hearts"]] });
+  const rec1 = T.stats.recycles;
+  elements.get("recycle").dispatch("click");
+  eq(T.state.stock.length, 2, "manual restart adds the discard back");
+  eq(T.state.waste.length, 0, "manual restart empties the waste");
+  eq(T.stats.recycles, rec1 + 1, "manual restart counted");
+
+  // Partial final deals are allowed when fewer than three cards remain.
+  elements.get("draw-mode").dispatch("click");
+  eq(T.drawCount, 1, "button toggles back to one card");
+  elements.get("draw-mode").dispatch("click");
+  T.loadState({ stock: [[1, "spades"], [2, "hearts"]] });
+  T.drawStock();
+  eq(T.state.waste.length, 2, "a short final deal draws what is left");
+  eq(T.state.stock.length, 0, "stock exhausted");
 }
 
 console.log(`${pass} passed, ${fail} failed`);

@@ -71,6 +71,30 @@
     .sol-col .card:first-child { margin-top: 0; }
     .hl { box-shadow: 0 0 0 3px var(--accent) !important; }
     .sel { box-shadow: 0 0 0 3px var(--accent-2) !important; }
+
+    /* In 3-card mode the covered cards peek out behind the playable one. */
+    #waste[data-count] { z-index: 2; }
+    #waste[data-count]::before {
+      content: "";
+      position: absolute; inset: 0;
+      border-radius: 10px;
+      transform: translate(6px, -4px);
+      background: repeating-linear-gradient(45deg, #2c3057 0 8px, #232645 8px 16px);
+      border: 1px solid #232645;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.45);
+      z-index: -1;
+    }
+    #waste[data-count]::after {
+      content: attr(data-count);
+      position: absolute; top: -8px; right: -8px; z-index: 3;
+      min-width: 20px; height: 20px; padding: 0 4px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 999px;
+      background: var(--accent); color: #08130f;
+      font-size: 0.72rem; font-weight: 900;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.45);
+    }
+    .sol-top { align-items: center; }
     @media (max-width: 560px) {
       .card, .slot, .sol-col { width: 54px; height: 78px; }
       .rank { font-size: 0.95rem; } .suit-big { font-size: 1.2rem; }
@@ -105,6 +129,7 @@
     <main class="game-area">
       <div class="status-bar" aria-live="polite">
         <div class="status-bar__item"><span class="status-bar__label">Moves</span><span id="moves" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Stock</span><span id="stock-count" class="status-bar__value">24</span></div>
         <div class="status-bar__item"><span class="status-bar__label">Wins</span><span id="wins" class="status-bar__value">0</span></div>
         <div class="status-bar__item"><span class="status-bar__label">Streak</span><span id="streak" class="status-bar__value">0</span></div>
       </div>
@@ -117,9 +142,11 @@
       <div id="tableau" class="sol-tableau"></div>
       <div class="game-controls">
         <button id="new-game" class="btn">New Game</button>
+        <button id="draw-mode" class="btn btn--ghost" type="button" title="Switch between 1-card and 3-card deals">Deal: 1 card</button>
+        <button id="recycle" class="btn btn--ghost" type="button" title="Turn the discarded pile face down and keep playing">↻ Restart Deck</button>
         <button id="badges2" class="btn btn--ghost" type="button">🏆 Badges</button>
       </div>
-      <p class="game-info__hint">Click a card to move it. Send cards to the foundations (A→K by suit). Double-click to fan a card home. P pauses.</p>
+      <p class="game-info__hint">Click a card to move it. Send cards to the foundations (A→K by suit). Double-click to fan a card home. Deal 1 or 3 at a time; when the stock runs out, hit Restart Deck (or click the empty stock) to keep playing. P pauses.</p>
     </main>
   </div>
 

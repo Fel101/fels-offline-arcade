@@ -8,6 +8,7 @@
     store,
     keys: makeKeys,
     audio,
+    toast,
     overlay,
     confetti,
     badges: badgesApi,
@@ -37,6 +38,11 @@
   const achvGrid = dom.byId("achv-grid");
   const achvCountEl = dom.byId("achv-count");
   const achvRecordsEl = dom.byId("achv-records");
+  const drawModeBtn = dom.byId("draw-mode");
+  const recycleBtn = dom.byId("recycle");
+  const stockCountEl = dom.byId("stock-count");
+
+  toast.bind(dom.byId("toasts"));
 
   const SUITS = [
     { s: "spades", e: "♠", color: "black" },
@@ -191,11 +197,19 @@
   audio.bindButton({ btn: soundBtn, icon: soundIconEl, soundKey: K.sound });
 
   // ---------- Game state ----------
+  // Klondike deals either 1 or 3 cards at a time. Persisted between visits.
+  let drawCount = Number(store.get(K.mode, 1));
+  if (drawCount !== 3) drawCount = 1;
+
   let state;
   let sel;
   let moves;
   let gameOver;
   let paused = false;
+
+  function saveDrawMode() {
+    store.set(K.mode, String(drawCount));
+  }
 
   function makeDeck() {
     const deck = [];
@@ -245,6 +259,9 @@
     movesEl.textContent = moves;
     winsEl.textContent = stats.wins;
     streakEl.textContent = stats.streak;
+    if (stockCountEl) stockCountEl.textContent = state.stock.length;
+    if (drawModeBtn) drawModeBtn.textContent = `Deal: ${drawCount} card${drawCount === 1 ? "" : "s"}`;
+    if (recycleBtn) recycleBtn.disabled = state.waste.length === 0;
   }
 
   // ---- Accessors ----
@@ -310,8 +327,12 @@
     const cards = cardsInSource(src);
     if (!cards.length || !cards[0]) return false;
     // Remove from source.
-    if (src.kind === "waste") state.waste.pop();
-    else if (src.kind === "foundation") state.foundation[SUITS[src.idx].s].pop();
+    if (src.kind === "waste") {
+      state.waste.pop();
+      // In 3-card deal the uncovered card is the next one you may play.
+      const next = wasteTop();
+      if (next) next.faceUp = true;
+    } else if (src.kind === "foundation") state.foundation[SUITS[src.idx].s].pop();
     else {
       const col = src.col;
       const start = src.idx;
@@ -400,28 +421,56 @@
     }
   }
 
+  // Turn the whole discard pile face-down back into the stock. The pile order
+  // is preserved (reversed once), exactly like a physical deck being restacked.
+  function recycleStock(announce) {
+    if (!state.waste.length) return false;
+    while (state.waste.length) {
+      const c = state.waste.pop();
+      c.faceUp = false;
+      state.stock.push(c);
+    }
+    stats.recycles++;
+    sfx("click");
+    if (announce)
+      toast.show("Deck restarted", "The discarded cards are back in the stock — keep playing!", "🔄");
+    return true;
+  }
+
   function drawStock() {
     if (gameOver || paused) return;
     sel = null;
     if (state.stock.length) {
-      const c = state.stock.pop();
-      c.faceUp = true;
-      state.waste.push(c);
-      stats.draws++;
+      // A fresh deal buries whatever was previously on top of the waste.
+      for (const c of state.waste) c.faceUp = false;
+      const n = Math.min(drawCount, state.stock.length);
+      for (let i = 0; i < n; i++) {
+        const c = state.stock.pop();
+        c.faceUp = i === n - 1; // only the last (third) card is visible/playable
+        state.waste.push(c);
+        stats.draws++;
+      }
       sfx("flip");
     } else if (state.waste.length) {
-      while (state.waste.length) {
-        const c = state.waste.pop();
-        c.faceUp = false;
-        state.stock.push(c);
-      }
-      stats.recycles++;
-      sfx("click");
+      recycleStock(true);
     }
     saveStats();
     checkAchievements();
     updateStatus();
     render();
+  }
+
+  function setDrawMode(n) {
+    const next = Number(n) === 3 ? 3 : 1;
+    if (next === drawCount) return;
+    drawCount = next;
+    saveDrawMode();
+    updateStatus();
+    toast.show(
+      `Dealing ${drawCount} card${drawCount === 1 ? "" : "s"}`,
+      drawCount === 1 ? "One card at a time — every card is playable." : "Three at a time — only the third card can be played.",
+      "🃏"
+    );
   }
 
   function checkWin() {
@@ -494,6 +543,8 @@
       wasteEl.innerHTML = '<span class="slot__label">·</span>';
       wasteEl.style.display = "";
     }
+    if (state.waste.length > 1) wasteEl.setAttribute("data-count", String(state.waste.length));
+    else wasteEl.removeAttribute("data-count");
 
     // Foundations
     foundationsEl.innerHTML = "";
@@ -578,6 +629,23 @@
       sfx("click");
       newGame();
     });
+    if (drawModeBtn)
+      drawModeBtn.addEventListener("click", () => {
+        audio.unlock();
+        sfx("click");
+        setDrawMode(drawCount === 1 ? 3 : 1);
+      });
+    if (recycleBtn)
+      recycleBtn.addEventListener("click", () => {
+        audio.unlock();
+        if (gameOver || paused) return;
+        if (recycleStock(true)) {
+          updateStatus();
+          render();
+        } else {
+          toast.show("Nothing to restart", "Play a few cards into the discard pile first.", "🃏");
+        }
+      });
     const badges2 = dom.byId("badges2");
     badgesBtn.addEventListener("click", () => {
       sfx("click");
@@ -661,6 +729,9 @@
         tableau: state.tableau.map((col) => col.map((c) => ({ ...c }))),
       };
     },
+    get drawCount() {
+      return drawCount;
+    },
     get moves() {
       return moves;
     },
@@ -680,6 +751,8 @@
     handle,
     doubleClick,
     drawStock,
+    recycleStock,
+    setDrawMode,
     doMove,
     newGame,
     loadState,
