@@ -1691,5 +1691,67 @@
     requestAnimationFrame(loop);
   }
 
+  // Embedded test hook (also useful for debugging in the console).
+  function __ACHV_LIST__() { return achv.list(); }
+  window.__T = {
+    snap: () => ({
+      grid: grid.map((r) => r.slice()),
+      current: current ? { key: current.key, shape: current.shape.map((r) => [...r]), x: current.x, y: current.y, rot: current.rot } : null,
+      queue: queue.map((p) => ({ key: p.key, shape: p.shape.map((r) => [...r]), x: p.x, y: p.y })),
+      holdPiece,
+      canHold,
+      score, lines, level, dropInterval, dropAcc, lockTimer, lockResets, combo, lastClearWasTetris,
+      gameTime, lastSec, countdown, started, paused, gameOver, bestScore, bestAtStart, sprintBest,
+      mode, aiDiff,
+      records: Object.assign({}, records),
+      unlocked: __ACHV_LIST__(),
+      ai: ai ? {
+        grid: ai.grid.map((r) => r.slice()),
+        lines: ai.lines, score: ai.score, pieces: ai.pieces, over: ai.over,
+        current: ai.current ? { key: ai.current.key, shape: ai.current.shape.map((r) => [...r]), x: ai.current.x, y: ai.current.y } : null,
+        target: ai.target ? { value: ai.target.value, shape: ai.target.shape.map((r) => [...r]), x: ai.target.x, y: ai.target.y } : null,
+        animStart: ai.animStart, animDuration: ai.animDuration,
+        queue: ai.queue.map((p) => p.key),
+      } : null,
+      overlayTitle: (function () { var e = overlay.current(); return e ? e.dataset.title : null; })(),
+      overlayMsg: overlayEl ? overlayEl.dataset.msg : null,
+      rivalHidden: document.getElementById("rival-panel").hidden,
+      aiDiffHidden: document.getElementById("ai-difficulty").hidden,
+      raceHidden: document.getElementById("race-track").hidden,
+      raceRivalHidden: document.getElementById("race-rival-row").hidden,
+      modePressed: Array.from(document.querySelectorAll(".mode-chip")).map((b) => b.getAttribute("aria-pressed")),
+      aiPressed: Array.from(document.querySelectorAll(".ai-chip")).map((b) => b.getAttribute("aria-pressed")),
+    }),
+    setGrid: (g) => { grid = g.map((r) => r.slice()); },
+    setCurrent: (p) => { current = p ? { key: p.key, shape: p.shape.map((r) => [...r]), x: p.x, y: p.y, rot: p.rot || 0 } : null; },
+    setQueue: (keys) => { queue = keys.map((k) => makePiece(k)); },
+    setHold: (k) => { holdPiece = k; },
+    setScore: (v) => { score = v; },
+    setLines: (v) => { lines = v; },
+    setLevel: (v) => { level = v; },
+    setGameTime: (ms) => { gameTime = ms; },
+    setLastSec: (v) => { lastSec = v; },
+    setStarted: (v) => { started = v; },
+    setPaused: (v) => { paused = v; },
+    setLock: (t, r) => { lockTimer = t; lockResets = r; },
+    setCombo: (c) => { combo = c; },
+    setLastClear: (b) => { lastClearWasTetris = b; },
+    setCanHold: (v) => { canHold = v; },
+    setCountdown: (v) => { countdown = v; },
+    setRecord: (k, v) => { records[k] = v; },
+    setAiLines: (v) => { if (ai) ai.lines = v; },
+    setAiGrid: (g) => { if (ai) ai.grid = g.map((r) => r.slice()); },
+    setAiCurrent: (p) => { if (ai) ai.current = p ? { key: p.key, shape: p.shape.map((r) => [...r]), x: p.x, y: p.y, rot: 0 } : null; },
+    setAiTarget: (t) => { if (ai) ai.target = t ? { value: 0, shape: t.shape.map((r) => [...r]), x: t.x, y: t.y } : null; },
+    setAiOver: (v) => { if (ai) ai.over = v; },
+    setSprintBest: (v) => { sprintBest = v; records.sprintBest = v; },
+    setBestScore: (v) => { bestScore = v; },
+    startPlay, reset, setMode, spawnNext, tryMove, tryRotate, softDrop, hardDrop, hold,
+    lockPiece, finishGame, checkRaceProgress, updatePlayer, updateAI, aiSpawn, aiLock,
+    aiBestPlacement, aiInterval, updatePerSecond, topOut, addScore, makePiece, nextKey,
+    checkAchievements,
+    SHAPES, AI_DIFFS,
+  };
+
   init();
 })();

@@ -44,6 +44,7 @@
 
   // ---------- Constants ----------
   const W = canvas.width, H = canvas.height;
+  window.Arcade.util.hidpiCanvas(canvas, ctx, W, H);
   const PADDLE_H = 80, PADDLE_W = 12, WIN_SCORE = 5;
   const DIFFS = { easy: 0.06, medium: 0.1, hard: 0.16 };
 

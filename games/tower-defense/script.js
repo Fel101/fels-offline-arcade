@@ -53,6 +53,7 @@
   const CELL = 48;
   const W = COLS * CELL;
   const H = ROWS * CELL;
+  window.Arcade.util.hidpiCanvas(canvas, ctx, W, H);
   const START_GOLD = 130;
   const START_LIVES = 20;
   const MAX_LEVEL = 3;

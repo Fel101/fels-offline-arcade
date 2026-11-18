@@ -42,6 +42,7 @@
 
   // ---------- Constants ----------
   const W = canvas.width, H = canvas.height;
+  window.Arcade.util.hidpiCanvas(canvas, ctx, W, H);
   const COLS = 8, ROWS = 5, PAD = 8, TOP = 60;
   const BRICK_W = (W - PAD * (COLS + 1)) / COLS;
   const BRICK_H = 22;

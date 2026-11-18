@@ -1537,5 +1537,62 @@
     requestAnimationFrame(loop);
   }
 
+  // Embedded test hook (also useful for debugging in the console).
+  function __ACHV_LIST__() { return achv.list(); }
+  window.__K = {
+    state, stats, DIFFS, MODES,
+    unlocked: () => __ACHV_LIST__,
+    snap: () => ({
+      mode: state.mode, diff: state.diff,
+      started: state.started, paused: state.paused, over: state.over, won: state.won,
+      countdown: Math.round(state.countdown), elapsed: Math.round(state.elapsed),
+      score: state.score, mistakes: state.mistakes, combo: state.combo, maxCombo: state.maxCombo,
+      hintsLeft: state.hintsLeft, hintsUsed: state.hintsUsed, notesMode: state.notesMode,
+      total: state.total,
+      selected: state.selected ? { r: state.selected.r, c: state.selected.c } : null,
+      values: state.values ? state.values.map((r) => r.slice()) : null,
+      notes: state.notes ? state.notes.map((row) => row.map((s) => Array.from(s))) : null,
+      playable: state.playable ? state.playable.map((r) => r.slice()) : null,
+      solution: state.solution ? state.solution.map((r) => r.slice()) : null,
+      runs: state.runs.map((run) => ({ dir: run.dir, sum: run.sum, cells: run.cells.map((x) => x.slice()) })),
+      runsAt: state.runsAt.map((row) => row.map((list) => list.length)),
+      history: state.history.length, future: state.future.length,
+      overlayTitle: overlay ? overlay.info().title : null,
+      overlayMsg: overlay ? overlay.info().msg : null,
+      diffHidden: document.getElementById("difficulty-bar").hidden,
+      newGameDisabled: document.getElementById("new-game").disabled,
+      modePressed: Array.from(document.querySelectorAll(".mode-chip")).map((b) => b.getAttribute("aria-pressed")),
+      diffPressed: Array.from(document.querySelectorAll(".diff-chip")).map((b) => b.getAttribute("aria-pressed")),
+      cellsEl: document.getElementById("cells").textContent,
+      stats: Object.assign({}, stats),
+      daily: Object.assign({}, daily),
+      unlocked: __ACHV_LIST__(),
+    }),
+    setState: (o) => { Object.assign(state, o); },
+    buildBoardNow: () => buildBoard(),
+    setPuzzle: (sol, playable, runs, runsAt) => {
+      state.solution = sol;
+      state.playable = playable;
+      state.runs = runs;
+      state.runsAt = runsAt;
+      state.values = Array.from({ length: 9 }, () => new Array(9).fill(0));
+      state.notes = Array.from({ length: 9 }, () => Array.from({ length: 9 }, () => new Set()));
+      state.selected = null; state.notesMode = false;
+      state.mistakes = 0; state.hintsLeft = 3; state.hintsUsed = 0;
+      state.combo = 0; state.maxCombo = 0; state.score = 0;
+      state.history = []; state.future = [];
+      state.elapsed = 0; state.started = true; state.paused = false; state.over = false; state.won = false;
+      state.total = 0;
+      for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++) if (playable[r][c]) state.total++;
+      buildBoard();
+      renderAllCells(); updateHUD();
+    },
+    reset, setMode, setDiff, placeNumber, setCellValue, eraseCell, toggleNote,
+    undo, redo, useHint, selectCell, checkWin, win, lose, generate, transformSolution,
+    findRuns, sumOf, buildClues, dateStr, startPlay, checkBoard, toggleNotes, progress,
+    renderAllCells, updateHUD, checkAchievements, firstPlayable, isPlayable, runComplete,
+    runHasError, runConflict, clueRun,
+  };
+
   init();
 })();

@@ -1525,5 +1525,63 @@
     requestAnimationFrame(loop);
   }
 
+  // Embedded test hook (also useful for debugging in the console).
+  function __ACHV_LIST__() { return achv.list(); }
+  window.__SS = {
+    state, stats, daily, DIFFS, MODES, OFFSETS, CARD_NAMES, ALL_CELLS, CELL_UNITS, UNITS, N,
+    countedCards,
+    unlocked: () => __ACHV_LIST__,
+    snap: () => ({
+      mode: state.mode, diff: state.diff,
+      started: state.started, paused: state.paused, over: state.over, won: state.won,
+      countdown: Math.round(state.countdown), elapsed: Math.round(state.elapsed),
+      score: state.score, mistakes: state.mistakes, combo: state.combo, maxCombo: state.maxCombo,
+      hintsLeft: state.hintsLeft, hintsUsed: state.hintsUsed, notesMode: state.notesMode,
+      total: state.total,
+      selected: state.selected ? { r: state.selected.r, c: state.selected.c } : null,
+      values: state.values ? state.values.map((r) => r.slice()) : null,
+      notes: state.notes ? state.notes.map((row) => row.map((s) => Array.from(s))) : null,
+      given: state.given ? state.given.map((r) => r.slice()) : null,
+      solution: state.solution ? state.solution.map((r) => r.slice()) : null,
+      puzzle: state.puzzle ? state.puzzle.map((r) => r.slice()) : null,
+      history: state.history.length, future: state.future.length,
+      completed: completedCards(),
+      overlayTitle: overlay ? overlay.info().title : null,
+      overlayMsg: overlay ? overlay.info().msg : null,
+      diffHidden: document.getElementById("difficulty-bar").hidden,
+      newGameDisabled: document.getElementById("new-game").disabled,
+      hintDisabled: document.getElementById("hint-btn").disabled,
+      modePressed: Array.from(document.querySelectorAll(".mode-chip")).map((b) => b.getAttribute("aria-pressed")),
+      diffPressed: Array.from(document.querySelectorAll(".diff-chip")).map((b) => b.getAttribute("aria-pressed")),
+      stats: Object.assign({}, stats),
+      daily: Object.assign({}, daily),
+      unlocked: __ACHV_LIST__(),
+      countedCards: Array.from(countedCards),
+      cardsEl: document.getElementById("cards").textContent,
+      cellsEl: document.getElementById("cells").textContent,
+    }),
+    setState: (o) => { Object.assign(state, o); },
+    setGridState: (sol, puz) => {
+      state.solution = sol;
+      state.puzzle = puz;
+      state.given = puz.map((r) => r.map((v) => v !== 0));
+      state.values = puz.map((r) => r.slice());
+      state.notes = Array.from({ length: 21 }, () => Array.from({ length: 21 }, () => new Set()));
+      state.selected = null; state.mistakes = 0; state.hintsLeft = 3; state.hintsUsed = 0;
+      state.combo = 0; state.maxCombo = 0; state.score = 0;
+      state.history = []; state.future = [];
+      state.elapsed = 0; state.started = true; state.paused = false; state.over = false; state.won = false;
+      state.total = 0;
+      for (const [r, c] of ALL_CELLS) if (!puz[r][c]) state.total++;
+      countedCards.clear();
+      renderAllCells(); updateHUD();
+    },
+    reset, setMode, setDiff, placeNumber, setCellValue, eraseCell, toggleNote,
+    undo, redo, useHint, selectCell, checkWin, win, lose, generatePuzzle,
+    candidates, countSolutions, dateStr, startPlay, checkBoard, toggleNotes, progress,
+    renderAllCells, updateHUD, checkAchievements, completedCards, cardComplete, cardsAt,
+    buildBoard, cardAt, afterChange,
+  };
+
   init();
 })();

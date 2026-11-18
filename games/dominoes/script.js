@@ -1656,11 +1656,13 @@
       }
     });
 
+    function pauseWhenAway() {
+      if (state.status === "playing" && !state.paused) setPaused(true, false);
+    }
     document.addEventListener("visibilitychange", () => {
-      if (document.hidden && state.status === "playing" && !state.paused) {
-        setPaused(true, false);
-      }
+      if (document.hidden) pauseWhenAway();
     });
+    window.addEventListener("blur", pauseWhenAway);
 
     window.addEventListener("pointerdown", ensureAudio, { once: true, capture: true });
     window.addEventListener("keydown", ensureAudio, { once: true, capture: true });

@@ -42,6 +42,7 @@
   // ---------- Constants ----------
   const W = canvas.width;
   const H = canvas.height;
+  window.Arcade.util.hidpiCanvas(canvas, ctx, W, H);
   const GRAVITY = 0.35;
   const FLAP = -6.5;
   const PIPE_SPEED = 2.4;

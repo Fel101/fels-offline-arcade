@@ -1434,5 +1434,34 @@
     requestAnimationFrame(loop);
   }
 
+  // Embedded test hook (also useful for debugging in the console).
+  function __ACHV_LIST__() { return achv.list(); }
+  window.__T = {
+    snap: () => ({
+      snake: snake.map((c) => ({ x: c.x, y: c.y })),
+      dir: { x: dir.x, y: dir.y },
+      food: food ? { x: food.x, y: food.y, type: food.type } : null,
+      score, combo, comboTimer, mode, over, running, paused, best,
+      countdown: Math.round(countdown),
+      ghostActive: ghostActive(), slowActive: slowActive(),
+      step: currentStep(),
+      records: Object.assign({}, records),
+      unlocked: __ACHV_LIST__(),
+      ai: ai ? { snake: ai.snake.map((c) => ({ x: c.x, y: c.y })), dir: { x: ai.dir.x, y: ai.dir.y }, score: ai.score, alive: ai.alive } : null,
+    }),
+    setFood: (x, y, type) => { food = { x, y, type: type || "apple", born: performance.now(), expires: 0 }; },
+    setSnake: (arr, d) => { snake = arr.map((c) => ({ x: c.x, y: c.y })); if (d) dir = { x: d.x, y: d.y }; queue = []; },
+    setDir: (x, y) => { dir = { x, y }; queue = []; },
+    setAI: (arr, d) => { ai = { snake: arr.map((c) => ({ x: c.x, y: c.y })), dir: { x: d.x, y: d.y }, score: 0, alive: true, respawnIn: 0 }; },
+    setNow: (ms) => { nowMs = ms; },
+    skipCountdown: () => { countdown = 0; },
+    tick: (ms) => { nowMs = ms || performance.now(); tick(nowMs); },
+    tickAI: (ms) => { nowMs = ms || performance.now(); tickAI(nowMs); },
+    respawnAI,
+    reset,
+    setMode,
+    currentStep,
+  };
+
   init();
 })();

@@ -1,0 +1,12 @@
+{
+  "name": "fels-offline-arcade",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A zero-dependency, fully offline browser arcade. No build step — open index.html and play.",
+  "license": "MIT",
+  "scripts": {
+    "test": "node tests/run-all-suites.js",
+    "test:layout": "node tests/check-tia.js",
+    "verify": "npm test && npm run test:layout"
+  }
+}

@@ -31,6 +31,8 @@
   const newWordBtn = dom.byId("new-word");
   const hintEl = dom.byId("hint");
   const ctx = canvas.getContext ? canvas.getContext("2d") : null;
+  const GALLOWS_W = 300, GALLOWS_H = 240;
+  window.Arcade.util.hidpiCanvas(canvas, ctx, GALLOWS_W, GALLOWS_H);
 
   const badgesBtn = dom.byId("badges-btn");
   const badgeCountEl = dom.byId("badge-count");
@@ -220,7 +222,7 @@
   // Faint ground line shown before the first wrong guess.
   function clearCanvas() {
     if (!ctx) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, GALLOWS_W, GALLOWS_H);
     ctx.strokeStyle = "rgba(255, 255, 255, 0.14)";
     ctx.lineWidth = 3;
     ctx.beginPath();

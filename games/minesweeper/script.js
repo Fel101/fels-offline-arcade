@@ -1370,5 +1370,55 @@
     requestAnimationFrame(loop);
   }
 
+  // Embedded test hook (also useful for debugging in the console).
+  function __ACHV_LIST__() { return achv.list(); }
+  window.__M = {
+    state, stats, daily, DIFFS, MODES, ACHIEVEMENTS,
+    unlocked: () => __ACHV_LIST__,
+    snap: () => ({
+      mode: state.mode, diff: state.diff, rows: state.rows, cols: state.cols, mines: state.mines,
+      started: state.started, paused: state.paused, over: state.over, won: state.won,
+      showMines: state.showMines,
+      exploded: state.exploded ? { r: state.exploded.r, c: state.exploded.c } : null,
+      flags: state.flags, flagsPlaced: state.flagsPlaced,
+      revealedCount: state.revealedCount, safeTotal: state.safeTotal,
+      elapsed: Math.round(state.elapsed), remaining: Math.round(state.remaining),
+      hintsLeft: state.hintsLeft, hintsTotal: state.hintsTotal, hintsUsed: state.hintsUsed,
+      score: state.score, chords: state.chords, firstClick: state.firstClick,
+      flagMode: state.flagMode,
+      cells: state.cells.map((row) => row.map((c) => ({
+        mine: c.mine, adj: c.adj, revealed: c.revealed, flagged: c.flagged, question: c.question,
+        cls: c.el.className, text: c.el.textContent,
+      }))),
+      minesEl: document.getElementById("mines").textContent,
+      timeEl: document.getElementById("time").textContent,
+      scoreEl: document.getElementById("score").textContent,
+      bestEl: document.getElementById("best").textContent,
+      hintsEl: document.getElementById("hints").textContent,
+      progress: document.getElementById("ms-progress-fill").style.width,
+      timeLabel: document.getElementById("time-label").textContent,
+      diffHidden: document.getElementById("difficulty-bar").hidden,
+      flagPressed: document.getElementById("flag-btn").getAttribute("aria-pressed"),
+      hintDisabled: document.getElementById("hint-btn").disabled,
+      pauseDisabled: document.getElementById("pause").disabled,
+      modePressed: Array.from(document.querySelectorAll(".mode-chip")).map((b) => b.getAttribute("aria-pressed")),
+      diffPressed: Array.from(document.querySelectorAll(".diff-chip")).map((b) => b.getAttribute("aria-pressed")),
+      overlayTitle: overlay ? overlay.info().title : null,
+      overlayMsg: overlay ? overlay.info().msg : null,
+      stats: Object.assign({}, stats),
+      daily: Object.assign({}, daily),
+      unlocked: __ACHV_LIST__(),
+      face: document.getElementById("face-btn").textContent,
+    }),
+    setState: (o) => {
+      Object.assign(state, o);
+    },
+    buildBoard, renderAll, renderCell, updateHUD, updateTimeDisplay, updateModeUI,
+    newGame, setMode, setDiff, onCellClick, toggleFlag, chord, useHint, floodReveal,
+    placeMines, startGame, checkWin, win, lose, neighbors, currentCfg, checkAchievements,
+    layoutBoard, formatTime, dateStr, saveStats, saveBest, recordDailyWin,
+    bindEvents,
+  };
+
   init();
 })();

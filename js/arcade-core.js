@@ -142,15 +142,6 @@
     return `${m}:${pad2(s)}`;
   }
 
-  /** ms -> "m:ss.t" (tenths) — handy for sprint timers */
-  function formatTimeTenths(ms) {
-    const total = Math.max(0, ms) / 1000;
-    const m = Math.floor(total / 60);
-    const s = Math.floor(total % 60);
-    const t = Math.floor((total * 10) % 10);
-    return `${m}:${pad2(s)}.${t}`;
-  }
-
   /** Local calendar date as "YYYY-MM-DD". */
   function dateStr(d) {
     const date = d || new Date();
@@ -210,13 +201,24 @@
     return out;
   }
 
-  function countBy(arr, fn) {
-    const out = new Map();
-    for (const item of arr) {
-      const k = fn(item);
-      out.set(k, (out.get(k) || 0) + 1);
+  /**
+   * Make a fixed-size canvas crisp on HiDPI screens while preserving its CSS
+   * display size and responsive shrink. Call once, after getContext() and
+   * after the game has derived its logical W/H from canvas.width/height.
+   */
+  function hidpiCanvas(canvas, ctx, w, h) {
+    if (!canvas || !ctx) return 1;
+    const dpr = Math.min(win.devicePixelRatio || 1, 2);
+    if (dpr !== 1) {
+      canvas.width = Math.round(w * dpr);
+      canvas.height = Math.round(h * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
-    return out;
+    canvas.style.width = w + "px";
+    canvas.style.maxWidth = "100%";
+    canvas.style.height = "auto";
+    canvas.style.aspectRatio = w + " / " + h;
+    return dpr;
   }
 
   /** True when the OS asks for reduced motion. Safe to call repeatedly. */
@@ -228,20 +230,9 @@
     }
   }
 
-  /** True on touch-first / small screens — used to show on-screen controls. */
-  function isCoarsePointer() {
-    try {
-      return !!(win.matchMedia && win.matchMedia("(pointer: coarse)").matches);
-    } catch {
-      return false;
-    }
-  }
-
   const util = {
     clamp,
-    pad2,
     formatTime,
-    formatTimeTenths,
     dateStr,
     yesterdayStr,
     hashSeed,
@@ -250,9 +241,8 @@
     randInt,
     choice,
     shuffle,
-    countBy,
+    hidpiCanvas,
     prefersReducedMotion,
-    isCoarsePointer,
   };
 
   /* ---------------------------------------------------------
@@ -396,10 +386,6 @@
     if (soundOn && (!opts || opts.unlock !== false) && audioUnlocked) unlockAudio();
   }
 
-  function isSoundEnabled() {
-    return soundOn;
-  }
-
   /**
    * Wire a sound toggle button. Persists under `soundKey` and keeps the
    * icon / aria state in sync.
@@ -461,11 +447,8 @@
     tone,
     unlock: unlockAudio,
     define: defineSfx,
-    setEnabled: setSoundEnabled,
-    isEnabled: isSoundEnabled,
     bindButton: bindSoundButton,
     bindUnlock: bindAudioUnlock,
-    library: SFX_LIBRARY,
   };
 
   /* ---------------------------------------------------------
@@ -926,32 +909,6 @@
     }, 30);
   }
 
-  /** Persist and render a "best score" record; returns { best, isRecord }. */
-  function recordBest(key, score, extra) {
-    const prev = store.json(key, null);
-    const prevScore = prev && Number.isFinite(prev.s) ? prev.s : 0;
-    const isRecord = score > prevScore || !prev;
-    if (isRecord) {
-      const payload = Object.assign({ s: Math.max(prevScore, score) }, extra || {});
-      store.jsonSet(key, payload);
-    }
-    return { best: Math.max(prevScore, score), isRecord, prev };
-  }
-
-  /**
-   * Daily streak bookkeeping.
-   * recordDailyWin(dailyObj, today) mutates and returns the object.
-   */
-  function recordDailyWin(daily, today) {
-    const day = today || dateStr();
-    if (!daily || daily.lastDate === day) return daily;
-    const yesterday = yesterdayStr();
-    daily.streak = daily.lastDate === yesterday ? (daily.streak || 0) + 1 : 1;
-    daily.lastDate = day;
-    if (!daily.history || typeof daily.history !== "object") daily.history = {};
-    return daily;
-  }
-
   /* --------------------------------------------------------- */
   const Arcade = {
     store,
@@ -965,8 +922,6 @@
     modal,
     loop,
     dom: { byId, all, announce },
-    recordBest,
-    recordDailyWin,
     version: 1,
   };
 

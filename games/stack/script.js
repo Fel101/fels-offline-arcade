@@ -42,6 +42,7 @@
   // ---------- Constants ----------
   const W = canvas.width;
   const H = canvas.height;
+  window.Arcade.util.hidpiCanvas(canvas, ctx, W, H);
   const BLOCK_H = 24;
   const ANCHOR_Y = 150; // screen y of the newest (top) block's top edge
   const MOVE_Y = ANCHOR_Y - BLOCK_H; // the sliding block hovers in the slot above

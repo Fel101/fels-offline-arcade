@@ -44,8 +44,7 @@
   const W = SIZE * CELL;
   const H = SIZE * CELL;
   const STEP_MS = 95; // one grid move per tick
-  canvas.width = W;
-  canvas.height = H;
+  window.Arcade.util.hidpiCanvas(canvas, ctx, W, H);
 
   const DIRS = {
     up: { x: 0, y: -1 },

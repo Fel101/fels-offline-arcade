@@ -1605,5 +1605,50 @@
     requestAnimationFrame(loop);
   }
 
+  // Embedded test hook (also useful for debugging in the console).
+  function __ACHV_LIST__() { return achv.list(); }
+  window.__F = {
+    state, stats, daily, MODES, ACHIEVEMENTS, HOME_COLS, RIVER_ROWS, ROAD_ROWS,
+    COLS, ROWS, CELL, W, H, GOAL_ROW, START_ROW, MEDIAN_ROW,
+    unlocked: () => __ACHV_LIST__,
+    getFrog: () => frog,
+    setFrog: (f) => { frog = f; },
+    getLanes: () => lanes,
+    setLanes: (l) => {
+      lanes = l;
+      laneByRow = {};
+      for (const lane of l) laneByRow[lane.row] = lane;
+    },
+    getBest: () => best,
+    setBest: (b) => { best = b; bestEl.textContent = b; },
+    snap: () => ({
+      mode: state.mode, score: state.score, level: state.level, lives: state.lives,
+      speedMul: state.speedMul, homes: state.homes.slice(), homeCount: state.homeCount,
+      deathsThisLevel: state.deathsThisLevel, timeLeft: state.timeLeft,
+      over: state.over, won: state.won, paused: state.paused, running: state.running,
+      countdown: state.countdown, respawnTimer: state.respawnTimer, runTime: state.runTime,
+      frog: frog ? {
+        x: frog.x, row: frog.row, alive: frog.alive, elapsed: frog.elapsed,
+        maxRow: frog.maxRow, timeLeft: frog.timeLeft,
+      } : null,
+      scoreEl: document.getElementById("score").textContent,
+      bestEl: document.getElementById("best").textContent,
+      livesEl: document.getElementById("lives").textContent,
+      levelEl: document.getElementById("level").textContent,
+      homesEl: document.getElementById("homes").textContent,
+      timeEl: document.getElementById("time").textContent,
+      overlayTitle: overlay ? overlay.info().title : null,
+      overlayMsg: overlay ? overlay.info().msg : null,
+      stats: Object.assign({}, stats),
+      daily: Object.assign({}, daily),
+      unlocked: __ACHV_LIST__(),
+    }),
+    reset, setMode, respawnFrog, move, reachHome, levelComplete, die, gameOver,
+    dailyComplete, addScore, checkAchievements, saveStats, saveBest, updateHUD,
+    updateTime, updateTimers, updateFrog, updateLanes, platformAt, vehicleHit,
+    homeAtX, buildLanes, makeLane, draw, loop, formatTime, dateStr, loadBest,
+    burst, floater, updateEffects, canMove,
+  };
+
   init();
 })();

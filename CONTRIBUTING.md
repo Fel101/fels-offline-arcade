@@ -105,7 +105,19 @@ Changes here affect all 64 games, so please be conservative and test broadly.
 
 ## Checks
 
-There is no required build. At minimum, please verify:
+There is no required build. The verification suites in `tests/` run offline with
+Node.js (no packages to install):
+
+```bash
+npm test              # all 64 deterministic game suites
+npm run test:layout   # every game at 360/500/900/1200 px in headless Chrome
+npm run verify        # both of the above
+```
+
+`npm run test:layout` needs Google Chrome (set `CHROME_PATH` if it isn't at the
+default Windows location). See `tests/README.md` for details.
+
+At minimum, please verify:
 
 - `node --check games/<name>/script.js` passes (syntax).
 - The game loads with **zero console errors** at widths of 360, 500, 900 and 1200 px.

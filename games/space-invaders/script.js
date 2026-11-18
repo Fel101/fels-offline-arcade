@@ -43,6 +43,7 @@
   // ---------- Constants ----------
   const W = canvas.width;
   const H = canvas.height;
+  window.Arcade.util.hidpiCanvas(canvas, ctx, W, H);
   const START_LIVES = 3;
 
   const PLAYER_W = 34, PLAYER_H = 18;

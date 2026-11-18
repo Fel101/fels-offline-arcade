@@ -45,6 +45,8 @@
   const MAZE_W = 19;
   const MAZE_H = 19;
   const CELL = canvas.width / MAZE_W; // 20
+  const LOGICAL_W = canvas.width, LOGICAL_H = canvas.height;
+  window.Arcade.util.hidpiCanvas(canvas, ctx, LOGICAL_W, LOGICAL_H);
   const START_LIVES = 3;
 
   const PLAYER_TICK = 7;
@@ -529,8 +531,8 @@
 
   // ---------- Rendering ----------
   function draw() {
-    const W = canvas.width;
-    const H = canvas.height;
+    const W = LOGICAL_W;
+    const H = LOGICAL_H;
     ctx.fillStyle = "#05060c";
     ctx.fillRect(0, 0, W, H);
 

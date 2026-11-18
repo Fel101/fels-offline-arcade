@@ -41,6 +41,7 @@
   // ---------- Constants ----------
   const W = canvas.width;
   const H = canvas.height;
+  window.Arcade.util.hidpiCanvas(canvas, ctx, W, H);
   const ROUND_MS = 30000;
   const TARGET_SCORE = 1500;
   const TARGET_LIFETIME = 1300;

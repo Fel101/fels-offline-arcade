@@ -24,8 +24,8 @@ That's it — no Node, no npm, nothing to install.
 
 ## Highlights
 
-- **64 games** across 9 categories — Arcade, Card, Dice, Logic, Pattern, Puzzle,
-  Reflex, Strategy and Word.
+- **64 games** across 10 categories — Arcade, Board, Card, Dice, Logic, Pattern,
+  Puzzle, Reflex, Strategy and Word.
 - **Shared core** (`js/arcade-core.js`) provides storage, sound, toasts, overlays,
   confetti, badges and theming; each game keeps its own rules and rendering.
 - **Persistent progress** — high scores, stats and **14–28 badges per game** are saved
@@ -198,6 +198,19 @@ never interfere with each other. Games may bundle extra data files — for examp
 - Pure HTML/CSS/JS — no dependencies, so it stays fast and future-proof offline.
 
 ---
+
+## Verification
+
+There is **no build step** — open `index.html` and play. For development, the
+offline test suites live in `tests/` and need only Node.js:
+
+```bash
+npm test             # 13,338 deterministic assertions across all 64 games
+npm run test:layout  # console errors + overflow at 360/500/900/1200 px (needs Chrome)
+npm run verify       # both
+```
+
+See [tests/README.md](tests/README.md) for details.
 
 ## Contributing
 
