@@ -39,19 +39,53 @@
   <link rel="stylesheet" href="../../css/styles.css">
   <style>
     main.game-area { justify-content: flex-start; padding-top: 18px; gap: 14px; }
-    .hanoi-board { display: flex; gap: 18px; align-items: flex-end; max-width: 100%; }
+
+    /* The board is a little workshop stage: a warm spotlight over a wooden table. */
+    .hanoi-board {
+      position: relative;
+      display: flex; gap: 18px; align-items: flex-end; justify-content: center;
+      max-width: 100%; margin: 0 auto;
+      padding: 26px 20px 18px;
+      border-radius: 24px;
+      border: 1px solid var(--glass-border);
+      background:
+        radial-gradient(ellipse 55% 38% at 50% 16%, rgba(255, 217, 77, 0.16), transparent 72%),
+        linear-gradient(180deg, rgba(42, 46, 76, 0.92) 0%, rgba(20, 22, 40, 0.96) 62%, rgba(12, 13, 26, 1) 100%);
+      box-shadow: 0 22px 50px rgba(0, 0, 0, 0.5), inset 0 2px 0 rgba(255, 255, 255, 0.1), inset 0 0 0 3px rgba(0, 0, 0, 0.3);
+      overflow: hidden;
+    }
+    .hanoi-board::before {
+      content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 58px; z-index: 0;
+      background:
+        repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.1) 0 2px, transparent 2px 26px),
+        linear-gradient(180deg, #6b4a2f 0%, #4a301c 60%, #2e1e12 100%);
+      box-shadow: inset 0 3px 0 rgba(255, 220, 170, 0.18), 0 -4px 14px rgba(0, 0, 0, 0.35);
+    }
+    .hanoi-board::after {
+      content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 4;
+      border-radius: inherit; box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.5);
+    }
+
     .peg {
-      position: relative; width: 156px; height: 290px; border-radius: 18px;
+      position: relative; z-index: 1;
+      width: 156px; height: 290px; border-radius: 18px;
       border: 1px solid transparent; cursor: pointer;
       transition: box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
     }
-    .peg:hover { background: rgba(255, 255, 255, 0.03); }
+    .peg:hover { background: rgba(255, 255, 255, 0.04); }
     .peg--source {
-      background: rgba(77, 227, 195, 0.07);
-      border-color: rgba(77, 227, 195, 0.55);
-      box-shadow: 0 0 22px rgba(77, 227, 195, 0.2), inset 0 0 24px rgba(77, 227, 195, 0.08);
+      background: rgba(77, 227, 195, 0.09);
+      border-color: rgba(77, 227, 195, 0.6);
+      box-shadow: 0 0 26px rgba(77, 227, 195, 0.24), inset 0 0 24px rgba(77, 227, 195, 0.1);
     }
-    .peg--ok { border-color: rgba(255, 217, 77, 0.45); box-shadow: 0 0 16px rgba(255, 217, 77, 0.13); }
+    .peg--ok {
+      border-color: rgba(255, 217, 77, 0.55);
+      animation: hanoiReady 1.2s ease-in-out infinite;
+    }
+    @keyframes hanoiReady {
+      0%, 100% { box-shadow: 0 0 12px rgba(255, 217, 77, 0.12); }
+      50% { box-shadow: 0 0 26px rgba(255, 217, 77, 0.3); }
+    }
     .peg--shake { animation: hanoiShake 0.32s ease; }
     @keyframes hanoiShake {
       0%, 100% { transform: translateX(0); }
@@ -59,45 +93,97 @@
       50% { transform: translateX(8px); }
       75% { transform: translateX(-5px); }
     }
+
+    /* Polished brass rod with a rounded cap. */
     .peg__rod {
       position: absolute; bottom: 46px; left: 50%; transform: translateX(-50%);
-      width: 12px; height: 185px; border-radius: 7px 7px 2px 2px;
-      background: linear-gradient(90deg, #33365f, #5a5d94 50%, #33365f);
-      box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.6);
+      width: 12px; height: 185px; border-radius: 7px 7px 2px 2px; z-index: 0;
+      background: linear-gradient(90deg, #6b5a34 0%, #d9c07a 22%, #fff2c0 42%, #c8a95e 62%, #5e4c2a 100%);
+      box-shadow: 2px 0 6px rgba(0, 0, 0, 0.55), inset 0 0 4px rgba(0, 0, 0, 0.35);
     }
+    .peg__rod::before {
+      content: ""; position: absolute; top: -8px; left: 50%; transform: translateX(-50%);
+      width: 20px; height: 12px; border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #fff6d0, #c9a75c 60%, #6b5428);
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+    }
+
+    /* Flex column paints the FIRST child at the top, so script.js appends
+       rings from smallest to largest to keep big rings visually at the bottom. */
     .peg__stack {
-      position: absolute; bottom: 48px; left: 0; right: 0; z-index: 1;
+      position: absolute; bottom: 48px; left: 0; right: 0; z-index: 2;
       display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 4px;
     }
+
+    /* Chunky wooden plinth with an engraved top edge. */
     .peg__base {
       position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%);
-      width: 148px; height: 18px; border-radius: 10px;
-      background: linear-gradient(180deg, #4c4f84, #2a2c52);
-      border: 1px solid var(--glass-border);
-      box-shadow: 0 5px 12px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+      width: 148px; height: 18px; border-radius: 10px; z-index: 2;
+      background: linear-gradient(180deg, #7b5a3c 0%, #5a3d24 45%, #33200f 100%);
+      border: 1px solid rgba(255, 220, 170, 0.25);
+      box-shadow: 0 8px 14px rgba(0, 0, 0, 0.5), inset 0 2px 0 rgba(255, 230, 190, 0.25), inset 0 -3px 0 rgba(0, 0, 0, 0.35);
     }
+    .peg__base::after {
+      content: ""; position: absolute; left: 8px; right: 8px; top: 3px; height: 3px;
+      border-radius: 2px; background: rgba(255, 235, 190, 0.18);
+    }
+    .peg--drop .peg__base { animation: hanoiLand 0.35s ease; }
+    @keyframes hanoiLand {
+      0%, 100% { box-shadow: 0 8px 14px rgba(0, 0, 0, 0.5), inset 0 2px 0 rgba(255, 230, 190, 0.25); }
+      40% { box-shadow: 0 8px 26px rgba(255, 217, 77, 0.55), inset 0 2px 0 rgba(255, 240, 200, 0.5); }
+    }
+
     .peg__label {
-      position: absolute; bottom: 0; left: 0; right: 0; text-align: center;
-      font-size: 0.72rem; letter-spacing: 2px; text-transform: uppercase;
-      color: var(--muted); font-weight: 800;
+      position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+      min-width: 72px; padding: 2px 8px; border-radius: 6px; text-align: center; z-index: 2;
+      font-size: 0.68rem; letter-spacing: 2px; text-transform: uppercase; font-weight: 900;
+      color: #e9d6a8;
+      background: linear-gradient(180deg, #3a2c1c, #22180f);
+      border: 1px solid rgba(255, 220, 170, 0.25);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 2px 4px rgba(0, 0, 0, 0.4);
     }
+
+    /* Glossy rings with a dark centre where the rod passes through. */
     .disc {
+      position: relative;
       height: 21px; border-radius: 11px; pointer-events: none;
-      border: 1px solid rgba(255, 255, 255, 0.4);
-      box-shadow: 0 3px 7px rgba(0, 0, 0, 0.5), inset 0 2px 2px rgba(255, 255, 255, 0.55), inset 0 -4px 5px rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.45);
+      box-shadow: 0 5px 9px rgba(0, 0, 0, 0.5), inset 0 2px 2px rgba(255, 255, 255, 0.6), inset 0 -5px 6px rgba(0, 0, 0, 0.35);
       transition: transform 0.18s var(--ease-pop), box-shadow 0.18s ease, width 0.2s ease;
     }
-    .disc--held {
-      transform: translateY(-24px) scale(1.04);
-      box-shadow: 0 16px 30px rgba(0, 0, 0, 0.55), 0 0 26px rgba(77, 227, 195, 0.5), inset 0 2px 2px rgba(255, 255, 255, 0.6);
+    .disc::before {
+      content: ""; position: absolute; left: 10%; right: 10%; top: 2px; height: 5px;
+      border-radius: 5px; background: linear-gradient(180deg, rgba(255, 255, 255, 0.65), rgba(255, 255, 255, 0));
     }
+    .disc::after {
+      content: ""; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+      width: 12px; height: 9px; border-radius: 50%;
+      background: radial-gradient(circle at 40% 30%, #2b2416, #0d0b08 70%);
+      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.8), 0 1px 0 rgba(255, 255, 255, 0.25);
+    }
+    .disc--held {
+      transform: translateY(-26px) scale(1.04);
+      box-shadow: 0 18px 32px rgba(0, 0, 0, 0.6), 0 0 28px rgba(77, 227, 195, 0.55), inset 0 2px 2px rgba(255, 255, 255, 0.6);
+    }
+    .disc--drop { animation: hanoiDrop 0.3s cubic-bezier(0.2, 1.4, 0.4, 1); }
+    @keyframes hanoiDrop {
+      0% { transform: translateY(-34px) scale(1.05); opacity: 0.6; }
+      100% { transform: translateY(0) scale(1); opacity: 1; }
+    }
+
     .btn:disabled { opacity: 0.4; pointer-events: none; }
     @media (max-width: 560px) {
-      .hanoi-board { gap: 8px; }
+      .hanoi-board { gap: 8px; padding: 18px 8px 14px; }
       .peg { width: 108px; height: 240px; }
       .peg__rod { height: 152px; }
       .peg__base { width: 102px; }
+      .peg__label { min-width: 56px; font-size: 0.6rem; }
       .disc { height: 17px; border-radius: 9px; }
+      .disc::after { width: 10px; height: 7px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .peg--ok, .peg--shake, .peg--drop .peg__base, .disc--drop { animation: none; }
+      .disc { transition: none; }
     }
   </style>
 </head>

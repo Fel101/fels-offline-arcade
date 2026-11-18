@@ -270,6 +270,12 @@ const OPT7 = optimalPlan(7, []);
   eq(new Set(ids2).size, 14, "badge ids are unique");
   const stack0 = pegEls[0].stackEl;
   eq(stack0.children.length, 4, "4 discs rendered on the start peg");
+  // A flex column paints its first child at the top: the visual order must be
+  // smallest → largest from top to bottom, even though pegs[0] is [4,3,2,1].
+  const drawn = stack0.children.map((c) => parseInt(c.style.width, 10));
+  eq(drawn[0], 46, "the smallest ring is drawn first (at the top)");
+  eq(drawn[drawn.length - 1], 146, "the largest ring is drawn last (at the bottom)");
+  ok(drawn.every((w, i) => i === 0 || w > drawn[i - 1]), "rings widen downwards — not upside down", drawn);
 }
 
 // ---------- B. Move mechanics ----------
@@ -292,6 +298,8 @@ const OPT7 = optimalPlan(7, []);
   eq(JSON.stringify(T.pegs()), JSON.stringify([[4, 3, 2], [1], []]), "smallest disc moved to the spare peg");
   eq(T.moves, 1, "move counted");
   eq(T.stats.totalMoves, 1, "career move counted");
+  eq(pegEls[1].stackEl.children[0].classList.contains("disc--drop"), true, "the landed ring animates in");
+  eq(pegEls[1].classList.contains("peg--drop"), true, "the destination plinth flashes");
 
   T.click(0);
   eq(T.held, 0, "second disc lifted");

@@ -233,6 +233,7 @@
   let autoTimer = null;
   let autoPlan = [];
   let autoIndex = 0;
+  let dropFx = null; // { p, d } — one-shot landing animation after a move
 
   const minMoves = (n) => Math.pow(2, n) - 1;
 
@@ -250,19 +251,27 @@
     for (const { el, p } of pegEls) {
       const stack = el.querySelector(".peg__stack");
       stack.innerHTML = "";
-      for (const d of pegs[p]) {
+      const list = pegs[p];
+      // The flex column paints its FIRST child at the top, while a peg is
+      // stored bottom → top. Append in reverse so large rings sit at the
+      // bottom and the smallest ring is visibly on top.
+      for (let i = list.length - 1; i >= 0; i--) {
+        const d = list[i];
         const disc = document.createElement("div");
         disc.className = "disc";
         disc.style.width = discWidth(d) + "px";
         const [c1, c2] = DISC_COLORS[d - 1];
         disc.style.background = `linear-gradient(180deg, ${c1} 0%, ${c2} 78%)`;
-        if (held === p && d === pegs[p][pegs[p].length - 1]) disc.classList.add("disc--held");
+        if (held === p && d === list[list.length - 1]) disc.classList.add("disc--held");
+        if (dropFx && dropFx.p === p && dropFx.d === d) disc.classList.add("disc--drop");
         stack.appendChild(disc);
       }
       el.classList.toggle("peg--source", held === p);
+      el.classList.toggle("peg--drop", !!dropFx && dropFx.p === p);
       const droppable = held !== null && p !== held && canDrop(p, heldDisc());
       el.classList.toggle("peg--ok", droppable);
     }
+    dropFx = null;
     updateHud();
   }
 
@@ -290,6 +299,7 @@
     history.push([from, to]);
     stats.totalMoves++;
     if (held !== null && pegs[held].length === 0) held = null; // safety
+    dropFx = { p: to, d };
     render();
     if (pegs[2].length === ringCount) onWin();
   }
@@ -393,6 +403,7 @@
     pegs[from].push(d);
     moves = Math.max(0, moves - 1);
     held = null;
+    dropFx = { p: from, d };
     stats.undone++;
     saveStats();
     checkAchievements();
