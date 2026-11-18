@@ -14,6 +14,10 @@ from a local folder, a USB stick, or any static host.
 
 ## Quick start
 
+**Play online:** <https://fel101.github.io/fels-offline-arcade/>
+
+**Play offline:**
+
 1. Download or clone this repository.
 2. Double-click **`index.html`** (or drag it into a browser tab).
 3. Pick a game and play.
