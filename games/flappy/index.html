@@ -4,13 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Flappy — Offline Arcade</title>
-  <meta name="description" content="Tap to flap through the endless pipes. 14 badges.">
+  <meta name="description" content="Flap through the pipes in five modes — Classic, Sprint, Hard, Zen and Daily. 14 badges.">
   <meta property="og:type" content="website">
   <meta property="og:title" content="Flappy — Offline Arcade">
-  <meta property="og:description" content="Tap to flap through the endless pipes. 14 badges.">
+  <meta property="og:description" content="Flap through the pipes in five modes — Classic, Sprint, Hard, Zen and Daily. 14 badges.">
   <meta name="twitter:card" content="summary">
   <meta name="twitter:title" content="Flappy — Offline Arcade">
-  <meta name="twitter:description" content="Tap to flap through the endless pipes. 14 badges.">
+  <meta name="twitter:description" content="Flap through the pipes in five modes — Classic, Sprint, Hard, Zen and Daily. 14 badges.">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%AE%3C/text%3E%3C/svg%3E">
   <meta name="theme-color" content="#0e0e11">
   <meta name="color-scheme" content="dark light">
@@ -38,16 +38,86 @@
   </script>
   <link rel="stylesheet" href="../../css/styles.css">
   <style>
-    .game-area { padding-bottom: 16px; }
+    /* Flappy — arcade flight deck. All art is drawn on the canvas; these
+       styles frame it and style the mode/record chrome around it. */
+    .game-area { padding-bottom: 16px; gap: 12px; }
+
+    .mode-bar { margin: 0 auto 2px; }
+    .mode-chip {
+      min-width: 0;
+      padding: 7px 12px;
+      font-size: 0.78rem;
+      white-space: nowrap;
+    }
+    .mode-chip[aria-pressed="true"] {
+      background: linear-gradient(180deg, #ffe08a, #f5b73d);
+      color: #3a2405;
+      box-shadow: 0 3px 0 #a86d12, inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    }
+
+    .status-bar { gap: 16px; flex-wrap: wrap; justify-content: center; }
+    .status-bar__value { font-variant-numeric: tabular-nums; }
+    .status-bar__item--mode .status-bar__value { color: var(--accent-2); font-size: 0.9rem; }
+    #extra-value { color: #ffcf6b; }
+    #extra-value.is-low { color: #ff6b6b; animation: flappyTimerPulse 0.7s ease-in-out infinite; }
+    @keyframes flappyTimerPulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.45; }
+    }
+
+    /* Canvas in a bevelled arcade frame. */
+    .flappy-screen {
+      position: relative;
+      line-height: 0;
+      max-width: 100%;
+      margin: 0 auto;
+      padding: clamp(6px, 1.6vw, 10px);
+      border-radius: 20px;
+      background: linear-gradient(160deg, #2a3348 0%, #151a28 60%, #0d101a 100%);
+      box-shadow:
+        0 20px 44px rgba(0, 0, 0, 0.5),
+        inset 0 2px 0 rgba(255, 255, 255, 0.12),
+        inset 0 0 0 3px rgba(0, 0, 0, 0.4),
+        0 0 0 1px rgba(255, 255, 255, 0.06);
+    }
+    .flappy-screen::after {
+      content: "";
+      position: absolute;
+      inset: clamp(6px, 1.6vw, 10px);
+      border-radius: 12px;
+      pointer-events: none;
+      box-shadow: inset 0 0 26px rgba(0, 0, 0, 0.35);
+    }
     #game {
       display: block;
       max-width: 100%;
       height: auto;
-      border-radius: 14px;
-      box-shadow: var(--shadow);
+      border-radius: 12px;
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5);
       touch-action: manipulation;
     }
-    .status-bar { gap: 22px; }
+    .flappy-legend {
+      display: flex;
+      gap: 14px;
+      justify-content: center;
+      flex-wrap: wrap;
+      font-size: 0.74rem;
+      color: var(--muted);
+    }
+    .flappy-legend span { display: inline-flex; align-items: center; gap: 5px; }
+    .flappy-legend i {
+      width: 9px; height: 9px; border-radius: 50%;
+      display: inline-block; background: var(--accent);
+    }
+
+    @media (max-width: 430px) {
+      .mode-chip { padding: 6px 9px; font-size: 0.72rem; }
+      .status-bar { gap: 12px; }
+      .flappy-screen { border-radius: 14px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #extra-value.is-low { animation: none; }
+    }
   </style>
 </head>
 <body>
@@ -64,17 +134,33 @@
       </button>
     </header>
     <main class="game-area">
+      <div class="mode-bar" role="group" aria-label="Game mode">
+        <button class="chip mode-chip" type="button" data-mode="classic" aria-pressed="true" title="The original endless flight">Classic</button>
+        <button class="chip mode-chip" type="button" data-mode="sprint" aria-pressed="false" title="Score as much as you can in 60 seconds">Sprint ⏱️</button>
+        <button class="chip mode-chip" type="button" data-mode="hard" aria-pressed="false" title="Faster, tighter gaps — for experts">Hard 🔥</button>
+        <button class="chip mode-chip" type="button" data-mode="zen" aria-pressed="false" title="Three lives, wide gaps, slow pace">Zen 🕊️</button>
+        <button class="chip mode-chip" type="button" data-mode="daily" aria-pressed="false" title="One seeded run per day — same for everyone">Daily 📅</button>
+      </div>
       <div class="status-bar" aria-live="polite">
         <div class="status-bar__item"><span class="status-bar__label">Score</span><span id="score" class="status-bar__value">0</span></div>
         <div class="status-bar__item"><span class="status-bar__label">Best</span><span id="best" class="status-bar__value">0</span></div>
         <div class="status-bar__item"><span class="status-bar__label">Runs</span><span id="games" class="status-bar__value">0</span></div>
+        <div class="status-bar__item status-bar__item--mode"><span class="status-bar__label">Mode</span><span id="mode-label" class="status-bar__value">Classic</span></div>
+        <div class="status-bar__item" id="extra-stat" hidden><span class="status-bar__label" id="extra-label">Time</span><span id="extra-value" class="status-bar__value">0</span></div>
       </div>
-      <canvas id="game" width="400" height="520" aria-label="Flappy game area"></canvas>
+      <div class="flappy-screen">
+        <canvas id="game" width="400" height="520" aria-label="Flappy game area"></canvas>
+      </div>
       <div class="game-controls">
         <button id="restart" class="btn">Restart</button>
         <button id="badges2" class="btn btn--ghost" type="button">🏆 Badges</button>
       </div>
-      <p class="game-info__hint">Space / click / tap to flap. Dodge the pipes! P pauses.</p>
+      <div class="flappy-legend" aria-hidden="true">
+        <span><i></i> Pass a pipe = +1</span>
+        <span>🕊️ Zen gives you 3 lives</span>
+        <span>📅 Daily is the same for everyone</span>
+      </div>
+      <p class="game-info__hint">Space / click / tap to flap. Thread the pipes — pick a mode above! P pauses.</p>
     </main>
   </div>
 

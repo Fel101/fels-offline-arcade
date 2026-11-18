@@ -134,6 +134,7 @@ const ids = [
   "game", "score", "best", "games", "restart",
   "badges-btn", "badge-count", "badges2", "sound-btn", "sound-icon", "toasts",
   "achv-modal", "achv-grid", "achv-count", "achv-records",
+  "mode-label", "extra-stat", "extra-label", "extra-value",
 ];
 for (const id of ids) elements.set(id, makeEl(id === "game" ? "canvas" : "div", id));
 elements.get("game").width = 400;
@@ -493,6 +494,91 @@ function passPipe() {
   eq(elements.get("best").textContent, 199, "best HUD");
   eq(elements.get("games").textContent, 51, "runs HUD");
   ok(storage.has("flappy-stats-v1"), "stats persisted under the core key");
+}
+
+// ---------- O. Modes: configs and switching ----------
+{
+  eq(Object.keys(T.MODES).length, 5, "five mode configs");
+  eq(T.MODES.classic.gravity, T.GRAVITY, "classic keeps the pinned gravity");
+  eq(T.MODES.classic.flap, T.FLAP, "classic keeps the pinned flap");
+  eq(T.MODES.classic.gap, T.GAP, "classic keeps the pinned gap");
+  ok(T.MODES.hard.speed > T.MODES.classic.speed, "Hard pipes are faster");
+  ok(T.MODES.hard.gap < T.MODES.classic.gap, "Hard gaps are tighter");
+  ok(T.MODES.zen.gap > T.MODES.classic.gap, "Zen gaps are wider");
+  eq(T.MODES.sprint.timed, 60, "Sprint is a 60-second run");
+  eq(T.MODES.zen.lives, 3, "Zen gives three lives");
+  eq(T.MODES.daily.seeded, true, "Daily is seeded");
+
+  T.setMode("zen");
+  eq(T.mode, "zen", "setMode switches mode");
+  eq(T.state, "ready", "switching mode returns to the ready screen");
+  eq(T.lives, 3, "Zen lives applied on reset");
+  eq(elements.get("mode-label").textContent, "Zen", "mode label updates");
+  eq(elements.get("extra-label").textContent, "Lives", "Zen extra stat is lives");
+  eq(elements.get("extra-value").textContent, "❤❤❤", "Zen shows three hearts");
+  eq(elements.get("extra-stat").hidden, false, "Zen extra stat is shown");
+
+  T.setMode("classic");
+  eq(elements.get("extra-stat").hidden, true, "classic hides the extra stat");
+}
+
+// ---------- P. Zen absorbs hits instead of ending the run ----------
+{
+  T.setMode("zen");
+  T.flap();
+  eq(T.state, "playing", "Zen starts flying");
+  T.setPipes([{ x: 100, gapTop: 200 }]);
+  T.setBird(60, 0);
+  T.step();
+  eq(T.lives, 2, "a pipe hit costs one life");
+  eq(T.state, "playing", "the run continues after a Zen hit");
+  ok(T.particles().length > 0, "the hit spawns particles");
+}
+
+// ---------- Q. Sprint timer ----------
+{
+  T.setMode("sprint");
+  T.flap();
+  eq(T.timeLeft, 3600, "Sprint starts at 60 seconds");
+  T.setSpawnIn(10000);
+  for (let i = 0; i < 120; i++) {
+    T.setBird(240, 0); // stay safely between pipes
+    T.step();
+  }
+  ok(T.timeLeft < 3600, "the Sprint timer counts down");
+  let guard = 0;
+  while (T.state === "playing" && guard++ < 5000) {
+    T.setBird(240, 0); // stay safely between pipes
+    T.step();
+  }
+  eq(T.state, "over", "the run ends when time runs out");
+  eq(T.overlayTitle(), "Time's up! ⏱️", "time-up overlay");
+  eq(elements.get("extra-label").textContent, "Time", "Sprint extra stat is time");
+}
+
+// ---------- R. Daily is seeded and mode bests are tracked ----------
+{
+  T.setMode("daily");
+  T.reset(false);
+  const a = [];
+  for (let i = 0; i < 5; i++) {
+    T.spawnPipe();
+    a.push(T.snap().pipes.slice(-1)[0].gapTop);
+  }
+  T.reset(false);
+  const b = [];
+  for (let i = 0; i < 5; i++) {
+    T.spawnPipe();
+    b.push(T.snap().pipes.slice(-1)[0].gapTop);
+  }
+  ok(JSON.stringify(a) === JSON.stringify(b), "Daily pipes repeat for the same day");
+
+  T.setMode("hard");
+  T.reset(false);
+  T.setSpawnIn(10000);
+  for (let i = 0; i < 3; i++) passPipe();
+  eq(T.stats.bestHard, 3, "Hard mode best is tracked separately");
+  ok(T.stats.best >= T.stats.bestHard, "overall best stays the maximum");
 }
 
 console.log(`${pass} passed, ${fail} failed`);
