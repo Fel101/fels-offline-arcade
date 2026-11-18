@@ -208,9 +208,7 @@
     },
     onClose: () => {
       badgesOpen = false;
-      tickCarry = 0; // closing the dialog must not replay held-up time
-      // Focus is restored to the real opener by the shared modal helper, so
-      // the header button and the overlay action both return focus correctly.
+      resumeClock();
     },
   });
 
@@ -248,6 +246,7 @@
   let paused = false;
   let badgesOpen = false; // the Badges dialog owns input while it is up
   let tickCarry = 0; // leftover milliseconds for the fixed-step simulation
+  let resumedAt;
   let modeIndex = 0; // scatter/chase schedule position
   let modeTimer = 0;
   let scatterMode = true;
@@ -321,6 +320,7 @@
       cooldown: i * 4,
       prevR: r,
       prevC: c,
+      respawning: false,
       leaving: inPen({ r, c }),
     }));
     powerTimer = 0;
@@ -375,7 +375,7 @@
 
   function startGame() {
     hideOverlay();
-    tickCarry = 0;
+    resumeClock();
     state = "playing";
     stats.games++;
     stats.levels = Math.max(stats.levels, level);
@@ -555,10 +555,11 @@
 
     // Ghosts.
     for (const g of ghosts) {
+      g.prevR = g.r;
+      g.prevC = g.c;
       if (g.cooldown > 0) g.cooldown--;
       if (g.cooldown <= 0) {
-        g.prevR = g.r;
-        g.prevC = g.c;
+        g.respawning = false;
         moveGhost(g);
         g.cooldown = powerTimer > 0 ? POWER_GHOST_TICK : Math.max(5, GHOST_TICK - (level - 1));
       }
@@ -567,6 +568,7 @@
     // Collisions: same tile, or the two swapped tiles during this tick (the
     // tunnel wrap works too because the old and new cells are compared as-is).
     for (const g of ghosts) {
+      if (g.respawning) continue;
       const sameTile = g.r === player.r && g.c === player.c;
       const swapped =
         g.prevR === player.r && g.prevC === player.c &&
@@ -582,6 +584,7 @@
         g.r = g.start[0];
         g.c = g.start[1];
         g.cooldown = 60;
+        g.respawning = true;
         g.leaving = inPen(g);
         updateStatus();
         saveStats();
@@ -701,6 +704,7 @@
 
     // Ghosts.
     for (const g of ghosts) {
+      if (g.respawning) continue;
       const gx = cx(g.c);
       const gy = cy(g.r);
       const gr = CELL * 0.4;
@@ -729,7 +733,7 @@
   function setPaused(p) {
     if (state !== "playing" || paused === p) return;
     paused = p;
-    tickCarry = 0; // a pause must not bank time for a catch-up burst
+    tickCarry = 0;
     if (p) {
       showOverlay("Paused", "Take a breath — press P or hit Resume.", [
         { label: "Resume", onClick: () => { hideOverlay(); setPaused(false); } },
@@ -737,6 +741,7 @@
       ]);
     } else {
       hideOverlay();
+      resumeClock();
     }
   }
 
@@ -827,8 +832,18 @@
   // same on 60 Hz, 120 Hz or any other display. Drawing stays per frame.
   const TICK_MS = 1000 / 60;
 
-  function onFrame(dt) {
+  function resumeClock() {
+    tickCarry = 0;
+    resumedAt = performance.now();
+  }
+
+  function onFrame(dt, timestamp) {
     if (state === "playing" && !paused && !badgesOpen) {
+      // The previous animation frame may have been before the pause.
+      if (resumedAt !== undefined && timestamp !== undefined) {
+        dt = Math.min(dt, Math.max(0, timestamp - resumedAt));
+        resumedAt = undefined;
+      }
       tickCarry += dt;
       let guard = 0;
       while (tickCarry >= TICK_MS && guard++ < 12) {
@@ -907,7 +922,10 @@
     setLives: (n) => { lives = n; updateStatus(); },
     setLevel: (n) => { level = n; updateStatus(); },
     setPowerTimer: (n) => { powerTimer = n; },
-    setGhost: (i, r, c) => { if (ghosts[i]) { ghosts[i].r = r; ghosts[i].c = c; ghosts[i].prevR = r; ghosts[i].prevC = c; ghosts[i].cooldown = 9999; ghosts[i].leaving = false; } },
+    setGhost: (i, r, c) => {
+      if (!ghosts[i]) return;
+      Object.assign(ghosts[i], { r, c, cooldown: 9999, respawning: false, leaving: false });
+    },
     setGhostDir: (i, dr, dc) => { if (ghosts[i]) ghosts[i].dir = [dr, dc]; },
     setGhostCooldown: (n) => { for (const g of ghosts) g.cooldown = n; },
     setDots: (d) => {

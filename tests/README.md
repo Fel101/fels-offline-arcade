@@ -1,13 +1,14 @@
 # Verification
 
 The project has **no build step** — it is plain HTML/CSS/JS that runs from `file://`.
-"Verification" therefore means syntax checks, the deterministic unit suites, and
-headless-browser layout checks. All of it lives in this folder and runs offline.
+Verification includes deterministic unit suites, browser interaction checks, and
+layout checks. All of them run offline from this folder.
 
 ## Requirements
 
-- Node.js 18+ (no packages to install — `npm install` is unnecessary)
-- Google Chrome for the layout checks (set `CHROME_PATH` if it isn't at the
+- Node.js 18+ for the unit and layout tests. The browser smoke test also needs
+  built-in `WebSocket` support, which is available in Node.js 24.
+- Google Chrome for the browser and layout checks (set `CHROME_PATH` if it isn't at the
   default Windows location)
 
 ## Commands
@@ -15,9 +16,10 @@ headless-browser layout checks. All of it lives in this folder and runs offline.
 From the repository root:
 
 ```bash
-npm test          # all 64 deterministic game suites (13,338 assertions)
+npm test              # all 64 deterministic game suites
+npm run test:browser  # launcher, theme, and keyboard interaction in Chrome
 npm run test:layout   # every game at 360 / 500 / 900 / 1200 px, 0 console errors + no overflow
-npm run verify        # both of the above
+npm run verify        # unit tests and layout checks
 ```
 
 You can also run a single suite or a single game's layout check directly:
@@ -30,6 +32,8 @@ node tests/check-tia.js chess checkers
 ## Structure
 
 - `run-all-suites.js` — runs every `*-test.js` suite and reports totals.
+- `browser-smoke.js` — opens the local launcher in Chrome with web requests
+  blocked and exercises theme persistence, Badges dialogs, and a Backgammon move.
 - `check-tia.js` — injects a diagnostic script into each game page and loads it
   in headless Chrome at four widths; reports console errors and horizontal
   overflow. Writes a temporary `_diag.html` into each game folder and removes

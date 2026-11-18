@@ -176,6 +176,8 @@
       align-items: center;
       justify-content: center;
       gap: 2px;
+      padding: 0;
+      font-family: inherit;
       font-size: 0.7rem;
       font-weight: 700;
       background: rgba(255,255,255,0.05);
@@ -239,8 +241,8 @@
           <div id="row-bottom" class="bg-row bg-row--bottom" aria-label="Points 12 to 1"></div>
         </div>
         <div class="bg-tray">
-          <div class="bg-off" id="tray-w-box" title="White borne off"><span>● Off</span><span id="tray-w" class="bg-off__count">0</span></div>
-          <div class="bg-off" id="tray-b-box" title="Black borne off"><span>○ Off</span><span id="tray-b" class="bg-off__count">0</span></div>
+          <button class="bg-off" id="tray-w-box" type="button" title="White borne off" disabled><span>● Off</span><span id="tray-w" class="bg-off__count">0</span></button>
+          <button class="bg-off" id="tray-b-box" type="button" title="Black borne off" disabled><span>○ Off</span><span id="tray-b" class="bg-off__count">0</span></button>
         </div>
       </div>
       <div id="dice-row" class="bg-dice" aria-live="polite"></div>

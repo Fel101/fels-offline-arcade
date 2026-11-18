@@ -21,6 +21,7 @@
   const hideOverlay = overlay.hide;
 
   // ---------- DOM ----------
+  const boardEl = dom.byId("board");
   const rowTopEl = dom.byId("row-top");
   const rowBottomEl = dom.byId("row-bottom");
   const barEl = dom.byId("bar");
@@ -332,6 +333,7 @@
         const rest = remaining.slice();
         rest.splice(rest.indexOf(die), 1);
         best = Math.max(best, 1 + maxRemainingPlays(nextSim, player, rest));
+        if (best === remaining.length) return best;
       }
     }
     return best;
@@ -647,6 +649,7 @@
       const chip = document.createElement("button");
       chip.type = "button";
       chip.className = "bg-bar__chip" + (bar[player] > 0 ? " bg-bar__chip--active" : "");
+      chip.setAttribute("data-bar-player", String(player));
       chip.textContent = (player === WHITE ? "●" : "○") + " Bar " + bar[player];
       chip.setAttribute("aria-label", (player === WHITE ? "White" : "Black") + " bar: " + bar[player]);
       chip.addEventListener("click", () => onBarClick(player));
@@ -673,6 +676,9 @@
   }
 
   function render() {
+    const active = document.activeElement;
+    const point = active?.getAttribute("data-point");
+    const barPlayer = active?.getAttribute("data-bar-player");
     const targets = computeTargets();
     renderRow(rowTopEl, TOP_POINTS, targets);
     renderRow(rowBottomEl, BOTTOM_POINTS, targets);
@@ -684,8 +690,15 @@
       phase === "move" &&
       !gameOver &&
       findMoveTo(turn, selected, "off") !== null;
-    trayWBox.classList.toggle("bg-off--active", bearable && turn === WHITE);
-    trayBBox.classList.toggle("bg-off--active", bearable && turn === BLACK);
+    const whiteCanBearOff = bearable && turn === WHITE;
+    const blackCanBearOff = bearable && turn === BLACK;
+    trayWBox.classList.toggle("bg-off--active", whiteCanBearOff);
+    trayBBox.classList.toggle("bg-off--active", blackCanBearOff);
+    trayWBox.disabled = !whiteCanBearOff;
+    trayBBox.disabled = !blackCanBearOff;
+
+    if (point) boardEl.querySelector(`[data-point="${point}"]`)?.focus({ preventScroll: true });
+    if (barPlayer) barEl.querySelector(`[data-bar-player="${barPlayer}"]`)?.focus({ preventScroll: true });
   }
 
   function updateStatus() {
@@ -693,6 +706,8 @@
     offBEl.textContent = off[BLACK];
     trayWEl.textContent = off[WHITE];
     trayBEl.textContent = off[BLACK];
+    trayWBox.setAttribute("aria-label", `Bear off a white checker, ${off[WHITE]} borne off`);
+    trayBBox.setAttribute("aria-label", `Bear off a black checker, ${off[BLACK]} borne off`);
     diceEl.textContent = dice.length ? dice.join(" ") : phase === "roll" ? "—" : "";
     rollBtn.disabled = gameOver || phase !== "roll" || (mode === "cpu" && turn === BLACK);
     rollBtn.textContent = phase === "move" ? "🎲 Rolled" : "🎲 Roll";
@@ -765,6 +780,7 @@
     }
     if (overlay.isOpen() || gameOver || paused) return;
     if (key === "Enter" || key === " ") {
+      if (tag === "button" || tag === "a") return;
       if (e.preventDefault) e.preventDefault();
       roll();
     }

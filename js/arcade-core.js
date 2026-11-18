@@ -823,7 +823,7 @@
       const sel =
         'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
       return Array.from(el.querySelectorAll(sel)).filter((n) => {
-        if (n.disabled || n.hidden || n.getAttribute("aria-hidden") === "true") return false;
+        if (n.tabIndex < 0 || n.disabled || n.hidden || n.getAttribute("aria-hidden") === "true") return false;
         if (n.getClientRects) return n.getClientRects().length > 0;
         return true;
       });
@@ -863,18 +863,16 @@
       open = false;
       el.hidden = true;
       document.body.classList.remove("modal-open");
-      // Let the game react first. If its callback deliberately focuses a
-      // different element, that explicit choice wins over opener restoration.
-      const beforeClose = activeEl();
-      if (typeof options.onClose === "function") options.onClose();
-      const afterClose = activeEl();
-      const moved = afterClose && afterClose !== beforeClose &&
-        !(el.contains && el.contains(afterClose));
-      if (!moved) {
-        const target = opener && opener.isConnected !== false ? opener : options.returnFocus || null;
-        if (target && target.focus) target.focus();
-      }
+      const target = opener;
       opener = null;
+      // Let the game restore its state first. Many older callers focus a
+      // generic Badges button in onClose, even when an overlay opened it.
+      if (typeof options.onClose === "function") options.onClose();
+      if (target && target !== document.body && target.isConnected !== false && target.focus) {
+        target.focus();
+        if (activeEl() === target) return;
+      }
+      if (options.returnFocus && options.returnFocus.focus) options.returnFocus.focus();
     }
 
     function toggle() {

@@ -135,6 +135,8 @@ global.document = {
 };
 
 let timerSeq = 0;
+let animationFrame;
+let frameTime = 0;
 global.window = {
   innerWidth: 800,
   matchMedia: () => ({ matches: false, addEventListener() {}, removeEventListener() {} }),
@@ -143,11 +145,14 @@ global.window = {
   clearTimeout: () => {},
   AudioContext: undefined,
   webkitAudioContext: undefined,
-  requestAnimationFrame: () => 1,
+  requestAnimationFrame: (callback) => {
+    animationFrame = callback;
+    return 1;
+  },
   cancelAnimationFrame: () => {},
 };
 
-global.performance = { now: () => Date.now() };
+global.performance = { now: () => frameTime };
 global.requestAnimationFrame = () => 1;
 global.cancelAnimationFrame = () => {};
 Math.random = () => 0.5;
@@ -558,7 +563,9 @@ function openNeighbors(r, c) {
   overlayBadges.focus();
   T.openAchv();
   eq(activeElement, modalCloseBtn, "overlay action opens with focus on Close");
-  eq(T.powerTimer, T.powerTimer, "paused game stays paused behind Badges");
+  const pausedPower = T.powerTimer;
+  T.tickLoop(100);
+  eq(T.powerTimer, pausedPower, "paused game stays paused behind Badges");
   keydown("Escape");
   eq(activeElement, overlayBadges, "focus returns to the overlay Badges action");
   eq(T.paused, true, "the pause survives closing Badges");
@@ -597,6 +604,26 @@ function openNeighbors(r, c) {
   for (let i = 0; i < 120; i++) T.tickLoop(1000 / 60);
   eq(T.powerTimer, 480, "paused time never advances the simulation");
   eq(T.tickCarry, 0, "paused frames do not bank carryover");
+
+  // A suspended browser may deliver no animation frames between pausing
+  // and resuming, so the next shared-loop delta still includes paused time.
+  function advanceFrame(time) {
+    frameTime = time;
+    animationFrame(time);
+  }
+  advanceFrame(1000);
+  frameTime = 6000;
+  T.setPaused(false);
+  advanceFrame(6001);
+  eq(T.powerTimer, 480, "resuming before the first frame does not replay paused time");
+  advanceFrame(6018);
+  eq(T.powerTimer, 479, "simulation starts ticking again after resuming");
+
+  T.openAchv();
+  frameTime = 7000;
+  T.closeAchv();
+  advanceFrame(7001);
+  eq(T.powerTimer, 479, "closing Badges before the next frame does not replay modal time");
 }
 
 // ---------- Q. Tile-swap collisions ----------
@@ -659,6 +686,27 @@ function openNeighbors(r, c) {
   T.setDir(0, -1);
   for (let i = 0; i < 7; i++) T.step();
   eq(T.player.c, MAZE_W - 1, "side tunnel still wraps the player");
+
+  T.newGame();
+  T.startGame();
+  T.setPlayerPos(12, 0);
+  T.setDir(0, -1);
+  T.setGhost(0, 12, MAZE_W - 1);
+  T.setGhostDir(0, 0, 1);
+  T.setGhostCooldown(1);
+  T.step();
+  eq(T.lives, 2, "swapping tunnel ends with a ghost costs a life");
+
+  T.newGame();
+  T.startGame();
+  const [r, c] = T.PEN_STARTS[0];
+  T.setPlayerPos(r, c);
+  T.setGhost(0, r, c);
+  T.setPowerTimer(480);
+  const eatenBeforeRespawn = T.stats.ghosts;
+  T.step();
+  T.step();
+  eq(T.stats.ghosts, eatenBeforeRespawn + 1, "an eaten ghost cannot be collected again during respawn");
 }
 
 // ---------- R. Shared modal helper ----------
@@ -702,7 +750,12 @@ function openNeighbors(r, c) {
   });
   ctl2.open();
   ctl2.close();
-  eq(activeElement, elsewhere, "an explicit focus in onClose wins over opener restoration");
+  eq(activeElement, opener, "a connected opener takes precedence over a generic onClose destination");
+
+  ctl2.open();
+  opener.isConnected = false;
+  ctl2.close();
+  eq(activeElement, elsewhere, "the onClose destination still works when the opener was removed");
 }
 
 console.log(`${pass} passed, ${fail} failed`);
