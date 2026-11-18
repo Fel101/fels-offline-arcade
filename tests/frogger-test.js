@@ -29,6 +29,7 @@ function makeCtx() {
     clearRect() {},
     translate() {},
     scale() {},
+    rotate() {},
     beginPath() {},
     moveTo() {},
     lineTo() {},
@@ -43,6 +44,9 @@ function makeCtx() {
     fillText() {},
     setLineDash() {},
     createLinearGradient() {
+      return grad;
+    },
+    createRadialGradient() {
       return grad;
     },
     measureText() {
@@ -573,6 +577,72 @@ eq(T.homeAtX(14), -1, "out of range is no home");
     ok(true, "long frame run without runtime errors");
   } catch (err) {
     ok(false, "long frame run threw", String(err));
+  }
+}
+
+// ---------- P. Blitz mode and visual polish ----------
+{
+  eq(T.MODE_ORDER.length, 5, "five modes in chip order");
+  deepEq(T.MODE_ORDER, ["classic", "attack", "blitz", "daily", "zen"], "Blitz sits between Attack and Daily");
+  eq(T.MODES.blitz.lives, 2, "Blitz gives two lives");
+  eq(T.MODES.blitz.attackTime, 60, "Blitz is a 60-second run");
+  ok(T.MODES.blitz.speed > T.MODES.classic.speed, "Blitz traffic is faster than classic");
+
+  fresh("blitz");
+  eq(T.snap().mode, "blitz", "Blitz mode active");
+  eq(T.snap().lives, 2, "Blitz starts with two lives");
+  eq(T.snap().timeLeft, 60, "Blitz starts at 60 seconds");
+  eq(elements.get("time-label").textContent, "Left", "Blitz shows a global countdown");
+  eq(elements.get("time").textContent, "1:00", "Blitz HUD formats the countdown");
+  eq(T.isAttackLike(), true, "Blitz is an attack-like timed mode");
+
+  T.state.timeLeft = 30;
+  T.state.homes = [false, false, false, false, false];
+  T.state.homeCount = 0;
+  T.setFrog({ x: 0, row: 1, drawX: 0, drawY: 1, hop: 0, alive: true, elapsed: 5, maxRow: 1, timeLeft: 0 });
+  T.reachHome();
+  eq(T.snap().timeLeft, 40, "a Blitz home adds ten seconds");
+
+  T.state.score = 777;
+  T.saveBest();
+  eq(Number(storage.get("frogger-best-v1-blitz")), 777, "Blitz best is stored under its own key");
+
+  T.state.timeLeft = 0.01;
+  T.updateTimers(20);
+  eq(T.snap().over, true, "Blitz ends when the clock runs out");
+  eq(T.snap().overlayTitle, "Time's Up! ⏱", "Blitz timeout overlay");
+
+  fresh();
+  eq(T.isAttackLike(), false, "classic is not attack-like");
+  T.move(0, -1);
+  eq(T.getFrog().facing, "up", "hopping up faces the frog upward");
+  T.move(1, 0);
+  eq(T.getFrog().facing, "right", "hopping right faces the frog right");
+  T.move(0, 1);
+  eq(T.getFrog().facing, "down", "hopping down faces the frog down");
+  T.move(-1, 0);
+  eq(T.getFrog().facing, "left", "hopping left faces the frog left");
+
+  fresh();
+  T.die("water");
+  eq(T.ripples().length, 3, "a water death leaves expanding ripples");
+  ok(T.flash > 0, "a death flashes the screen");
+
+  T.state.homes = [true, true, true, true, false];
+  T.state.homeCount = 4;
+  T.setFrog({ x: 12, row: 1, drawX: 12, drawY: 1, hop: 0, alive: true, elapsed: 8, maxRow: 1, timeLeft: 20 });
+  T.reachHome();
+  ok(T.flash >= 1, "a level-up flashes the screen");
+
+  // Every mode still renders without error.
+  for (const m of T.MODE_ORDER) {
+    fresh(m);
+    try {
+      T.draw(1000);
+      ok(true, m + " renders");
+    } catch (err) {
+      ok(false, m + " render threw", String(err));
+    }
   }
 }
 

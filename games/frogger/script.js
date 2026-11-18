@@ -1,7 +1,8 @@
 // Frogger — hop across traffic and a river, fill all five home bays.
 // Pure vanilla JS, fully offline.
 // Modes: Classic (3 lives + per-frog timer), Time Attack (global countdown),
-// Daily (seeded crossing), Zen (untimed, infinite lives, slower traffic).
+// Blitz (60s high-speed sprint), Daily (seeded crossing),
+// Zen (untimed, infinite lives, slower traffic).
 // Features: progressive levels, combos of forward progress, extra lives,
 // 25 badges, persistent best scores, daily streaks, particles, sound, themes.
 (() => {
@@ -68,6 +69,7 @@
     { row: 10, dir: -1, speed: 1.35, kind: "car", len: [1, 2], gap: [2, 4] },
   ];
   const CAR_COLORS = ["#ff5b5b", "#ffd23f", "#5ad1b8", "#6fb8ff", "#ff8fc4", "#ffa94d"];
+  const MODE_ORDER = ["classic", "attack", "blitz", "daily", "zen"];
 
   const MODES = {
     classic: {
@@ -83,6 +85,13 @@
       speed: 1.08,
       attackTime: 120,
       hint: "120s countdown · each home +10s · each level +20s",
+    },
+    blitz: {
+      name: "Blitz",
+      lives: 2,
+      speed: 1.3,
+      attackTime: 60,
+      hint: "60s sprint · fast traffic · 2 lives · +10s per home",
     },
     daily: {
       name: "Daily",
@@ -338,6 +347,20 @@
     ctx.closePath();
   }
 
+  // Optional haptic tap on supported phones; silently ignored elsewhere.
+  function buzz(ms) {
+    try {
+      if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate(ms);
+    } catch (_) {
+      /* not supported */
+    }
+  }
+
+  // Time Attack and Blitz share the global-countdown behaviour.
+  function isAttackLike() {
+    return state.mode === "attack" || state.mode === "blitz";
+  }
+
   // ---------- State ----------
   const state = {
     mode: "classic",
@@ -367,7 +390,9 @@
   let frog = null;
   let particles = [];
   let floaters = [];
+  let ripples = [];
   let shake = 0;
+  let flash = 0;
   let lastTs = 0;
   let nowMs = performance.now();
   let lastTimeText = "";
@@ -525,14 +550,21 @@
     achv.render(achvGrid, {
       countEl: achvCountEl,
       recordsEl: achvRecordsEl,
-      records: () => ([
-      ["Best", best],
-      ["Best level", stats.maxLevel],
-      ["Homes", stats.totalHomes],
-      ["Daily streak", daily.streak + "d"],
-      ["Runs", stats.totalRuns],
-      ["Frogs lost", stats.totalDeaths],
-    ]),
+      records: () => {
+        const rows = [
+          ["Best", best],
+          ["Best level", stats.maxLevel],
+          ["Homes", stats.totalHomes],
+          ["Daily streak", daily.streak + "d"],
+          ["Runs", stats.totalRuns],
+          ["Frogs lost", stats.totalDeaths],
+        ];
+        for (const m of ["attack", "blitz"]) {
+          const v = Number(store.get(K.best(m), 0)) || 0;
+          if (v > 0) rows.push([MODES[m].name + " best", v]);
+        }
+        return rows;
+      },
     });
   }
 
@@ -648,6 +680,13 @@
     }
     floaters = floaters.filter((f) => f.life > 0);
 
+    for (const r of ripples) {
+      r.r += 70 * dts;
+      r.life -= dts;
+    }
+    ripples = ripples.filter((r) => r.life > 0);
+    if (flash > 0) flash = Math.max(0, flash - dts * 2.4);
+
     if (shake > 0) {
       shake *= Math.pow(0.001, dts);
       if (shake < 0.4) shake = 0;
@@ -658,17 +697,17 @@
   function updateTime() {
     let text;
     if (state.mode === "zen") text = "∞";
-    else if (state.mode === "attack") text = formatTime(state.timeLeft);
+    else if (isAttackLike()) text = formatTime(state.timeLeft);
     else text = formatTime(frog ? frog.timeLeft : 0);
     if (text !== lastTimeText) {
       lastTimeText = text;
       timeEl.textContent = text;
     }
     let danger = false;
-    if (state.mode === "attack") danger = state.timeLeft <= 15;
+    if (isAttackLike()) danger = state.timeLeft <= 15;
     else if (state.mode === "classic" || state.mode === "daily") danger = !!frog && frog.timeLeft <= 5;
     timeEl.classList.toggle("is-danger", danger);
-    timeLabelEl.textContent = state.mode === "attack" ? "Left" : "Time";
+    timeLabelEl.textContent = isAttackLike() ? "Left" : "Time";
   }
 
   function updateHUD() {
@@ -692,6 +731,7 @@
       alive: true,
       elapsed: 0,
       maxRow: START_ROW,
+      facing: "up",
       timeLeft: timed ? FROG_TIME : 0,
     };
     state.respawnTimer = 0;
@@ -721,7 +761,9 @@
 
     particles = [];
     floaters = [];
+    ripples = [];
     shake = 0;
+    flash = 0;
     lastTimeText = "";
     buildLanes();
     respawnFrog();
@@ -781,9 +823,11 @@
     const t = frog.elapsed;
     if (t > 0 && (!stats.fastestHome || t < stats.fastestHome)) stats.fastestHome = t;
     if ((state.mode === "classic" || state.mode === "daily") && frog.timeLeft < 1) stats.closeCalls++;
-    if (state.mode === "attack") state.timeLeft += 10;
+    if (isAttackLike()) state.timeLeft += 10;
 
     sfx("home");
+    flash = Math.max(flash, 0.45);
+    buzz(18);
     const px = HOME_COLS[hi] * CELL + CELL / 2;
     burst(px, CELL * 0.5, PAL.accent2, 20);
 
@@ -812,9 +856,11 @@
     state.homes = [false, false, false, false, false];
     state.homeCount = 0;
     state.deathsThisLevel = 0;
-    if (state.mode === "attack") state.timeLeft += 20;
+    if (isAttackLike()) state.timeLeft += 20;
 
     sfx("level");
+    flash = 1;
+    buzz(40);
     confetti();
     floaterCenter("Level " + state.level + "!", PAL.accent2);
     saveStats();
@@ -835,6 +881,14 @@
     burst(px, py, water ? "#5ab0ff" : "#ff7b3d", 28);
     sfx(water ? "splash" : "hit");
     if (!REDUCE) shake = 14;
+    flash = Math.max(flash, water ? 0.35 : 0.5);
+    buzz(water ? 15 : 30);
+    if (water) {
+      for (let k = 0; k < 3; k++) {
+        const life = 0.55 + k * 0.16;
+        ripples.push({ x: px, y: py, r: 5 + k * 5, life, max: life });
+      }
+    }
 
     if (state.mode !== "zen") {
       state.lives--;
@@ -953,7 +1007,28 @@
     frog.x = nx;
     frog.row = nr;
     frog.hop = 1;
+    if (drow < 0) frog.facing = "up";
+    else if (drow > 0) frog.facing = "down";
+    else if (dx < 0) frog.facing = "left";
+    else if (dx > 0) frog.facing = "right";
     sfx("hop");
+
+    // A little dust/spray kick-up behind each hop.
+    const px = nx * CELL + CELL / 2;
+    const py = nr * CELL + CELL * 0.85;
+    const inWater = nr >= 1 && nr <= 5;
+    for (let i = 0; i < 4; i++) {
+      particles.push({
+        x: px,
+        y: py,
+        vx: (Math.random() - 0.5) * 70,
+        vy: -Math.random() * 35,
+        life: 0.22 + Math.random() * 0.2,
+        max: 0.42,
+        color: inWater ? "rgba(180,225,255,0.7)" : "rgba(215,230,195,0.7)",
+        size: 1.4 + Math.random() * 2,
+      });
+    }
 
     if (nr < frog.maxRow) {
       frog.maxRow = nr;
@@ -966,7 +1041,7 @@
   // ---------- Update ----------
   function updateTimers(dt) {
     const dts = dt / 1000;
-    if (state.mode === "attack") {
+    if (isAttackLike()) {
       state.timeLeft -= dts;
       if (state.timeLeft <= 0) {
         state.timeLeft = 0;
@@ -1034,66 +1109,125 @@
   }
 
   // ---------- Drawing ----------
+  function lgrad(x0, y0, x1, y1, stops) {
+    const g = ctx.createLinearGradient(x0, y0, x1, y1);
+    for (const [p, c] of stops) g.addColorStop(p, c);
+    return g;
+  }
+
   function drawGrass(row) {
     const y = row * CELL;
-    ctx.fillStyle = C.grassDark;
-    for (let x = 0; x < W; x += 14) {
-      const h = 4 + ((x * 7 + row * 13) % 5);
-      ctx.fillRect(x + 3, y + CELL - h, 2, h);
+    ctx.fillStyle = lgrad(0, y, 0, y + CELL, [
+      [0, row === GOAL_ROW ? "#2b9151" : row === START_ROW ? "#247e47" : C.grass],
+      [1, C.grassDark],
+    ]);
+    ctx.fillRect(0, y, W, CELL);
+
+    // Tufts of grass along the bank edge.
+    ctx.strokeStyle = "rgba(140,220,150,0.32)";
+    ctx.lineWidth = 1.5;
+    for (let x = 2; x < W; x += 13) {
+      const h = 3 + ((x * 7 + row * 13) % 6);
+      ctx.beginPath();
+      ctx.moveTo(x, y + CELL);
+      ctx.lineTo(x - 2, y + CELL - h);
+      ctx.moveTo(x, y + CELL);
+      ctx.lineTo(x + 2, y + CELL - h - 1);
+      ctx.stroke();
     }
-    ctx.fillStyle = "rgba(255,255,255,0.05)";
-    for (let x = 6; x < W; x += 22) {
-      ctx.fillRect(x, y + 4, 8, 2);
+
+    // Scattered wildflowers.
+    for (let x = 10; x < W; x += 47) {
+      const fx = x + ((row * 17) % 13);
+      const fy = y + 9 + ((x * 3) % 16);
+      const hue = (x + row * 31) % 3;
+      ctx.fillStyle = hue === 0 ? "#ffe27a" : hue === 1 ? "#ff9ec4" : "#dbe8ff";
+      ctx.beginPath();
+      ctx.arc(fx, fy, 2.4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "rgba(255,250,215,0.85)";
+      ctx.beginPath();
+      ctx.arc(fx, fy, 0.9, 0, Math.PI * 2);
+      ctx.fill();
     }
   }
 
   function drawWater() {
+    const t = nowMs * 0.001;
     ctx.save();
-    ctx.lineWidth = 2;
     for (let i = 0; i < RIVER_ROWS.length; i++) {
       const yBase = RIVER_ROWS[i] * CELL;
-      ctx.strokeStyle = "rgba(140,200,255,0.16)";
-      for (let line = 0; line < 2; line++) {
+
+      // Layered moving wave lines.
+      ctx.lineWidth = 2;
+      for (let line = 0; line < 3; line++) {
+        ctx.strokeStyle = line === 0 ? "rgba(190,230,255,0.20)" : "rgba(140,200,255,0.12)";
         ctx.beginPath();
-        for (let x = 0; x <= W; x += 10) {
+        for (let x = 0; x <= W; x += 8) {
           const y =
             yBase +
-            CELL * (0.35 + line * 0.35) +
-            Math.sin(x * 0.05 + nowMs * 0.0016 + i * 1.3 + line * 2.1) * 2.5;
+            CELL * (0.26 + line * 0.25) +
+            Math.sin(x * 0.045 + t * 1.6 + i * 1.7 + line * 2.3) * (2 + line * 0.6);
           if (x === 0) ctx.moveTo(x, y);
           else ctx.lineTo(x, y);
         }
         ctx.stroke();
       }
+
+      // Shimmering flecks on the surface.
+      for (let k = 0; k < 7; k++) {
+        const sx = ((k * 83 + i * 47 + t * (8 + (k % 3) * 5)) % (W + 40)) - 20;
+        const sy = yBase + 8 + ((k * 29) % (CELL - 16));
+        const a = 0.12 + 0.16 * Math.abs(Math.sin(t * 2 + k + i));
+        ctx.fillStyle = `rgba(220,245,255,${a})`;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 1 + (k % 2), 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Tiny bubbles rising through the depths.
+      for (let k = 0; k < 4; k++) {
+        const bx = (k * 113 + i * 61) % W;
+        const progress = (t * 0.35 + k * 0.27) % 1;
+        const by = yBase + CELL - progress * CELL;
+        ctx.globalAlpha = 0.28 * (1 - progress);
+        ctx.strokeStyle = "#bfe6ff";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(bx, by, 1.5 + (k % 2), 0, Math.PI * 2);
+        ctx.stroke();
+      }
     }
+    ctx.globalAlpha = 1;
     ctx.restore();
   }
 
   function drawScene() {
-    ctx.fillStyle = C.grass;
-    ctx.fillRect(0, 0, W, CELL);
-    ctx.fillRect(0, MEDIAN_ROW * CELL, W, CELL);
-    ctx.fillRect(0, START_ROW * CELL, W, CELL);
-    drawGrass(0);
-    drawGrass(MEDIAN_ROW);
-    drawGrass(START_ROW);
-
+    // River: alternating deep-blue bands.
     for (const r of RIVER_ROWS) {
       const y = r * CELL;
-      const g = ctx.createLinearGradient(0, y, 0, y + CELL);
-      g.addColorStop(0, C.water);
-      g.addColorStop(1, C.waterDeep);
-      ctx.fillStyle = g;
+      ctx.fillStyle = lgrad(0, y, 0, y + CELL, [
+        [0, r % 2 ? "#164a80" : C.water],
+        [1, C.waterDeep],
+      ]);
       ctx.fillRect(0, y, W, CELL);
     }
     drawWater();
 
+    // Road: shaded asphalt with curbs.
     for (const r of ROAD_ROWS) {
-      ctx.fillStyle = r % 2 === 0 ? C.road : C.roadEdge;
-      ctx.fillRect(0, r * CELL, W, CELL);
+      const y = r * CELL;
+      ctx.fillStyle = lgrad(0, y, 0, y + CELL, [
+        [0, r % 2 === 0 ? "#292931" : "#22222a"],
+        [1, r % 2 === 0 ? "#1e1e26" : "#191920"],
+      ]);
+      ctx.fillRect(0, y, W, CELL);
     }
+    ctx.fillStyle = "rgba(255,255,255,0.08)";
+    ctx.fillRect(0, ROAD_ROWS[0] * CELL, W, 3);
+    ctx.fillRect(0, (ROAD_ROWS[ROAD_ROWS.length - 1] + 1) * CELL - 3, W, 3);
 
-    ctx.strokeStyle = "rgba(230,220,160,0.5)";
+    ctx.strokeStyle = "rgba(235,225,170,0.5)";
     ctx.lineWidth = 3;
     ctx.setLineDash([16, 14]);
     for (let r = 7; r < 11; r++) {
@@ -1105,18 +1239,48 @@
     }
     ctx.setLineDash([]);
 
-    ctx.fillStyle = "rgba(255,255,255,0.08)";
-    ctx.fillRect(0, ROAD_ROWS[0] * CELL, W, 3);
-    ctx.fillRect(0, (ROAD_ROWS[ROAD_ROWS.length - 1] + 1) * CELL - 3, W, 3);
+    // Manhole covers add a little road texture.
+    for (const r of ROAD_ROWS) {
+      for (let k = 0; k < 2; k++) {
+        const mx = ((k * 211 + r * 73) % (W - 40)) + 20;
+        const my = r * CELL + CELL / 2;
+        ctx.fillStyle = "rgba(0,0,0,0.22)";
+        ctx.beginPath();
+        ctx.ellipse(mx, my, 9, 5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "rgba(180,180,190,0.16)";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+    }
+
+    // Grass banks (goal, median, start).
+    for (const r of [GOAL_ROW, MEDIAN_ROW, START_ROW]) {
+      ctx.fillStyle = C.grass;
+      ctx.fillRect(0, r * CELL, W, CELL);
+      drawGrass(r);
+    }
+
+    // Soft shadows where each bank meets the water or road.
+    ctx.fillStyle = "rgba(0,0,0,0.18)";
+    ctx.fillRect(0, CELL - 3, W, 3);
+    ctx.fillRect(0, MEDIAN_ROW * CELL - 3, W, 3);
+    ctx.fillRect(0, START_ROW * CELL - 3, W, 3);
+    ctx.fillStyle = "rgba(255,255,255,0.10)";
+    ctx.fillRect(0, ROAD_ROWS[0] * CELL, W, 2);
+    ctx.fillRect(0, (RIVER_ROWS[RIVER_ROWS.length - 1] + 1) * CELL, W, 2);
   }
 
   function drawMiniFrog(cx, cy) {
     ctx.save();
     ctx.translate(cx, cy);
-    ctx.fillStyle = C.frog;
+    ctx.fillStyle = lgrad(-CELL * 0.2, -CELL * 0.2, CELL * 0.2, CELL * 0.2, [
+      [0, "#b6f08a"], [1, C.frogDark],
+    ]);
     ctx.beginPath();
     ctx.ellipse(0, 2, CELL * 0.2, CELL * 0.16, 0, 0, Math.PI * 2);
     ctx.fill();
+    // Eyes.
     ctx.fillStyle = "#ffffff";
     ctx.beginPath();
     ctx.arc(-CELL * 0.08, -CELL * 0.08, CELL * 0.06, 0, Math.PI * 2);
@@ -1127,29 +1291,59 @@
     ctx.arc(-CELL * 0.08, -CELL * 0.08, CELL * 0.025, 0, Math.PI * 2);
     ctx.arc(CELL * 0.08, -CELL * 0.08, CELL * 0.025, 0, Math.PI * 2);
     ctx.fill();
+    // Content little smile.
+    ctx.strokeStyle = "rgba(20,70,30,0.7)";
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.arc(0, CELL * 0.05, CELL * 0.06, 0.15, Math.PI - 0.15);
+    ctx.stroke();
     ctx.restore();
   }
 
   function drawHomes() {
+    const t = nowMs * 0.001;
     for (let i = 0; i < HOME_COLS.length; i++) {
       const cx = HOME_COLS[i] * CELL + CELL / 2;
       const cy = CELL * 0.52;
       const filled = state.homes[i];
+
+      // Dark water socket.
+      ctx.fillStyle = "rgba(6,26,45,0.85)";
+      ctx.beginPath();
+      ctx.ellipse(cx, cy + 2, CELL * 0.42, CELL * 0.38, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // A lily pad with its characteristic notch.
+      ctx.fillStyle = filled ? "#3a9c58" : "#2c7e49";
+      ctx.beginPath();
+      ctx.ellipse(cx, cy + 3, CELL * 0.38, CELL * 0.32, 0, 0.15, Math.PI * 2 - 0.15);
+      ctx.fill();
+      ctx.fillStyle = C.grassDark;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy + 3);
+      ctx.lineTo(cx + CELL * 0.36, cy - 1);
+      ctx.lineTo(cx + CELL * 0.36, cy + 8);
+      ctx.closePath();
+      ctx.fill();
+
+      // Glowing ring — pulses gently while the bay is empty.
+      const pulse = 0.5 + 0.5 * Math.sin(t * 4 + i * 1.2);
+      ctx.strokeStyle = filled ? PAL.accent2 : `rgba(160,230,190,${0.45 + pulse * 0.4})`;
+      ctx.lineWidth = filled ? 3 : 2;
       ctx.beginPath();
       ctx.arc(cx, cy, CELL * 0.42, 0, Math.PI * 2);
-      ctx.fillStyle = filled ? "rgba(20,60,40,0.9)" : C.home;
-      ctx.fill();
-      ctx.lineWidth = 3;
-      ctx.strokeStyle = filled ? PAL.accent2 : "rgba(120,200,150,0.55)";
       ctx.stroke();
 
       if (filled) {
         drawMiniFrog(cx, cy);
+        ctx.fillStyle = `rgba(255,245,170,${0.5 + 0.5 * Math.sin(t * 5 + i)})`;
+        ctx.beginPath();
+        ctx.arc(cx + CELL * 0.22, cy - CELL * 0.2, 2, 0, Math.PI * 2);
+        ctx.fill();
       } else {
-        const pulse = 0.5 + 0.5 * Math.sin(nowMs * 0.004 + i * 1.2);
+        ctx.fillStyle = `rgba(180,230,255,${0.05 + pulse * 0.07})`;
         ctx.beginPath();
         ctx.arc(cx, cy, CELL * 0.26, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(180,230,255,${0.06 + pulse * 0.08})`;
         ctx.fill();
       }
     }
@@ -1158,18 +1352,28 @@
   function drawLog(it, y) {
     const x = it.x * CELL;
     const w = it.len * CELL;
-    const h = CELL * 0.68;
+    const h = CELL * 0.7;
     const yy = y + (CELL - h) / 2;
     ctx.save();
-    ctx.fillStyle = C.log;
+
+    // Shadow beneath the floating log.
+    ctx.fillStyle = "rgba(0,0,0,0.25)";
+    roundRect(x + 2, yy + 4, w - 4, h, h / 2);
+    ctx.fill();
+
+    // Rounded, shaded timber.
+    ctx.fillStyle = lgrad(0, yy, 0, yy + h, [
+      [0, "#ac763f"], [0.45, C.log], [1, C.logDark],
+    ]);
     roundRect(x + 2, yy, w - 4, h, h / 2);
     ctx.fill();
     ctx.strokeStyle = C.logDark;
     ctx.lineWidth = 2;
     ctx.stroke();
 
-    ctx.strokeStyle = "rgba(80,50,20,0.5)";
-    ctx.lineWidth = 1.5;
+    // Bark grain.
+    ctx.strokeStyle = "rgba(70,40,15,0.45)";
+    ctx.lineWidth = 1.4;
     for (let i = 1; i < it.len; i++) {
       const lx = x + i * CELL;
       ctx.beginPath();
@@ -1177,29 +1381,53 @@
       ctx.lineTo(lx, yy + h - 4);
       ctx.stroke();
     }
+    for (let g = 1; g <= 2; g++) {
+      ctx.strokeStyle = "rgba(255,220,165,0.20)";
+      ctx.beginPath();
+      ctx.moveTo(x + 8, yy + 5 + g * 7);
+      ctx.lineTo(x + w - 8, yy + 5 + g * 7);
+      ctx.stroke();
+    }
 
-    ctx.strokeStyle = "rgba(255,220,160,0.25)";
+    // Growth rings at each cut end.
+    for (const ex of [x + 7, x + w - 7]) {
+      ctx.strokeStyle = "rgba(60,35,12,0.55)";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.ellipse(ex, yy + h / 2, 4, h * 0.32, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.ellipse(ex, yy + h / 2, 2, h * 0.16, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // A splash of moss.
+    ctx.fillStyle = "rgba(110,170,80,0.35)";
     ctx.beginPath();
-    ctx.moveTo(x + 8, yy + 5);
-    ctx.lineTo(x + w - 8, yy + 5);
-    ctx.stroke();
+    ctx.ellipse(x + w * 0.3, yy + 3, 7, 2.5, 0, 0, Math.PI * 2);
+    ctx.fill();
     ctx.restore();
   }
 
   function drawTurtles(it, y) {
+    const t = nowMs * 0.001;
     for (let i = 0; i < it.len; i++) {
       const cx = (it.x + i + 0.5) * CELL;
-      const cy = y + CELL * 0.56 + Math.sin(nowMs * 0.003 + it.bob + i) * 1.5;
+      const cy = y + CELL * 0.56 + Math.sin(t * 3 + it.bob + i) * 1.8;
       ctx.save();
       ctx.translate(cx, cy);
 
+      // Paddling flippers.
       ctx.fillStyle = C.turtleDark;
       ctx.beginPath();
-      ctx.ellipse(-CELL * 0.3, CELL * 0.08, CELL * 0.1, CELL * 0.06, -0.5, 0, Math.PI * 2);
-      ctx.ellipse(CELL * 0.3, CELL * 0.08, CELL * 0.1, CELL * 0.06, 0.5, 0, Math.PI * 2);
+      ctx.ellipse(-CELL * 0.32, CELL * 0.1 + Math.sin(t * 6 + i) * 2, CELL * 0.11, CELL * 0.06, -0.5, 0, Math.PI * 2);
+      ctx.ellipse(CELL * 0.32, CELL * 0.1 - Math.sin(t * 6 + i) * 2, CELL * 0.11, CELL * 0.06, 0.5, 0, Math.PI * 2);
       ctx.fill();
 
-      ctx.fillStyle = C.turtle;
+      // Shell.
+      ctx.fillStyle = lgrad(-CELL * 0.3, -CELL * 0.3, CELL * 0.3, CELL * 0.3, [
+        [0, "#63d37e"], [0.5, C.turtle], [1, C.turtleDark],
+      ]);
       ctx.beginPath();
       ctx.ellipse(0, 0, CELL * 0.34, CELL * 0.28, 0, 0, Math.PI * 2);
       ctx.fill();
@@ -1207,13 +1435,32 @@
       ctx.lineWidth = 2;
       ctx.stroke();
 
+      // Scute pattern.
+      ctx.strokeStyle = "rgba(20,80,40,0.45)";
+      ctx.lineWidth = 1.2;
       ctx.beginPath();
       ctx.ellipse(0, 0, CELL * 0.18, CELL * 0.14, 0, 0, Math.PI * 2);
       ctx.stroke();
+      for (let s = 0; s < 4; s++) {
+        const a = (s / 4) * Math.PI * 2 + Math.PI / 4;
+        ctx.beginPath();
+        ctx.moveTo(Math.cos(a) * CELL * 0.17, Math.sin(a) * CELL * 0.13);
+        ctx.lineTo(Math.cos(a) * CELL * 0.31, Math.sin(a) * CELL * 0.25);
+        ctx.stroke();
+      }
 
+      // Head with an eye.
+      const hx = it.dir > 0 ? CELL * 0.38 : -CELL * 0.38;
       ctx.fillStyle = C.turtle;
       ctx.beginPath();
-      ctx.arc(CELL * 0.32, -CELL * 0.04, CELL * 0.11, 0, Math.PI * 2);
+      ctx.arc(hx, -CELL * 0.04, CELL * 0.11, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = C.turtleDark;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.fillStyle = "#101014";
+      ctx.beginPath();
+      ctx.arc(hx + (it.dir > 0 ? 3 : -3), -CELL * 0.07, 1.6, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
     }
@@ -1225,30 +1472,70 @@
     const h = CELL * 0.6;
     const xx = x + 3;
     const yy = y + (CELL - h) / 2;
+    const front = dir > 0 ? xx + w : xx;
 
     ctx.save();
+    // Ground shadow.
     ctx.fillStyle = "rgba(0,0,0,0.25)";
     roundRect(xx + 2, yy + 4, w, h, 7);
     ctx.fill();
 
-    ctx.fillStyle = it.color;
+    // Body with a painted highlight along the roof.
+    ctx.fillStyle = lgrad(0, yy, 0, yy + h, [
+      [0, "rgba(255,255,255,0.35)"], [0.28, it.color], [1, it.color],
+    ]);
     roundRect(xx, yy, w, h, 7);
     ctx.fill();
     ctx.strokeStyle = "rgba(0,0,0,0.35)";
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
-    ctx.fillStyle = "rgba(190,225,255,0.9)";
-    const wx = dir > 0 ? xx + w * 0.58 : xx + w * 0.14;
+    // Windshield + a glint.
+    ctx.fillStyle = "rgba(190,225,255,0.92)";
+    const wx = dir > 0 ? xx + w * 0.56 : xx + w * 0.16;
     roundRect(wx, yy + 3, w * 0.28, h - 6, 3);
     ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,0.35)";
+    roundRect(wx + 2, yy + 4, w * 0.1, h - 8, 2);
+    ctx.fill();
 
+    // Door seam.
+    ctx.strokeStyle = "rgba(0,0,0,0.18)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(xx + w * 0.45, yy + 4);
+    ctx.lineTo(xx + w * 0.45, yy + h - 3);
+    ctx.stroke();
+
+    // Headlights (with a soft glow) and tail lights.
+    for (let g = 3; g >= 1; g--) {
+      ctx.fillStyle = `rgba(255,245,190,${0.06 * g})`;
+      ctx.beginPath();
+      ctx.arc(front, yy + h * 0.35, 3 + g * 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = "#fff3c0";
+    ctx.beginPath();
+    ctx.arc(front, yy + h * 0.35, 2.6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#ff5a4a";
+    const back = dir > 0 ? xx : xx + w;
+    ctx.fillRect(back - (dir > 0 ? 2 : 0), yy + h * 0.32, 2, 4);
+
+    // Wheels with hubs.
     ctx.fillStyle = "#15151a";
     const wy = yy + h - 1;
-    ctx.beginPath();
-    ctx.arc(xx + w * 0.22, wy, 4, 0, Math.PI * 2);
-    ctx.arc(xx + w * 0.78, wy, 4, 0, Math.PI * 2);
-    ctx.fill();
+    for (const fx of [xx + w * 0.22, xx + w * 0.78]) {
+      ctx.beginPath();
+      ctx.arc(fx, wy, 4.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = "rgba(200,205,215,0.7)";
+    for (const fx of [xx + w * 0.22, xx + w * 0.78]) {
+      ctx.beginPath();
+      ctx.arc(fx, wy, 1.6, 0, Math.PI * 2);
+      ctx.fill();
+    }
     ctx.restore();
   }
 
@@ -1264,30 +1551,59 @@
     roundRect(xx + 2, yy + 4, w, h, 5);
     ctx.fill();
 
-    ctx.fillStyle = "#c9cdd8";
+    // Box trailer with a painted stripe and rivets.
+    ctx.fillStyle = lgrad(0, yy, 0, yy + h, [
+      [0, "#e2e6ee"], [1, "#aeb4c1"],
+    ]);
     roundRect(xx, yy, w * 0.62, h, 4);
     ctx.fill();
     ctx.strokeStyle = "rgba(0,0,0,0.3)";
     ctx.lineWidth = 1.5;
     ctx.stroke();
+    ctx.fillStyle = "rgba(70,90,120,0.35)";
+    ctx.fillRect(xx + 2, yy + h * 0.55, w * 0.58, 3);
+    ctx.fillStyle = "rgba(255,255,255,0.35)";
+    for (let k = 0; k < 5; k++) {
+      ctx.beginPath();
+      ctx.arc(xx + 6 + k * (w * 0.14), yy + 6, 1.2, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
-    ctx.fillStyle = it.color;
+    // Cab.
+    ctx.fillStyle = lgrad(0, yy, 0, yy + h, [
+      [0, "rgba(255,255,255,0.3)"], [0.3, it.color], [1, it.color],
+    ]);
     const cabX = dir > 0 ? xx + w * 0.62 : xx;
     roundRect(cabX, yy + 2, w * 0.38, h - 2, 5);
     ctx.fill();
+    ctx.strokeStyle = "rgba(0,0,0,0.3)";
+    ctx.stroke();
 
-    ctx.fillStyle = "rgba(190,225,255,0.9)";
-    const wx = dir > 0 ? xx + w * 0.82 : xx + w * 0.06;
-    roundRect(wx, yy + 5, w * 0.12, h - 10, 2);
+    // Cab window.
+    ctx.fillStyle = "rgba(190,225,255,0.92)";
+    const wx = dir > 0 ? xx + w * 0.81 : xx + w * 0.06;
+    roundRect(wx, yy + 5, w * 0.13, h - 11, 2);
     ctx.fill();
 
-    ctx.fillStyle = "#15151a";
-    const wy = yy + h - 1;
+    // Headlight glow at the front.
+    const front = dir > 0 ? xx + w : xx;
+    ctx.fillStyle = "rgba(255,245,190,0.55)";
     ctx.beginPath();
-    ctx.arc(xx + w * 0.18, wy, 4, 0, Math.PI * 2);
-    ctx.arc(xx + w * 0.5, wy, 4, 0, Math.PI * 2);
-    ctx.arc(xx + w * 0.82, wy, 4, 0, Math.PI * 2);
+    ctx.arc(front, yy + h * 0.55, 3, 0, Math.PI * 2);
     ctx.fill();
+
+    // Wheels with hubs.
+    const wy = yy + h - 1;
+    for (const fx of [xx + w * 0.16, xx + w * 0.5, xx + w * 0.84]) {
+      ctx.fillStyle = "#15151a";
+      ctx.beginPath();
+      ctx.arc(fx, wy, 4.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "rgba(200,205,215,0.7)";
+      ctx.beginPath();
+      ctx.arc(fx, wy, 1.6, 0, Math.PI * 2);
+      ctx.fill();
+    }
     ctx.restore();
   }
 
@@ -1309,44 +1625,78 @@
     const fx = frog.drawX * CELL + CELL / 2;
     const fy = frog.drawY * CELL + CELL * 0.58;
     const hop = frog.hop;
+    const t = nowMs * 0.001;
+    const facing = frog.facing || "up";
+    const rot =
+      facing === "left" ? -Math.PI / 2 :
+      facing === "right" ? Math.PI / 2 :
+      facing === "down" ? Math.PI : 0;
+    const blink = t % 4.3 > 4.15;
 
     ctx.save();
-    ctx.fillStyle = "rgba(0,0,0,0.25)";
+    // Shadow stays flat on the ground while the frog lifts during a hop.
+    ctx.fillStyle = "rgba(0,0,0,0.28)";
     ctx.beginPath();
-    ctx.ellipse(fx, fy + CELL * 0.24, CELL * 0.3, CELL * 0.1, 0, 0, Math.PI * 2);
+    ctx.ellipse(fx, fy + CELL * 0.24, CELL * (0.3 - hop * 0.05), CELL * 0.1, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.translate(fx, fy - hop * 5);
-    ctx.scale(1 + hop * 0.08, 1 - hop * 0.06);
+    ctx.translate(fx, fy - hop * 6);
+    ctx.rotate(rot);
+    ctx.scale(1 + hop * 0.1, 1 - hop * 0.08);
 
+    // Back legs with a gentle kick.
+    const kick = Math.sin(t * 14) * 2;
     ctx.fillStyle = C.frogDark;
     ctx.beginPath();
-    ctx.ellipse(-CELL * 0.28, CELL * 0.16, CELL * 0.14, CELL * 0.09, -0.4, 0, Math.PI * 2);
-    ctx.ellipse(CELL * 0.28, CELL * 0.16, CELL * 0.14, CELL * 0.09, 0.4, 0, Math.PI * 2);
+    ctx.ellipse(-CELL * 0.3, CELL * 0.18 + kick, CELL * 0.15, CELL * 0.09, -0.5, 0, Math.PI * 2);
+    ctx.ellipse(CELL * 0.3, CELL * 0.18 - kick, CELL * 0.15, CELL * 0.09, 0.5, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.fillStyle = C.frog;
+    // Shaded body.
+    ctx.fillStyle = lgrad(-CELL * 0.3, -CELL * 0.3, CELL * 0.3, CELL * 0.3, [
+      [0, "#b6f08a"], [0.5, C.frog], [1, C.frogDark],
+    ]);
     ctx.beginPath();
     ctx.ellipse(0, 0, CELL * 0.34, CELL * 0.3, 0, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = C.frogDark;
+    ctx.strokeStyle = "rgba(30,80,30,0.5)";
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
+    // Freckles.
+    ctx.fillStyle = "rgba(60,130,50,0.35)";
+    for (const s of [[-0.15, -0.05, 0.06], [0.16, 0.02, 0.05], [0.02, 0.16, 0.04]]) {
+      ctx.beginPath();
+      ctx.arc(s[0] * CELL, s[1] * CELL, s[2] * CELL, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Pale belly.
     ctx.fillStyle = C.frogBelly;
     ctx.beginPath();
-    ctx.ellipse(0, CELL * 0.08, CELL * 0.22, CELL * 0.15, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, CELL * 0.1, CELL * 0.2, CELL * 0.14, 0, 0, Math.PI * 2);
     ctx.fill();
 
+    // Bulging eyes with an occasional blink.
     for (const ex of [-CELL * 0.16, CELL * 0.16]) {
+      ctx.fillStyle = C.frog;
+      ctx.beginPath();
+      ctx.arc(ex, -CELL * 0.2, CELL * 0.13, 0, Math.PI * 2);
+      ctx.fill();
       ctx.fillStyle = "#ffffff";
       ctx.beginPath();
-      ctx.arc(ex, -CELL * 0.2, CELL * 0.12, 0, Math.PI * 2);
+      ctx.ellipse(ex, -CELL * 0.21, CELL * 0.095, blink ? CELL * 0.02 : CELL * 0.095, 0, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = "#101014";
-      ctx.beginPath();
-      ctx.arc(ex, -CELL * 0.19, CELL * 0.055, 0, Math.PI * 2);
-      ctx.fill();
+      if (!blink) {
+        ctx.fillStyle = "#101014";
+        ctx.beginPath();
+        ctx.arc(ex, -CELL * 0.2, CELL * 0.05, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "rgba(255,255,255,0.9)";
+        ctx.beginPath();
+        ctx.arc(ex - CELL * 0.02, -CELL * 0.23, CELL * 0.02, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
     ctx.restore();
   }
@@ -1374,6 +1724,40 @@
     }
     ctx.restore();
     ctx.globalAlpha = 1;
+  }
+
+  function drawRipples() {
+    for (const r of ripples) {
+      const a = Math.max(0, r.life / r.max);
+      ctx.strokeStyle = `rgba(200,235,255,${a * 0.7})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(r.x, r.y, r.r, r.r * 0.45, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+
+  function drawAmbient() {
+    // Fireflies drifting over the two grass banks.
+    const t = nowMs * 0.001;
+    for (let i = 0; i < 12; i++) {
+      const bx = (i * 97 + 31) % W;
+      const row = i % 2 ? START_ROW : MEDIAN_ROW;
+      const by = row * CELL + 8 + ((i * 13) % (CELL - 16));
+      const a = (0.22 + 0.34 * Math.abs(Math.sin(t * 1.3 + i * 1.7))) * (REDUCE ? 0.5 : 1);
+      ctx.fillStyle = `rgba(255,240,150,${a})`;
+      ctx.beginPath();
+      ctx.arc(bx + Math.sin(t * 0.7 + i) * 6, by, 1.6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  function drawVignette() {
+    const g = ctx.createRadialGradient(W / 2, H / 2, H * 0.28, W / 2, H / 2, H * 0.8);
+    g.addColorStop(0, "rgba(0,0,0,0)");
+    g.addColorStop(1, "rgba(0,0,0,0.28)");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
   }
 
   function drawCountdown() {
@@ -1409,12 +1793,21 @@
       ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
     }
     drawScene();
+    drawAmbient();
     drawHomes();
     drawLanes();
+    drawRipples();
     drawFrog();
     drawParticles();
     drawFloaters();
+    drawVignette();
     if (state.countdown > 0 && !state.paused && !state.over) drawCountdown();
+    if (flash > 0.02 && !REDUCE) {
+      ctx.globalAlpha = Math.min(0.35, flash * 0.35);
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, W, H);
+      ctx.globalAlpha = 1;
+    }
     ctx.restore();
   }
 
@@ -1526,6 +1919,17 @@
 
       if (tag === "button" && (k === " " || k === "Enter")) return;
 
+      // 1-5 switch modes, matching the chip order.
+      if (/^[1-5]$/.test(k)) {
+        const m = MODE_ORDER[Number(k) - 1];
+        if (m && MODES[m] && m !== state.mode) {
+          sfx("click");
+          setMode(m);
+        }
+        e.preventDefault();
+        return;
+      }
+
       if (lower === "arrowup" || lower === "w") {
         move(0, -1);
         e.preventDefault();
@@ -1608,8 +2012,11 @@
   // Embedded test hook (also useful for debugging in the console).
   function __ACHV_LIST__() { return achv.list(); }
   window.__F = {
-    state, stats, daily, MODES, ACHIEVEMENTS, HOME_COLS, RIVER_ROWS, ROAD_ROWS,
+    state, stats, daily, MODES, MODE_ORDER, ACHIEVEMENTS, HOME_COLS, RIVER_ROWS, ROAD_ROWS,
     COLS, ROWS, CELL, W, H, GOAL_ROW, START_ROW, MEDIAN_ROW,
+    get flash() { return flash; },
+    ripples: () => ripples.slice(),
+    isAttackLike,
     unlocked: () => __ACHV_LIST__,
     getFrog: () => frog,
     setFrog: (f) => { frog = f; },
