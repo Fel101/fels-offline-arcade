@@ -38,15 +38,37 @@
   </script>
   <link rel="stylesheet" href="../../css/styles.css">
   <style>
+    main.game-area { justify-content: flex-start; padding-top: 18px; gap: 12px; }
+
+    /* A warehouse floor: steel-framed tiles under a warm overhead lamp. */
     .sokoban-board {
+      position: relative;
       display: grid;
       gap: 3px;
-      padding: 12px;
+      padding: 14px;
       border-radius: 18px;
-      background: linear-gradient(165deg, rgba(255,255,255,0.10), rgba(255,255,255,0.03));
-      border: 1px solid var(--glass-border);
-      box-shadow: 0 20px 44px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.16);
+      background:
+        radial-gradient(85% 65% at 50% 0%, rgba(255, 214, 140, 0.16), transparent 72%),
+        repeating-linear-gradient(0deg, rgba(0,0,0,0.06) 0 2px, transparent 2px 54px),
+        repeating-linear-gradient(90deg, rgba(0,0,0,0.06) 0 2px, transparent 2px 54px),
+        linear-gradient(165deg, #2d3145 0%, #1d2030 55%, #12141f 100%);
+      border: 2px solid #6a7185;
+      box-shadow:
+        0 26px 52px rgba(0,0,0,0.55),
+        0 0 0 5px #191b26,
+        0 0 0 6px rgba(150, 160, 185, 0.35),
+        inset 0 2px 0 rgba(255,255,255,0.14),
+        inset 0 -14px 28px rgba(0,0,0,0.5);
     }
+    .sokoban-board::before {
+      /* Riveted inner lip of the steel frame (out of flow: not a grid item). */
+      content: "";
+      position: absolute; inset: 6px;
+      border-radius: 12px;
+      border: 1px dashed rgba(190, 200, 220, 0.18);
+      pointer-events: none; z-index: 0;
+    }
+
     .sk-cell {
       border: none;
       padding: 0;
@@ -55,59 +77,166 @@
       justify-content: center;
       border-radius: 6px;
       position: relative;
+      z-index: 1;
     }
-    .sk-floor { background: rgba(255,255,255,0.045); box-shadow: inset 0 0 6px rgba(0,0,0,0.35); }
+    .sk-floor {
+      background:
+        linear-gradient(135deg, rgba(255,255,255,0.055), transparent 52%),
+        rgba(255,255,255,0.03);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04), inset 0 0 8px rgba(0,0,0,0.35);
+    }
     .sk-wall {
-      background: linear-gradient(150deg, #454b7e 0%, #343961 45%, #232647 100%);
-      box-shadow: inset 0 2px 0 rgba(255,255,255,0.16), inset 0 -3px 0 rgba(0,0,0,0.4), 0 2px 4px rgba(0,0,0,0.4);
-      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 7px;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.16), transparent 32%),
+        repeating-linear-gradient(90deg, rgba(0,0,0,0.09) 0 9px, transparent 9px 18px),
+        linear-gradient(160deg, #5b6379 0%, #3c4358 45%, #252a3a 100%);
+      border: 1px solid rgba(255,255,255,0.12);
+      box-shadow:
+        inset 0 2px 0 rgba(255,255,255,0.22),
+        inset 0 -3px 0 rgba(0,0,0,0.45),
+        0 3px 6px rgba(0,0,0,0.45);
     }
+    .sk-wall::before {
+      /* A single rivet pinned in the corner of each block. */
+      content: "";
+      position: absolute; top: 14%; left: 14%;
+      width: 5px; height: 5px; border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #dde2ee, #6b7388 60%, #343a4b);
+      box-shadow: 0 1px 1px rgba(0,0,0,0.6);
+    }
+
+    /* Targets are glowing floor decals with a pulsing beacon. */
     .sk-target::after {
       content: "";
-      position: absolute;
-      z-index: 0;
-      width: 34%;
-      height: 34%;
+      position: absolute; z-index: 0;
+      width: 62%; height: 62%;
       border-radius: 50%;
-      background: radial-gradient(circle at 40% 35%, #ffe27a 0%, #ffb63d 55%, #c77a12 100%);
-      box-shadow: 0 0 14px rgba(255, 214, 77, 0.75), inset 0 -2px 3px rgba(0,0,0,0.35);
-    }
-    .sk-box {
-      position: relative;
-      z-index: 1;
-      border-radius: 8px;
+      border: 2px dashed rgba(255, 214, 100, 0.92);
       background:
-        linear-gradient(45deg, transparent 44%, rgba(74, 44, 16, 0.9) 44%, rgba(74, 44, 16, 0.9) 56%, transparent 56%),
-        linear-gradient(-45deg, transparent 44%, rgba(74, 44, 16, 0.9) 44%, rgba(74, 44, 16, 0.9) 56%, transparent 56%),
-        linear-gradient(180deg, #e8a75a 0%, #c9822e 50%, #8f5a1a 100%);
+        radial-gradient(circle, rgba(255,214,77,0.5) 0%, rgba(255,214,77,0.14) 44%, transparent 72%),
+        radial-gradient(circle, rgba(255,230,140,0.95) 0 12%, transparent 14%);
+      box-shadow: 0 0 18px rgba(255,214,77,0.55), inset 0 0 10px rgba(255,214,77,0.4);
+      animation: skTargetPulse 1.8s ease-in-out infinite;
+      pointer-events: none;
+    }
+    @keyframes skTargetPulse {
+      0%, 100% { transform: scale(0.94); opacity: 0.82; }
+      50% { transform: scale(1.05); opacity: 1; }
+    }
+
+    /* Wooden shipping crates with cross-bracing and a metal rim. */
+    .sk-box {
+      position: relative; z-index: 1;
+      border-radius: 7px;
+      background:
+        linear-gradient(45deg, transparent 43%, rgba(92,52,17,0.85) 43% 57%, transparent 57%),
+        linear-gradient(-45deg, transparent 43%, rgba(92,52,17,0.85) 43% 57%, transparent 57%),
+        linear-gradient(180deg, #e8a75a 0%, #c9822e 48%, #8f5a1a 100%);
       border: 2px solid #6e4413;
-      box-shadow: inset 0 2px 2px rgba(255,255,255,0.35), inset 0 -4px 6px rgba(0,0,0,0.4), 0 3px 6px rgba(0,0,0,0.45);
+      box-shadow:
+        inset 0 2px 0 rgba(255,235,190,0.5),
+        inset 0 -4px 6px rgba(0,0,0,0.42),
+        0 4px 7px rgba(0,0,0,0.5);
     }
     .sk-box--done {
       background:
-        linear-gradient(45deg, transparent 44%, rgba(9, 71, 51, 0.9) 44%, rgba(9, 71, 51, 0.9) 56%, transparent 56%),
-        linear-gradient(-45deg, transparent 44%, rgba(9, 71, 51, 0.9) 44%, rgba(9, 71, 51, 0.9) 56%, transparent 56%),
-        linear-gradient(180deg, #6ff0cb 0%, #2fd0ab 55%, #128a68 100%);
+        linear-gradient(45deg, transparent 43%, rgba(6, 78, 56, 0.85) 43% 57%, transparent 57%),
+        linear-gradient(-45deg, transparent 43%, rgba(6, 78, 56, 0.85) 43% 57%, transparent 57%),
+        linear-gradient(180deg, #7cf6d3 0%, #2fd0ab 55%, #0f7e5f 100%);
       border-color: #0b5f47;
-      box-shadow: 0 0 16px rgba(77, 227, 195, 0.55), inset 0 2px 2px rgba(255,255,255,0.4), inset 0 -4px 6px rgba(0,0,0,0.35);
+      box-shadow:
+        0 0 18px rgba(77,227,195,0.6),
+        inset 0 2px 2px rgba(255,255,255,0.45),
+        inset 0 -4px 6px rgba(0,0,0,0.35);
     }
-    .sk-player {
+    .sk-box--done::after {
+      /* Delivery checkmark. */
+      content: "✓";
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 900; font-size: 1.05rem;
+      color: #effff9;
+      text-shadow: 0 0 9px rgba(77,227,195,0.95);
+      pointer-events: none;
+    }
+
+    /* One-shot push slide, dust puff and landing pop. */
+    .sk-box--push-left { animation: skPushL 0.26s cubic-bezier(0.2, 1.3, 0.4, 1); }
+    .sk-box--push-right { animation: skPushR 0.26s cubic-bezier(0.2, 1.3, 0.4, 1); }
+    .sk-box--push-up { animation: skPushU 0.26s cubic-bezier(0.2, 1.3, 0.4, 1); }
+    .sk-box--push-down { animation: skPushD 0.26s cubic-bezier(0.2, 1.3, 0.4, 1); }
+    .sk-box--pushed::before {
+      content: "";
+      position: absolute; left: -8%; bottom: -14%;
+      width: 36%; height: 30%;
       border-radius: 50%;
-      position: relative;
-      z-index: 2;
-      background: radial-gradient(circle at 35% 30%, #ffb3ab 0%, #ff6f61 32%, #e0402f 62%, #a32318 88%, #751a11 100%);
-      box-shadow: 0 4px 6px rgba(0,0,0,0.55), inset 0 -5px 8px rgba(0,0,0,0.35), inset 0 3px 5px rgba(255,255,255,0.55);
+      background: radial-gradient(circle, rgba(225,210,180,0.8), transparent 70%);
+      animation: skDust 0.4s ease-out forwards;
+      pointer-events: none;
+    }
+    .sk-box--placed { animation: skPlaced 0.42s cubic-bezier(0.2, 1.5, 0.35, 1); }
+    @keyframes skPushL { from { transform: translateX(48%); } to { transform: translateX(0); } }
+    @keyframes skPushR { from { transform: translateX(-48%); } to { transform: translateX(0); } }
+    @keyframes skPushU { from { transform: translateY(48%); } to { transform: translateY(0); } }
+    @keyframes skPushD { from { transform: translateY(-48%); } to { transform: translateY(0); } }
+    @keyframes skDust {
+      from { transform: translate(0, 0) scale(0.6); opacity: 0.9; }
+      to { transform: translate(-45%, -30%) scale(1.7); opacity: 0; }
+    }
+    @keyframes skPlaced {
+      0% { transform: scale(1); }
+      45% { transform: scale(1.16); }
+      100% { transform: scale(1); }
+    }
+
+    /* A wedged crate (in a corner, off-target) can never move again. */
+    .sk-box--stuck {
+      border-color: #e2564a;
+      box-shadow:
+        0 0 16px rgba(255, 86, 68, 0.65),
+        inset 0 2px 0 rgba(255,235,190,0.4),
+        inset 0 -4px 6px rgba(0,0,0,0.4);
+      animation: skStuck 1s ease-in-out infinite;
+    }
+    @keyframes skStuck {
+      0%, 100% { filter: brightness(1); }
+      50% { filter: brightness(1.3) saturate(1.2); }
+    }
+
+    /* The worker: hard hat, face pointing where you last stepped. */
+    .sk-player {
+      border-radius: 48%;
+      position: relative; z-index: 2;
+      background: linear-gradient(180deg,
+        #ffd24a 0%, #ffc02e 27%,
+        #ff9f43 28%, #df7929 38%,
+        #4a7fd0 39%, #2b549b 100%);
+      box-shadow:
+        0 4px 8px rgba(0,0,0,0.6),
+        inset 0 -5px 8px rgba(0,0,0,0.35),
+        inset 0 3px 5px rgba(255,255,255,0.5);
     }
     .sk-player::after {
       content: "";
       position: absolute;
-      width: 34%;
-      height: 26%;
-      top: 15%;
-      left: 20%;
+      width: 27%; height: 20%;
       border-radius: 50%;
-      background: radial-gradient(circle at 45% 40%, rgba(255,255,255,0.95), rgba(255,255,255,0.12) 75%);
+      background: radial-gradient(circle at 40% 35%, #ffffff, #ffd7ae 72%);
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.22), 0 1px 2px rgba(0,0,0,0.3);
+      transition: top 0.12s ease, left 0.12s ease;
     }
+    .sk-player--right::after { top: 38%; left: 64%; }
+    .sk-player--left::after { top: 38%; left: 9%; }
+    .sk-player--up::after { top: 7%; left: 37%; }
+    .sk-player--down::after { top: 62%; left: 37%; }
+    .sk-player--step { animation: skStep 0.22s ease; }
+    @keyframes skStep {
+      0% { transform: translateY(0) scale(1); }
+      40% { transform: translateY(-14%) scale(1.08, 0.94); }
+      100% { transform: translateY(0) scale(1); }
+    }
+
     .level-label {
       min-width: 132px;
       color: var(--muted);
@@ -118,10 +247,34 @@
     }
     .sokoban-layout { display: flex; flex-direction: column; align-items: center; gap: 16px; }
     .dpad-row { display: flex; justify-content: center; }
+
+    /* Plain-language rules, like the other puzzle games. */
+    .soko-guide {
+      border: 1px solid var(--glass-border);
+      border-radius: 14px;
+      background: linear-gradient(170deg, rgba(255,255,255,0.08), rgba(255,255,255,0.025));
+      padding: 9px 14px;
+      max-width: 640px;
+      font-size: 0.84rem;
+      line-height: 1.45;
+      color: var(--muted);
+    }
+    .soko-guide summary { cursor: pointer; font-weight: 800; color: var(--accent-2); }
+    .soko-guide b { color: var(--text); }
+    .soko-guide p { margin: 7px 0; }
+    .soko-guide ul { margin: 6px 0; padding-left: 18px; }
+
+    @media (max-width: 520px) { .soko-guide { padding: 8px 10px; } }
     @media (max-width: 430px) {
       .sokoban-board { gap: 2px; padding: 6px; max-width: 100%; }
       .sk-cell { width: auto !important; height: auto !important; aspect-ratio: 1 / 1; }
       .level-label { min-width: 96px; font-size: 0.85rem; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .sk-target::after, .sk-box--pushed::before, .sk-box--placed,
+      .sk-box--push-left, .sk-box--push-right, .sk-box--push-up, .sk-box--push-down,
+      .sk-box--stuck, .sk-player--step { animation: none; }
+      .sk-player::after, .sk-player { transition: none; }
     }
   </style>
 </head>
@@ -143,7 +296,21 @@
         <div class="status-bar__item"><span class="status-bar__label">Moves</span><span id="moves" class="status-bar__value">0</span></div>
         <div class="status-bar__item"><span class="status-bar__label">Level</span><span id="level" class="status-bar__value">1/12</span></div>
         <div class="status-bar__item"><span class="status-bar__label">Solved</span><span id="solved" class="status-bar__value">0/12</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Crates</span><span id="placed" class="status-bar__value">0/0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Best</span><span id="best-moves" class="status-bar__value">—</span></div>
       </div>
+      <details class="soko-guide" id="guide" open>
+        <summary>How to play</summary>
+        <div>
+          <p>You're a warehouse worker. <b>Push every crate onto a glowing target</b> to clear the level — you can push crates, but never pull them.</p>
+          <ul>
+            <li>Stand on the opposite side of a crate from where you want it to go. Crates can't pass through walls or each other.</li>
+            <li>Move with <b>Arrow keys / WASD</b> or the pad, <b>U</b> undoes a step, <b>Esc</b> pauses.</li>
+            <li>A green crate is home. A crate that <b>flashes red is wedged in a corner</b> and can't be freed — use Undo.</li>
+            <li>Beat your <b>Best</b> move count on each level. Undoing or resetting costs you a clean run.</li>
+          </ul>
+        </div>
+      </details>
       <div class="sokoban-layout">
         <div id="board" class="sokoban-board" role="grid" aria-label="Sokoban board"></div>
         <div class="game-controls">
@@ -168,7 +335,7 @@
           <div class="dpad__spacer"></div>
         </div>
       </div>
-      <p id="hint" class="game-info__hint" aria-live="polite">Push every box onto a glowing target — you can't pull boxes. Arrow keys / WASD move, U undoes, Esc pauses.</p>
+      <p id="hint" class="game-info__hint" aria-live="polite">Push every box onto a glowing target — you can't pull boxes. Arrow keys / WASD move, U undoes, Esc pauses. Red crates are wedged — Undo!</p>
     </main>
   </div>
 

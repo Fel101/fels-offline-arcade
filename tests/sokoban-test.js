@@ -113,7 +113,7 @@ function makeEl(tag = "div", id = "") {
 }
 
 const ids = [
-  "board", "moves", "level", "solved", "level-label", "hint", "undo", "reset-level",
+  "board", "moves", "level", "solved", "placed", "best-moves", "level-label", "hint", "undo", "reset-level",
   "level-prev", "level-next", "badges-btn", "badge-count", "badges2", "sound-btn",
   "sound-icon", "toasts", "achv-modal", "achv-grid", "achv-count", "achv-records",
 ];
@@ -640,6 +640,58 @@ function solve(li) {
   eq(T.stats.undos, 25, "career undos");
   eq(T.stats.resets, 10, "career resets");
   eq(T.stats.solved.length, 12, "warehouses cleared");
+}
+
+// ---------- O. Graphics hook, onboarding and new feedback ----------
+{
+  const html = fs.readFileSync(root + "games/sokoban/index.html", "utf8");
+  ok(html.indexOf("How to play") !== -1, "the guide is present");
+  ok(html.indexOf("id=\"placed\"") !== -1 && html.indexOf("id=\"best-moves\"") !== -1, "new HUD chips exist");
+  ok(html.indexOf("@keyframes skPushR") !== -1 && html.indexOf("@keyframes skPlaced") !== -1, "push animations defined");
+  ok(html.indexOf("prefers-reduced-motion") !== -1, "reduced motion is respected");
+  ok(elements.get("hint").textContent.indexOf("Red crates are wedged") !== -1, "hint explains wedged crates");
+
+  // Level 1: one push right solves it and records a best.
+  T.loadLevel(0);
+  eq(T.facing, "right", "the worker faces right by default");
+  eq(elements.get("placed").textContent, "0/1", "crates readout starts empty");
+  eq(elements.get("best-moves").textContent, "1", "best readout shows the saved record");
+  delete T.stats.bestMoves[1]; // make this solve a fresh record
+  T.tryMove(0, 1);
+  eq(T.facing, "right", "the worker faces the step direction");
+  const cells = elements.get("board").children;
+  const landed = cells[2 * 7 + 4].children[0];
+  ok(landed.classList.contains("sk-box--done"), "the placed crate is green");
+  ok(landed.classList.contains("sk-box--pushed") && landed.classList.contains("sk-box--push-right"), "push animation applied");
+  ok(landed.classList.contains("sk-box--placed"), "landing pop applied");
+  const worker = cells[2 * 7 + 3].children[0];
+  ok(worker.classList.contains("sk-player--right") && worker.classList.contains("sk-player--step"), "worker turns and steps");
+  eq(elements.get("placed").textContent, "1/1", "crates readout fills");
+  eq(T.stats.bestMoves[1], 1, "best move count recorded");
+  ok(T.overlayMsg().indexOf("New best!") !== -1, "a new best is announced", T.overlayMsg());
+  T.overlay.hide();
+
+  // A slower replay does not overwrite the record.
+  T.loadLevel(0);
+  apply(["up", "down", "right"]);
+  eq(T.gameOver, true, "the slower route still solves level 1");
+  eq(T.stats.bestMoves[1], 1, "the best move count is kept");
+  ok(T.overlayMsg().indexOf("New best!") === -1, "no false new-best claim", T.overlayMsg());
+  T.overlay.hide();
+
+  // One-shot feedback is dropped on the next render.
+  T.loadLevel(1);
+  const fresh = elements.get("board").children;
+  ok(!fresh.some((c) => c.children.some((ch) => ch.className.indexOf("sk-box--pushed") !== -1)), "push feedback is one-shot");
+
+  // Genuine deadlock: wedge a crate in the bottom-left corner of level 3.
+  T.loadLevel(2);
+  apply(["up", "up", "up", "left", "left", "down", "down", "down"]);
+  const stuck = T.stuckBoxes();
+  eq(stuck.length, 1, "exactly one wedged crate is detected");
+  eq(stuck[0], 4 * 8 + 1, "the wedged crate is in the corner");
+  const wedged = elements.get("board").children[4 * 8 + 1].children[0];
+  ok(wedged.classList.contains("sk-box--stuck"), "wedged crate is highlighted red");
 }
 
 console.log(`${pass} passed, ${fail} failed`);

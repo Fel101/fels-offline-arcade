@@ -27,6 +27,8 @@
   const solvedEl = dom.byId("solved");
   const levelLabelEl = dom.byId("level-label");
   const hintEl = dom.byId("hint");
+  const placedEl = dom.byId("placed");
+  const bestEl = dom.byId("best-moves");
 
   const badgesBtn = dom.byId("badges-btn");
   const badgeCountEl = dom.byId("badge-count");
@@ -152,7 +154,7 @@
   const TOTAL = LEVELS.length;
   const HISTORY_CAP = 500;
   const HINT_DEFAULT =
-    "Push every box onto a glowing target — you can't pull boxes. Arrow keys / WASD move, U undoes, Esc pauses.";
+    "Push every box onto a glowing target — you can't pull boxes. Arrow keys / WASD move, U undoes, Esc pauses. Red crates are wedged — Undo!";
 
   const K = makeKeys("sokoban");
 
@@ -167,6 +169,7 @@
     resets: 0,
     cleanWins: 0, // solved without undo or reset
     solved: [], // level numbers (1-based)
+    bestMoves: {}, // fewest moves used per level number — replay value
   };
 
   const storedStats = store.json(K.stats, null);
@@ -182,6 +185,13 @@
   }
   if (!Array.isArray(stats.solved)) stats.solved = [];
   stats.solved = stats.solved.filter((n) => typeof n === "number" && n >= 1 && n <= TOTAL);
+  if (!stats.bestMoves || typeof stats.bestMoves !== "object" || Array.isArray(stats.bestMoves)) {
+    stats.bestMoves = {};
+  }
+  for (const n of Object.keys(stats.bestMoves)) {
+    const v = stats.bestMoves[n];
+    if (!Number.isFinite(v) || v < 1 || !/^\d+$/.test(n) || +n < 1 || +n > TOTAL) delete stats.bestMoves[n];
+  }
 
   function saveStats() {
     store.jsonSet(K.stats, stats);
@@ -313,8 +323,34 @@
   let paused = false;
   let roundUndos = 0;
   let roundResets = 0;
+  let facing = "right"; // which way the worker is looking
+  let moveFx = null; // { dir, boxIdx, placed } — one-shot visual feedback
+  let stuckWarned = new Set(); // crates we've already warned about this round
 
   const idx = (r, c) => r * cols + c;
+
+  function dirName(dr, dc) {
+    if (dr < 0) return "up";
+    if (dr > 0) return "down";
+    if (dc < 0) return "left";
+    return "right";
+  }
+
+  // A crate against two perpendicular walls can never be pushed out again.
+  // Genuine deadlock detection: cheap, exact, and only advisory.
+  function stuckBoxes() {
+    const out = new Set();
+    for (const i of boxes) {
+      if (targets.has(i)) continue;
+      const r = Math.floor(i / cols), c = i % cols;
+      const up = !!grid[r - 1] && grid[r - 1][c] === 1;
+      const down = !!grid[r + 1] && grid[r + 1][c] === 1;
+      const left = grid[r][c - 1] === 1;
+      const right = grid[r][c + 1] === 1;
+      if ((up || down) && (left || right)) out.add(i);
+    }
+    return out;
+  }
 
   function solvedSet() {
     return new Set(stats.solved);
@@ -351,6 +387,9 @@
     paused = false;
     roundUndos = 0;
     roundResets = opts && opts.reset ? 1 : 0;
+    facing = "right";
+    moveFx = null;
+    stuckWarned = new Set();
     hideOverlay();
     levelLabelEl.textContent = `Level ${levelIndex + 1}: ${LEVELS[levelIndex].name}`;
     render();
@@ -362,6 +401,13 @@
     levelEl.textContent = `${levelIndex + 1}/${TOTAL}`;
     solvedEl.textContent = `${stats.solved.length}/${TOTAL}`;
     hintEl.textContent = HINT_DEFAULT;
+    let placed = 0;
+    for (const b of boxes) if (targets.has(b)) placed++;
+    if (placedEl) placedEl.textContent = `${placed}/${targets.size}`;
+    if (bestEl) {
+      const best = stats.bestMoves[levelIndex + 1];
+      bestEl.textContent = Number.isFinite(best) ? String(best) : "—";
+    }
   }
 
   function cellSize() {
@@ -374,6 +420,7 @@
     boardEl.style.gridTemplateColumns = `repeat(${cols}, auto)`;
     boardEl.innerHTML = "";
     const size = cellSize();
+    const stuck = stuckBoxes();
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
         const i = idx(r, c);
@@ -393,13 +440,19 @@
         if (box) {
           const b = document.createElement("div");
           b.className = "sk-box" + (target ? " sk-box--done" : "");
+          if (moveFx && moveFx.boxIdx === i) {
+            b.classList.add("sk-box--pushed", "sk-box--push-" + moveFx.dir);
+            if (moveFx.placed) b.classList.add("sk-box--placed");
+          }
+          if (stuck.has(i)) b.classList.add("sk-box--stuck");
           b.style.width = "88%";
           b.style.height = "88%";
           div.appendChild(b);
         }
         if (player.r === r && player.c === c) {
           const p = document.createElement("div");
-          p.className = "sk-player";
+          p.className = "sk-player sk-player--" + facing;
+          if (moveFx) p.classList.add("sk-player--step");
           p.style.width = "72%";
           p.style.height = "72%";
           div.appendChild(p);
@@ -408,6 +461,7 @@
         boardEl.appendChild(div);
       }
     }
+    moveFx = null; // feedback is a one-shot flourish
   }
 
   function pushHistory() {
@@ -421,6 +475,7 @@
     const nc = player.c + dc;
     if (nr < 0 || nc < 0 || nr >= rows || nc >= cols) return;
     if (grid[nr][nc] === 1) return;
+    const dir = dirName(dr, dc);
     const nIdx = idx(nr, nc);
     if (boxes.has(nIdx)) {
       const br = nr + dr;
@@ -433,6 +488,8 @@
       boxes.delete(nIdx);
       boxes.add(bIdx);
       player = { r: nr, c: nc };
+      facing = dir;
+      moveFx = { dir, boxIdx: bIdx, placed: targets.has(bIdx) };
       moves++;
       stats.moves++;
       stats.pushes++;
@@ -441,10 +498,24 @@
       sfx("place");
       render();
       updateStatus();
+      // Advisory only: a wedged crate is a genuine dead end, so warn once.
+      for (const s of stuckBoxes()) {
+        if (!stuckWarned.has(s)) {
+          stuckWarned.add(s);
+          toast.show(
+            "Crate wedged!",
+            "That crate is stuck in a corner — Undo to back out.",
+            "⚠️"
+          );
+          break;
+        }
+      }
       checkSolved();
     } else {
       pushHistory();
       player = { r: nr, c: nc };
+      facing = dir;
+      moveFx = { dir };
       moves++;
       stats.moves++;
       saveStats();
@@ -461,6 +532,7 @@
     player = { ...snap.player };
     boxes = new Set(snap.boxes);
     moves = snap.moves;
+    moveFx = null;
     roundUndos++;
     stats.undos++;
     saveStats();
@@ -488,6 +560,9 @@
     if (wasNew) stats.solved.push(levelNo);
     stats.solved.sort((a, b) => a - b);
     const clean = roundUndos === 0 && roundResets === 0;
+    const prevBest = stats.bestMoves[levelNo];
+    const newBest = !Number.isFinite(prevBest) || moves < prevBest;
+    if (newBest) stats.bestMoves[levelNo] = moves;
     stats.wins++;
     stats.streak++;
     stats.bestStreak = Math.max(stats.bestStreak, stats.streak);
@@ -507,6 +582,7 @@
         ? `All ${TOTAL} warehouses cleared. Legendary box-pushing!`
         : `Solved in ${moves} move${moves === 1 ? "" : "s"}. ` +
           (clean ? "No undo, no reset! " : "") +
+          (newBest ? "New best! " : "") +
           `Streak ${stats.streak}. Cleared ${stats.solved.length} / ${TOTAL}.`,
       [
         {
@@ -631,6 +707,8 @@
     get roundUndos() { return roundUndos; },
     get roundResets() { return roundResets; },
     get historyLength() { return history.length; },
+    get facing() { return facing; },
+    stuckBoxes: () => [...stuckBoxes()],
     get state() {
       return {
         rows,
