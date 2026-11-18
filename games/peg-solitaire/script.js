@@ -199,6 +199,7 @@
   let history = [];
   let gameOver = false;
   let paused = false;
+  let lastFx = null; // { from, over, to } — one-shot move feedback, rendering only
 
   function pegCount() {
     let n = 0;
@@ -254,18 +255,25 @@
         const cell = document.createElement("button");
         cell.className = "peg-cell";
         cell.setAttribute("aria-label", board[r][c] === PEG ? "Peg" : "Empty hole");
+        let peg = null;
         if (board[r][c] === PEG) {
-          const peg = document.createElement("span");
+          peg = document.createElement("span");
           peg.className = "peg";
           cell.appendChild(peg);
           if (selected && selected[0] === r && selected[1] === c) cell.classList.add("peg-cell--selected");
         } else if (targets.includes(r + "," + c)) {
           cell.classList.add("peg-cell--target");
         }
+        if (lastFx) {
+          if (lastFx.from[0] === r && lastFx.from[1] === c) cell.classList.add("peg-cell--from");
+          if (lastFx.over[0] === r && lastFx.over[1] === c) cell.classList.add("peg-cell--capture");
+          if (lastFx.to[0] === r && lastFx.to[1] === c && peg) peg.classList.add("peg--land");
+        }
         cell.addEventListener("click", () => onCellClick(r, c));
         boardEl.appendChild(cell);
       }
     }
+    lastFx = null; // feedback is a one-shot flourish
     updateHud();
   }
 
@@ -295,6 +303,7 @@
         board[r][c] = PEG;
         moves++;
         stats.totalMoves++;
+        lastFx = { from: [selected[0], selected[1]], over: move.over, to: [r, c] };
         selected = null;
         sfx("place");
         render();
@@ -313,6 +322,7 @@
     board = snap.board.map((row) => row.slice());
     moves = snap.moves;
     selected = null;
+    lastFx = null;
     gameOver = false;
     paused = false;
     stats.undone++;
@@ -343,7 +353,9 @@
     }
     saveStats();
     checkAchievements();
-    render();
+    // The board was already rendered by the move; only the HUD needs updating.
+    // Re-rendering here would drop the one-shot landing/capture feedback.
+    updateHud();
 
     if (n === 1) {
       sfx("win");
@@ -372,6 +384,7 @@
     moves = 0;
     history = [];
     selected = null;
+    lastFx = null;
     gameOver = false;
     paused = false;
     hideOverlay();

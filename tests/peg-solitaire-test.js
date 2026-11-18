@@ -551,6 +551,25 @@ if (!DEAD2 || DEAD2.length < 1) {
   eq(elements.get("achv-modal").hidden, true, "Escape closes the modal");
 }
 
+// ---------- L. One-shot move-feedback rendering (visual only) ----------
+{
+  T.newGame();
+  T.click(1, 3);
+  T.click(3, 3); // jump into the centre
+  const board = elements.get("board");
+  const idx = (r, c) => r * 7 + c;
+  let cells = board.children;
+  ok(cells[idx(1, 3)].classList.contains("peg-cell--from"), "origin hole pings after a jump");
+  ok(cells[idx(2, 3)].classList.contains("peg-cell--capture"), "jumped-over hole flashes");
+  const peg = cells[idx(3, 3)].children[0];
+  ok(peg && peg.classList.contains("peg--land"), "landing peg animates");
+  // The effect is one-shot: a later render clears it.
+  T.click(0, 3);
+  cells = board.children;
+  ok(!cells[idx(3, 3)].children[0].classList.contains("peg--land"), "landing effect is one-shot");
+  ok(!cells[idx(2, 3)].classList.contains("peg-cell--capture"), "capture flash is one-shot");
+}
+
 console.log(`${pass} passed, ${fail} failed`);
 console.log(`  init: ${initMs}ms`);
 process.exit(fail ? 1 : 0);
