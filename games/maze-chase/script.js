@@ -57,6 +57,38 @@
   const HINT_DEFAULT =
     "Arrow keys / WASD to move. Eat every dot. Power pellets let you eat ghosts for bonus points. P pauses.";
 
+  // A hand-built, left-right symmetric board: a centre ghost pen, four corner
+  // power pellets and side warp tunnels — the classic Pac-Man stage shape.
+  // "." is a dotted corridor, " " is pen floor (walkable, never dotted).
+  const MAZE = [
+    "###################",
+    "#........#........#",
+    "#.##.###.#.###.##.#",
+    "#.................#",
+    "#.##.#.#####.#.##.#",
+    "#....#...#...#....#",
+    "####.###.#.###.####",
+    "#......#...#......#",
+    "#.####.##.##.####.#",
+    "......##   ##......",
+    "#.####.#####.####.#",
+    "#......#...#......#",
+    "####.###.#.###.####",
+    "#....#...#...#....#",
+    "#.##.#.#####.#.##.#",
+    "#.................#",
+    "#.##.###.#.###.##.#",
+    "#........#........#",
+    "###################",
+  ];
+  const PLAYER_START = [15, 9];
+  const PEN_STARTS = [[7, 9], [9, 9], [9, 8], [9, 10]]; // red, pink, cyan, orange
+  const SCATTER_CORNERS = [[1, 17], [1, 1], [17, 17], [17, 1]];
+  // Classic alternation: scatter, chase, scatter, chase … then chase forever.
+  const MODE_SCHEDULE = [7 * 60, 20 * 60, 7 * 60, 20 * 60, 5 * 60, 20 * 60, 5 * 60, Infinity];
+  // Ghosts break distance ties in this order (the original arcade priority).
+  const GHOST_DIRS = [[-1, 0], [0, -1], [1, 0], [0, 1]];
+
   const K = makeKeys("maze-chase");
 
   // ---------- Seeded RNG ----------
@@ -206,40 +238,13 @@
   let frame;
   let state; // ready | playing | over
   let paused = false;
+  let modeIndex = 0; // scatter/chase schedule position
+  let modeTimer = 0;
+  let scatterMode = true;
 
-  // ---------- Maze generation ----------
+  // ---------- Maze ----------
   function generateMaze() {
-    const g = Array.from({ length: MAZE_H }, () => new Array(MAZE_W).fill("#"));
-    const stack = [[1, 1]];
-    g[1][1] = ".";
-    while (stack.length) {
-      const [r, c] = stack[stack.length - 1];
-      const dirs = shuffle([[-2, 0], [2, 0], [0, -2], [0, 2]]);
-      let moved = false;
-      for (const [dr, dc] of dirs) {
-        const nr = r + dr;
-        const nc = c + dc;
-        if (nr > 0 && nr < MAZE_H - 1 && nc > 0 && nc < MAZE_W - 1 && g[nr][nc] === "#") {
-          g[r + dr / 2][c + dc / 2] = ".";
-          g[nr][nc] = ".";
-          stack.push([nr, nc]);
-          moved = true;
-          break;
-        }
-      }
-      if (!moved) stack.pop();
-    }
-
-    // Knock out a few walls to create loops (more interesting than a perfect maze).
-    for (let r = 1; r < MAZE_H - 1; r++) {
-      for (let c = 1; c < MAZE_W - 1; c++) {
-        if (g[r][c] !== "#") continue;
-        const horiz = g[r][c - 1] === "." && g[r][c + 1] === ".";
-        const vert = g[r - 1][c] === "." && g[r + 1][c] === ".";
-        if ((horiz || vert) && rand() < 0.11) g[r][c] = ".";
-      }
-    }
-    return g;
+    return MAZE.map((row) => row.slice());
   }
 
   function dist2(a, b) {
@@ -262,19 +267,16 @@
       }
     }
 
-    // Power pellets near the corners.
-    for (const [r, c] of [[1, MAZE_W - 2], [MAZE_H - 2, 1], [MAZE_H - 2, MAZE_W - 2], [1, 9]]) {
+    // Four corner power pellets, exactly like the arcade board.
+    for (const [r, c] of [[1, 1], [1, MAZE_W - 2], [MAZE_H - 2, 1], [MAZE_H - 2, MAZE_W - 2]]) {
       if (d[r][c] === 1) d[r][c] = 2;
     }
 
-    playerStart = [1, 1];
-
-    // Ghost starts: the four open cells closest to the centre.
-    const open = [];
-    for (let r = 0; r < MAZE_H; r++)
-      for (let c = 0; c < MAZE_W; c++) if (maze[r][c] === ".") open.push([r, c]);
-    open.sort((a, b) => dist2(a, [9, 9]) - dist2(b, [9, 9]));
-    ghostStarts = open.slice(0, 4);
+    playerStart = PLAYER_START.slice();
+    ghostStarts = PEN_STARTS.map((p) => p.slice());
+    modeIndex = 0;
+    modeTimer = 0;
+    scatterMode = true;
 
     // Clear dots under the player and ghosts.
     d[playerStart[0]][playerStart[1]] = 0;
@@ -286,6 +288,10 @@
       for (let c = 0; c < MAZE_W; c++) if (dots[r][c] > 0) dotsRemaining++;
 
     resetPositions();
+  }
+
+  function inPen(g) {
+    return g.r === 9 && g.c >= 8 && g.c <= 10;
   }
 
   function resetPositions() {
@@ -301,7 +307,7 @@
       dir: [0, 1],
       color: GHOST_COLORS[i],
       cooldown: i * 4,
-      target: [9, 9],
+      leaving: inPen({ r, c }),
     }));
     powerTimer = 0;
     ghostCombo = 0;
@@ -310,6 +316,21 @@
   // ---------- Helpers ----------
   function canMove(r, c) {
     return r >= 0 && r < MAZE_H && c >= 0 && c < MAZE_W && maze[r][c] !== "#";
+  }
+
+  // Side tunnels: stepping off row 9 wraps to the opposite edge.
+  function canStep(r, c, dr, dc) {
+    const nr = r + dr, nc = c + dc;
+    if (nr < 0 || nr >= MAZE_H) return false;
+    if (nc < 0) return maze[r][MAZE_W - 1] !== "#";
+    if (nc >= MAZE_W) return maze[r][0] !== "#";
+    return maze[nr][nc] !== "#";
+  }
+  function advance(r, c, dr, dc) {
+    let nr = r + dr, nc = c + dc;
+    if (nc < 0) nc = MAZE_W - 1;
+    else if (nc >= MAZE_W) nc = 0;
+    return [nr, nc];
   }
 
   function randomOpenCell() {
@@ -366,6 +387,8 @@
       stats.pellets++;
       powerTimer = POWER_FRAMES;
       ghostCombo = 0;
+      // Frightened ghosts turn tail immediately, like the arcade original.
+      for (const g of ghosts) g.dir = [-g.dir[0], -g.dir[1]];
       sfx("power");
       toast.show("Power!", "The ghosts are vulnerable — eat them!", "⚡");
     } else {
@@ -416,61 +439,61 @@
   }
 
   // ---------- Ghost AI ----------
+  // Each ghost has its own personality in chase mode, and its own corner in
+  // scatter mode. The two modes alternate on the classic schedule.
   function ghostTarget(g) {
     const idx = ghosts.indexOf(g);
+    // A ghost in the pen always heads for the gate first. Without this,
+    // greedy targeting traps the side ghosts in an endless left/right loop.
+    if (g.leaving) return [7, 9];
+    if (scatterMode) return SCATTER_CORNERS[idx] || [player.r, player.c];
     if (idx === 1) {
-      // Pink: aim four cells ahead of the player.
+      // Pink: ambush four cells ahead of the player.
       let ahead = [player.r + player.dir[0] * 4, player.c + player.dir[1] * 4];
       if (!canMove(ahead[0], ahead[1])) ahead = [player.r, player.c];
       return ahead;
     }
     if (idx === 2) {
-      // Cyan: wander toward a periodically chosen target.
-      return g.target || [9, 9];
+      // Cyan: the arcade "multi-target" — reflect a point 2 ahead through Red.
+      const red = ghosts[0];
+      const ahead = [player.r + player.dir[0] * 2, player.c + player.dir[1] * 2];
+      return [ahead[0] + (ahead[0] - red.r), ahead[1] + (ahead[1] - red.c)];
     }
     if (idx === 3) {
-      // Orange: chase when far, retreat to a corner when close.
-      return dist2([g.r, g.c], [player.r, player.c]) > 64 ? [player.r, player.c] : [1, 1];
+      // Orange: chase from a distance, but peel away to his corner up close.
+      return dist2([g.r, g.c], [player.r, player.c]) > 64 ? [player.r, player.c] : SCATTER_CORNERS[3];
     }
     return [player.r, player.c]; // Red: direct chase.
   }
 
   function moveGhost(g) {
-    const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
     const rev = [-g.dir[0], -g.dir[1]];
-    let options = dirs.filter(
-      ([dr, dc]) => canMove(g.r + dr, g.c + dc) && !(dr === rev[0] && dc === rev[1])
+    let options = GHOST_DIRS.filter(
+      ([dr, dc]) => canStep(g.r, g.c, dr, dc) && !(dr === rev[0] && dc === rev[1])
     );
-    if (options.length === 0) options = dirs.filter(([dr, dc]) => canMove(g.r + dr, g.c + dc));
+    if (options.length === 0) options = GHOST_DIRS.filter(([dr, dc]) => canStep(g.r, g.c, dr, dc));
     if (options.length === 0) return;
 
-    if (powerTimer > 0) {
-      // Flee: maximise distance from the player.
-      let best = options[0];
-      let bestD = -1;
-      for (const [dr, dc] of options) {
-        const d = (g.r + dr - player.r) ** 2 + (g.c + dc - player.c) ** 2;
-        if (d > bestD) {
-          bestD = d;
-          best = [dr, dc];
-        }
+    // GHOST_DIRS is ordered up, left, down, right, so with a strict `<`
+    // comparison ties resolve exactly like the original arcade game.
+    const target = powerTimer > 0 ? null : ghostTarget(g);
+    let best = options[0];
+    let bestD = powerTimer > 0 ? -Infinity : Infinity;
+    for (const [dr, dc] of options) {
+      const nr = g.r + dr, nc = g.c + dc;
+      const d = target
+        ? (nr - target[0]) ** 2 + (nc - target[1]) ** 2
+        : (nr - player.r) ** 2 + (nc - player.c) ** 2;
+      if (powerTimer > 0 ? d > bestD : d < bestD) {
+        bestD = d;
+        best = [dr, dc];
       }
-      g.dir = best;
-    } else {
-      const target = ghostTarget(g);
-      let best = options[0];
-      let bestD = Infinity;
-      for (const [dr, dc] of options) {
-        const d = (g.r + dr - target[0]) ** 2 + (g.c + dc - target[1]) ** 2;
-        if (d < bestD) {
-          bestD = d;
-          best = [dr, dc];
-        }
-      }
-      g.dir = best;
     }
-    g.r += g.dir[0];
-    g.c += g.dir[1];
+    g.dir = best;
+    const [nr, nc] = advance(g.r, g.c, g.dir[0], g.dir[1]);
+    g.r = nr;
+    g.c = nc;
+    if (g.leaving && !inPen(g)) g.leaving = false;
   }
 
   // ---------- Update ----------
@@ -480,15 +503,25 @@
 
     if (powerTimer > 0) powerTimer--;
 
+    // Scatter / chase schedule; ghosts reverse when the mode flips.
+    modeTimer++;
+    if (modeTimer >= MODE_SCHEDULE[modeIndex]) {
+      modeTimer = 0;
+      scatterMode = !scatterMode;
+      if (modeIndex < MODE_SCHEDULE.length - 1) modeIndex++;
+      for (const g of ghosts) g.dir = [-g.dir[0], -g.dir[1]];
+    }
+
     // Player.
     if (player.cooldown > 0) player.cooldown--;
     if (player.cooldown <= 0) {
       const [ndr, ndc] = player.nextDir;
-      if ((ndr || ndc) && canMove(player.r + ndr, player.c + ndc)) player.dir = [ndr, ndc];
+      if ((ndr || ndc) && canStep(player.r, player.c, ndr, ndc)) player.dir = [ndr, ndc];
       const [dr, dc] = player.dir;
-      if ((dr || dc) && canMove(player.r + dr, player.c + dc)) {
-        player.r += dr;
-        player.c += dc;
+      if ((dr || dc) && canStep(player.r, player.c, dr, dc)) {
+        const [nr, nc] = advance(player.r, player.c, dr, dc);
+        player.r = nr;
+        player.c = nc;
         eat();
       }
       player.cooldown = PLAYER_TICK;
@@ -504,7 +537,6 @@
         g.cooldown = powerTimer > 0 ? POWER_GHOST_TICK : Math.max(5, GHOST_TICK - (level - 1));
       }
     }
-    if (frame % 180 === 0 && ghosts[2]) ghosts[2].target = randomOpenCell();
 
     // Collisions.
     for (const g of ghosts) {
@@ -519,6 +551,7 @@
         g.r = g.start[0];
         g.c = g.start[1];
         g.cooldown = 60;
+        g.leaving = inPen(g);
         updateStatus();
         saveStats();
         checkAchievements();
@@ -536,13 +569,24 @@
     ctx.fillStyle = "#05060c";
     ctx.fillRect(0, 0, W, H);
 
-    // Walls.
-    ctx.fillStyle = "#1b3bd0";
+    // Ghost pen floor — walkable, but never dotted.
+    ctx.fillStyle = "rgba(120, 170, 255, 0.12)";
     for (let r = 0; r < MAZE_H; r++) {
       for (let c = 0; c < MAZE_W; c++) {
-        if (maze[r][c] === "#") {
-          ctx.fillRect(c * CELL + 1, r * CELL + 1, CELL - 2, CELL - 2);
-        }
+        if (maze[r][c] === " ") ctx.fillRect(c * CELL + 1, r * CELL + 1, CELL - 2, CELL - 2);
+      }
+    }
+
+    // Walls: deep-blue blocks with a bright top/left lip, arcade style.
+    for (let r = 0; r < MAZE_H; r++) {
+      for (let c = 0; c < MAZE_W; c++) {
+        if (maze[r][c] !== "#") continue;
+        const x = c * CELL + 1, y = r * CELL + 1;
+        ctx.fillStyle = "#122bb8";
+        ctx.fillRect(x, y, CELL - 2, CELL - 2);
+        ctx.fillStyle = "#3a69ff";
+        ctx.fillRect(x + 2, y + 2, CELL - 6, 2);
+        ctx.fillRect(x + 2, y + 2, 2, CELL - 6);
       }
     }
 
@@ -733,10 +777,10 @@
     START_LIVES,
     PLAYER_TICK,
     POWER_FRAMES,
-    get maze() { return maze.map((row) => row.slice()); },
+    get maze() { return maze.map((row) => [...row]); },
     get dots() { return dots.map((row) => row.slice()); },
     get player() { return { r: player.r, c: player.c, dir: player.dir.slice(), nextDir: player.nextDir.slice() }; },
-    get ghosts() { return ghosts.map((g) => ({ r: g.r, c: g.c, color: g.color })); },
+    get ghosts() { return ghosts.map((g) => ({ r: g.r, c: g.c, dir: g.dir.slice(), color: g.color, leaving: !!g.leaving })); },
     get score() { return score; },
     get lives() { return lives; },
     get level() { return level; },
@@ -744,6 +788,11 @@
     get powerTimer() { return powerTimer; },
     get state() { return state; },
     get paused() { return paused; },
+    get scatterMode() { return scatterMode; },
+    get modeIndex() { return modeIndex; },
+    GHOST_DIRS,
+    PEN_STARTS,
+    SCATTER_CORNERS,
     stats,
     ACHIEVEMENTS,
     generateMaze,
@@ -765,7 +814,7 @@
     setLives: (n) => { lives = n; updateStatus(); },
     setLevel: (n) => { level = n; updateStatus(); },
     setPowerTimer: (n) => { powerTimer = n; },
-    setGhost: (i, r, c) => { if (ghosts[i]) { ghosts[i].r = r; ghosts[i].c = c; ghosts[i].cooldown = 9999; } },
+    setGhost: (i, r, c) => { if (ghosts[i]) { ghosts[i].r = r; ghosts[i].c = c; ghosts[i].cooldown = 9999; ghosts[i].leaving = false; } },
     setGhostCooldown: (n) => { for (const g of ghosts) g.cooldown = n; },
     setDots: (d) => {
       dots = d.map((row) => row.slice());

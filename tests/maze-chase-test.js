@@ -178,8 +178,8 @@ function openNeighbors(r, c) {
   eq(g[0].length, 19, "maze is 19 columns");
   eq(g[0].every((x) => x === "#"), true, "top border is wall");
   eq(g[18].every((x) => x === "#"), true, "bottom border is wall");
-  eq(T.player.r, 1, "player starts on row 1");
-  eq(T.player.c, 1, "player starts on column 1");
+  eq(T.player.r, 15, "player starts at the bottom centre");
+  eq(T.player.c, 9, "player starts in the middle column");
   eq(T.ghosts.length, 4, "four ghosts");
   eq(T.lives, 3, "three lives");
   eq(T.score, 0, "score zero");
@@ -396,6 +396,69 @@ function openNeighbors(r, c) {
   T.openAchv();
   keydown("Escape");
   eq(elements.get("achv-modal").hidden, true, "Escape closes the modal");
+}
+
+// ---------- N. Pac-Man stage and ghost behaviour ----------
+{
+  T.newGame();
+  const g = T.maze;
+  let symmetric = true;
+  for (let r = 0; r < 19; r++)
+    for (let c = 0; c < 19; c++) if (g[r][c] !== g[r][18 - c]) symmetric = false;
+  eq(symmetric, true, "the stage is left-right symmetric");
+  eq(g[9][9], " ", "a centre ghost pen exists");
+  eq(g[8][9], ".", "the pen has an exit gate");
+  eq(T.canMove(9, 0), true, "the left tunnel is open");
+  eq(T.canMove(9, 18), true, "the right tunnel is open");
+  for (const [r, c] of [[1, 1], [1, 17], [17, 1], [17, 17]])
+    eq(T.dots[r][c], 2, `corner power pellet at ${r},${c}`);
+  eq(T.dots[15][9], 0, "no dot under the player start");
+  eq(JSON.stringify(T.GHOST_DIRS), JSON.stringify([[-1, 0], [0, -1], [1, 0], [0, 1]]), "arcade direction priority");
+  eq(JSON.stringify(T.PEN_STARTS), JSON.stringify([[7, 9], [9, 9], [9, 8], [9, 10]]), "four ghosts start at the pen");
+  eq(T.ghosts.filter((x) => x.leaving).length, 3, "three ghosts start inside the pen");
+
+  // Every ghost escapes the pen instead of oscillating in the three-cell slot.
+  T.startGame();
+  T.setGhostCooldown(1);
+  for (let i = 0; i < 120; i++) T.step();
+  ok(T.ghosts.every((x) => !x.leaving), "all ghosts escape the pen", T.ghosts);
+
+  // Scatter/chase schedule flips after seven seconds and reverses the ghosts.
+  T.newGame();
+  T.startGame();
+  T.setGhostCooldown(9999);
+  T.setPlayerDir(0, 0);
+  eq(T.scatterMode, true, "play begins in scatter mode");
+  eq(T.modeIndex, 0, "the mode schedule starts at phase 0");
+  for (let i = 0; i < 421; i++) T.step();
+  eq(T.scatterMode, false, "ghosts switch to chase mode");
+  eq(T.modeIndex, 1, "the schedule advances");
+
+  // A power pellet reverses every ghost immediately.
+  T.newGame();
+  T.startGame();
+  T.setGhostCooldown(9999);
+  const before = T.ghosts.map((x) => x.dir);
+  let pellet = null;
+  for (let r = 0; r < 19 && !pellet; r++)
+    for (let c = 0; c < 19; c++) if (T.dots[r][c] === 2) { pellet = [r, c]; break; }
+  T.setPlayerPos(pellet[0], pellet[1]);
+  T.eat();
+  ok(T.powerTimer > 0, "eating the pellet starts power mode");
+  ok(
+    T.ghosts.every((x, i) => x.dir[0] === -before[i][0] && x.dir[1] === -before[i][1]),
+    "frightened ghosts turn tail at once"
+  );
+
+  // Side tunnels wrap the player to the opposite edge.
+  T.newGame();
+  T.startGame();
+  T.setGhostCooldown(9999);
+  T.setPlayerPos(9, 0);
+  T.setDir(0, -1);
+  for (let i = 0; i < 7; i++) T.step();
+  eq(T.player.r, 9, "the player stays on the tunnel row");
+  eq(T.player.c, 18, "the player wraps to the far side");
 }
 
 console.log(`${pass} passed, ${fail} failed`);
