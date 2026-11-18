@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Yacht Dice — Fel's Offline Arcade</title>
+  <meta name="description" content="Roll, hold, and score a 13-turn game. 14 badges.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Yacht Dice — Fel's Offline Arcade">
+  <meta property="og:description" content="Roll, hold, and score a 13-turn game. 14 badges.">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Yacht Dice — Fel's Offline Arcade">
+  <meta name="twitter:description" content="Roll, hold, and score a 13-turn game. 14 badges.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%AE%3C/text%3E%3C/svg%3E">
+  <meta name="theme-color" content="#0e0e11">
+  <meta name="color-scheme" content="dark light">
+  <script>
+    // Apply the saved theme before first paint to avoid a flash.
+    // "system" (or anything unrecognized) leaves <html> without data-theme,
+    // so CSS falls back to prefers-color-scheme, then dark.
+    (() => {
+      try {
+        var saved = localStorage.getItem("offline-arcade:theme:v1");
+        var theme = "system";
+        if (saved) {
+          try {
+            var parsed = JSON.parse(saved);
+            if (parsed === "dark" || parsed === "light" || parsed === "kids") theme = parsed;
+          } catch (_) {
+            if (saved === "dark" || saved === "light" || saved === "kids") theme = saved;
+          }
+        }
+        if (theme !== "system") document.documentElement.dataset.theme = theme;
+      } catch (_) {
+        /* storage blocked - fall back to system default */
+      }
+    })();
+  </script>
+  <link rel="stylesheet" href="../../css/styles.css">
+  <style>
+    .yz-layout {
+      display: flex;
+      gap: 28px;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: flex-start;
+      width: 100%;
+      max-width: 880px;
+    }
+    .yz-play {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+    .dice-row {
+      display: flex;
+      gap: 12px;
+    }
+    .die {
+      width: 84px;
+      height: 84px;
+      font-size: 3.5rem;
+      line-height: 1;
+      background: linear-gradient(165deg, #ffffff 0%, #dfe3f3 100%);
+      color: #171735;
+      border: 1px solid rgba(0,0,0,0.25);
+      border-radius: 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      box-shadow: 0 4px 0 rgba(0,0,0,0.35), 0 10px 22px rgba(0,0,0,0.35), inset 0 2px 0 #fff;
+      transition: transform 0.14s cubic-bezier(0.2,1.5,0.4,1), box-shadow 0.14s ease, border-color 0.14s ease;
+      -webkit-tap-highlight-color: transparent;
+      font-family: inherit;
+    }
+    .die:hover:not(:disabled) { transform: translateY(-4px); }
+    .die:disabled { cursor: default; }
+    .die--empty { background: var(--panel); color: var(--muted); font-size: 2.4rem; box-shadow: inset 0 2px 6px rgba(0,0,0,0.35); }
+    .die.held {
+      border-color: var(--accent);
+      box-shadow: 0 0 18px rgba(88, 224, 201, 0.4);
+      transform: translateY(-8px);
+    }
+    .hold-tag {
+      font-size: 0.65rem;
+      letter-spacing: 1px;
+      font-weight: 800;
+      color: var(--accent);
+      min-height: 0.9rem;
+      text-transform: uppercase;
+    }
+    .die-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+    table.score-sheet {
+      width: 100%;
+      max-width: 400px;
+      border-collapse: collapse;
+      background: var(--panel);
+      border-radius: var(--radius);
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      font-size: 0.92rem;
+    }
+    .score-sheet th, .score-sheet td {
+      padding: 7px 12px;
+      text-align: left;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .score-sheet tr:last-child td { border-bottom: none; }
+    .sheet-section td {
+      background: var(--bg-soft);
+      color: var(--accent);
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      font-weight: 800;
+      padding: 6px 12px;
+    }
+    .score-btn {
+      min-width: 56px;
+      padding: 4px 10px;
+      border: none;
+      border-radius: 8px;
+      background: var(--bg-soft);
+      color: var(--accent-2);
+      font-weight: 800;
+      font-size: 0.95rem;
+      cursor: pointer;
+      font-variant-numeric: tabular-nums;
+      font-family: inherit;
+    }
+    .score-btn:hover:not(:disabled) { background: #2c3057; outline: 1px solid var(--accent); }
+    .score-btn:disabled { opacity: 0.4; cursor: default; }
+    .score-btn.scored {
+      background: transparent;
+      color: var(--text);
+      opacity: 1;
+      cursor: default;
+    }
+    .sheet-total td {
+      background: var(--bg-soft);
+      font-weight: 800;
+    }
+    .sheet-total .sheet-total__value { color: var(--accent-2); font-size: 1.1rem; }
+    .bonus-earned { color: var(--accent); font-weight: 800; }
+    @media (max-width: 700px) {
+      .die { width: 58px; height: 58px; font-size: 2.4rem; border-radius: 12px; }
+      .die--empty { font-size: 1.6rem; }
+      .dice-row { gap: 8px; }
+    }
+    @media (max-width: 400px) {
+      .die { width: 50px; height: 50px; font-size: 2.1rem; }
+      .die--empty { font-size: 1.4rem; }
+      .dice-row { gap: 5px; }
+      .score-sheet th, .score-sheet td { padding: 6px 8px; }
+      .score-btn { min-width: 46px; padding: 3px 6px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="game-shell">
+    <header class="game-header">
+      <a class="back-btn" href="../../index.html">← Back to Games</a>
+      <h1>Yacht Dice</h1>
+      <span class="game-header__spacer"></span>
+      <button class="icon-btn" id="sound-btn" type="button" aria-pressed="true" aria-label="Mute sound" title="Mute sound">
+        <span id="sound-icon" aria-hidden="true">🔊</span>
+      </button>
+      <button class="icon-btn" id="badges-btn" type="button" aria-label="Badges and achievements" title="Badges &amp; achievements">
+        <span aria-hidden="true">🏆</span><span class="icon-btn__count" id="badge-count">0</span>
+      </button>
+    </header>
+    <main class="game-area">
+      <div class="status-bar" aria-live="polite">
+        <div class="status-bar__item"><span class="status-bar__label">Turn</span><span id="turn" class="status-bar__value">1</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Best</span><span id="best" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Games</span><span id="games" class="status-bar__value">0</span></div>
+      </div>
+      <div class="yz-layout">
+        <div class="yz-play">
+          <div id="dice-row" class="dice-row"></div>
+          <div class="game-controls">
+            <button id="roll" class="btn">Roll (3 left)</button>
+            <button id="new-game" class="btn btn--ghost">New Game</button>
+            <button id="badges2" class="btn btn--ghost" type="button">🏆 Badges</button>
+          </div>
+          <p class="game-info__hint">Roll up to 3 times. Click a die to hold it.<br>Then pick a category on the sheet to score. P pauses.</p>
+        </div>
+        <table id="score-sheet" class="score-sheet">
+          <thead>
+            <tr><th colspan="2">Score Sheet</th></tr>
+          </thead>
+          <tbody id="sheet-body"></tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <div class="snake-toasts" id="toasts" aria-live="polite"></div>
+
+  <div class="snake-modal" id="achv-modal" hidden>
+    <div class="snake-modal__backdrop" data-close></div>
+    <div class="snake-modal__panel" role="dialog" aria-modal="true" aria-labelledby="achv-title">
+      <header class="snake-modal__head">
+        <h2 id="achv-title">🏆 Badges <small id="achv-count">0 / 0</small></h2>
+        <button class="icon-btn" type="button" data-close aria-label="Close badges">✕</button>
+      </header>
+      <div class="achv-records" id="achv-records"></div>
+      <div class="achv-grid" id="achv-grid"></div>
+    </div>
+  </div>
+
+  <script src="../../js/arcade-core.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Road Hopper — Fel's Offline Arcade</title>
+  <meta name="description" content="Dodge traffic, ride logs, fill all five home bays across five modes — 25 badges.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Road Hopper — Fel's Offline Arcade">
+  <meta property="og:description" content="Dodge traffic, ride logs, fill all five home bays across five modes — 25 badges.">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Road Hopper — Fel's Offline Arcade">
+  <meta name="twitter:description" content="Dodge traffic, ride logs, fill all five home bays across five modes — 25 badges.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%AE%3C/text%3E%3C/svg%3E">
+  <meta name="theme-color" content="#0e0e11">
+  <meta name="color-scheme" content="dark light">
+  <script>
+    // Apply the saved theme before first paint to avoid a flash.
+    // "system" (or anything unrecognized) leaves <html> without data-theme,
+    // so CSS falls back to prefers-color-scheme, then dark.
+    (() => {
+      try {
+        var saved = localStorage.getItem("offline-arcade:theme:v1");
+        var theme = "system";
+        if (saved) {
+          try {
+            var parsed = JSON.parse(saved);
+            if (parsed === "dark" || parsed === "light" || parsed === "kids") theme = parsed;
+          } catch (_) {
+            if (saved === "dark" || saved === "light" || saved === "kids") theme = saved;
+          }
+        }
+        if (theme !== "system") document.documentElement.dataset.theme = theme;
+      } catch (_) {
+        /* storage blocked - fall back to system default */
+      }
+    })();
+  </script>
+  <link rel="stylesheet" href="../../css/styles.css">
+  <style>
+    /* Road Hopper — hand-drawn art lives on the canvas; these styles frame it. */
+    .game-area { gap: 12px; padding-bottom: 16px; }
+    .mode-bar { margin: 0 auto 2px; }
+    .mode-chip {
+      min-width: 0;
+      padding: 7px 12px;
+      font-size: 0.78rem;
+      white-space: nowrap;
+    }
+    .mode-chip[aria-pressed="true"] {
+      background: linear-gradient(180deg, #93f2b4, #3fbf78);
+      color: #06301c;
+      box-shadow: 0 3px 0 #1f7a4a, inset 0 1px 0 rgba(255, 255, 255, 0.55);
+    }
+
+    .frogger-screen {
+      position: relative;
+      line-height: 0;
+      max-width: 100%;
+      margin: 0 auto;
+      padding: clamp(6px, 1.4vw, 10px);
+      border-radius: 20px;
+      background: linear-gradient(160deg, #1c3a2c 0%, #12251f 60%, #0a1512 100%);
+      box-shadow:
+        0 20px 44px rgba(0, 0, 0, 0.45),
+        inset 0 2px 0 rgba(255, 255, 255, 0.12),
+        inset 0 0 0 3px rgba(0, 0, 0, 0.35),
+        0 0 0 1px rgba(255, 255, 255, 0.06);
+    }
+    .frogger-screen::after {
+      content: "";
+      position: absolute;
+      inset: clamp(6px, 1.4vw, 10px);
+      border-radius: 12px;
+      pointer-events: none;
+      box-shadow: inset 0 0 26px rgba(0, 0, 0, 0.3);
+    }
+    .frogger-canvas {
+      width: min(494px, 94vw);
+      touch-action: none;
+      cursor: pointer;
+    }
+    #time.is-danger { animation: froggerTimePulse 0.7s ease-in-out infinite; }
+    @keyframes froggerTimePulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.45; }
+    }
+
+    .frogger-legend {
+      display: flex;
+      gap: 14px;
+      justify-content: center;
+      flex-wrap: wrap;
+      font-size: 0.74rem;
+      color: var(--muted);
+    }
+    .frogger-legend span { display: inline-flex; align-items: center; gap: 5px; }
+
+    @media (max-width: 460px) {
+      .mode-chip { padding: 6px 9px; font-size: 0.72rem; }
+      .frogger-screen { border-radius: 14px; }
+      .frogger-legend { gap: 8px; font-size: 0.68rem; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #time.is-danger { animation: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="game-shell">
+    <header class="game-header">
+      <a class="back-btn" href="../../index.html">← Back to Games</a>
+      <h1>Road Hopper</h1>
+      <span class="game-header__spacer"></span>
+      <button class="icon-btn" id="sound-btn" type="button" aria-pressed="true" aria-label="Mute sound" title="Mute sound">
+        <span id="sound-icon" aria-hidden="true">🔊</span>
+      </button>
+      <button class="icon-btn" id="badges-btn" type="button" aria-label="Badges and achievements" title="Badges &amp; achievements">
+        <span aria-hidden="true">🏆</span><span class="icon-btn__count" id="badge-count">0</span>
+      </button>
+    </header>
+
+    <main class="game-area">
+      <div class="mode-bar" role="group" aria-label="Game mode">
+        <button class="chip mode-chip" type="button" data-mode="classic" aria-pressed="true" title="Three lives, a timer per frog, five home bays">Classic</button>
+        <button class="chip mode-chip" type="button" data-mode="attack" aria-pressed="false" title="Beat the global countdown — every home adds time">Time Attack ⏱</button>
+        <button class="chip mode-chip" type="button" data-mode="blitz" aria-pressed="false" title="60 seconds, fast traffic, two lives — a pure sprint">Blitz ⚡</button>
+        <button class="chip mode-chip" type="button" data-mode="daily" aria-pressed="false" title="One seeded crossing a day — fill all five homes">Daily 📅</button>
+        <button class="chip mode-chip" type="button" data-mode="zen" aria-pressed="false" title="No timer, infinite lives, slower traffic">Zen 🧘</button>
+      </div>
+
+      <div class="status-bar" aria-live="polite">
+        <div class="status-bar__item"><span class="status-bar__label">Score</span><span id="score" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Best</span><span id="best" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Lives</span><span id="lives" class="status-bar__value">3</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Level</span><span id="level" class="status-bar__value">1</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Homes</span><span id="homes" class="status-bar__value">0/5</span></div>
+        <div class="status-bar__item"><span class="status-bar__label" id="time-label">Time</span><span id="time" class="status-bar__value">0:30</span></div>
+      </div>
+
+      <div class="frogger-screen">
+        <canvas id="game" class="frogger-canvas" width="494" height="456" aria-label="Road Hopper board"></canvas>
+      </div>
+      <div class="frogger-legend" aria-hidden="true">
+        <span>🪵 Ride logs &amp; turtles</span>
+        <span>🚗 Dodge the traffic</span>
+        <span>🏠 Fill all five bays</span>
+        <span>⚡ Blitz: 60 seconds</span>
+      </div>
+
+      <div class="game-controls">
+        <button id="restart" class="btn" type="button">Restart</button>
+        <button id="pause" class="btn btn--ghost" type="button">Pause</button>
+        <button id="badges2" class="btn btn--ghost" type="button">🏆 Badges</button>
+      </div>
+
+      <p class="game-info__hint" id="hint">Arrow keys / WASD · Swipe to hop · P to pause · Reach all five home bays</p>
+
+      <div class="dpad">
+        <span class="dpad__spacer"></span><button type="button" data-dir="up" aria-label="Hop up">▲</button><span class="dpad__spacer"></span>
+        <button type="button" data-dir="left" aria-label="Hop left">◀</button><span class="dpad__spacer"></span><button type="button" data-dir="right" aria-label="Hop right">▶</button>
+        <span class="dpad__spacer"></span><button type="button" data-dir="down" aria-label="Hop down">▼</button><span class="dpad__spacer"></span>
+      </div>
+    </main>
+  </div>
+
+  <div class="snake-toasts" id="toasts" aria-live="polite"></div>
+
+  <div class="snake-modal" id="achv-modal" hidden>
+    <div class="snake-modal__backdrop" data-close></div>
+    <div class="snake-modal__panel" role="dialog" aria-modal="true" aria-labelledby="achv-title">
+      <header class="snake-modal__head">
+        <h2 id="achv-title">🏆 Badges <small id="achv-count">0 / 0</small></h2>
+        <button class="icon-btn" type="button" data-close aria-label="Close badges">✕</button>
+      </header>
+      <div class="achv-records" id="achv-records"></div>
+      <div class="achv-grid" id="achv-grid"></div>
+    </div>
+  </div>
+
+  <script src="../../js/arcade-core.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "A zero-dependency, fully offline browser arcade. No build step — open index.html and play.",
+  "author": "Pete Hudson",
   "license": "MIT",
   "scripts": {
     "test": "node tests/run-all-suites.js",

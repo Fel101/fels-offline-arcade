@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Word Trace — Fel's Offline Arcade</title>
+  <meta name="description" content="Trace words across the grid before time runs out — 14 badges.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Word Trace — Fel's Offline Arcade">
+  <meta property="og:description" content="Trace words across the grid before time runs out — 14 badges.">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Word Trace — Fel's Offline Arcade">
+  <meta name="twitter:description" content="Trace words across the grid before time runs out — 14 badges.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%AE%3C/text%3E%3C/svg%3E">
+  <meta name="theme-color" content="#0e0e11">
+  <meta name="color-scheme" content="dark light">
+  <script>
+    // Apply the saved theme before first paint to avoid a flash.
+    // "system" (or anything unrecognized) leaves <html> without data-theme,
+    // so CSS falls back to prefers-color-scheme, then dark.
+    (() => {
+      try {
+        var saved = localStorage.getItem("offline-arcade:theme:v1");
+        var theme = "system";
+        if (saved) {
+          try {
+            var parsed = JSON.parse(saved);
+            if (parsed === "dark" || parsed === "light" || parsed === "kids") theme = parsed;
+          } catch (_) {
+            if (saved === "dark" || saved === "light" || saved === "kids") theme = saved;
+          }
+        }
+        if (theme !== "system") document.documentElement.dataset.theme = theme;
+      } catch (_) {
+        /* storage blocked - fall back to system default */
+      }
+    })();
+  </script>
+  <link rel="stylesheet" href="../../css/styles.css">
+  <style>
+    .rz-bar {
+      height: 8px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 5px;
+      overflow: hidden;
+      max-width: min(92vw, 400px);
+      margin: 0 auto 10px;
+    }
+    .rz-bar__fill {
+      height: 100%;
+      width: 100%;
+      background: linear-gradient(90deg, #5ad1b8, #5a96ff);
+      border-radius: 5px;
+      transition: width 0.12s linear, background 0.2s ease;
+    }
+    .rz-word {
+      text-align: center;
+      font-size: clamp(1.2rem, 5.5vw, 1.7rem);
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      min-height: 1.5em;
+      margin: 2px 0 8px;
+      color: var(--text, #f2f2f5);
+    }
+    .rz-word--ok { color: var(--accent); }
+    .rz-word--bad { color: #ff8a8a; }
+    .rz-board {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 7px;
+      width: 100%;
+      max-width: min(92vw, 400px);
+      margin: 0 auto;
+      touch-action: none;
+    }
+    .rz-cell {
+      position: relative;
+      aspect-ratio: 1;
+      border-radius: 13px;
+      border: 1px solid var(--glass-border);
+      background: linear-gradient(170deg, rgba(255,255,255,0.1), rgba(255,255,255,0.04));
+      box-shadow: 0 4px 10px rgba(0,0,0,0.24), inset 0 1px 0 rgba(255,255,255,0.14);
+      font-size: clamp(1.1rem, 5.6vw, 1.75rem);
+      font-weight: 800;
+      font-family: inherit;
+      color: var(--text, #f2f2f5);
+      cursor: pointer;
+      padding: 0;
+      line-height: 1;
+      transition: transform 0.08s ease, background 0.1s ease, box-shadow 0.1s ease;
+      -webkit-user-select: none;
+      user-select: none;
+      touch-action: none;
+    }
+    .rz-cell--sel {
+      background: rgba(90, 209, 184, 0.32);
+      box-shadow: 0 0 0 2px var(--accent) inset, 0 4px 10px rgba(0,0,0,0.24);
+      transform: scale(0.96);
+    }
+    .rz-cell--head {
+      background: var(--accent);
+      color: #06231f;
+    }
+    .rz-order {
+      position: absolute;
+      top: 3px;
+      right: 5px;
+      font-size: 0.6rem;
+      font-weight: 800;
+      opacity: 0.75;
+    }
+    .rz-found {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      justify-content: center;
+      max-width: min(92vw, 420px);
+      margin: 12px auto 0;
+      min-height: 1.8em;
+    }
+    .rz-chip {
+      font-size: 0.8rem;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 999px;
+      background: rgba(90, 209, 184, 0.16);
+      border: 1px solid rgba(90, 209, 184, 0.35);
+      color: var(--text, #f2f2f5);
+    }
+    .rz-chip--long {
+      background: rgba(255, 217, 77, 0.16);
+      border-color: rgba(255, 217, 77, 0.4);
+    }
+    .status-bar { gap: 18px; }
+    .rz-empty { opacity: 0.55; font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+  <div class="game-shell">
+    <header class="game-header">
+      <a class="back-btn" href="../../index.html">← Back to Games</a>
+      <h1>Word Trace</h1>
+      <span class="game-header__spacer"></span>
+      <button class="icon-btn" id="sound-btn" type="button" aria-pressed="true" aria-label="Mute sound" title="Mute sound">
+        <span id="sound-icon" aria-hidden="true">🔊</span>
+      </button>
+      <button class="icon-btn" id="badges-btn" type="button" aria-label="Badges and achievements" title="Badges &amp; achievements">
+        <span aria-hidden="true">🏆</span><span class="icon-btn__count" id="badge-count">0</span>
+      </button>
+    </header>
+    <main class="game-area">
+      <div class="status-bar" aria-live="polite">
+        <div class="status-bar__item"><span class="status-bar__label">Time</span><span id="time" class="status-bar__value">90</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Score</span><span id="score" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Words</span><span id="words" class="status-bar__value">0</span></div>
+      </div>
+      <div class="rz-bar"><div id="time-bar" class="rz-bar__fill"></div></div>
+      <p id="current-word" class="rz-word" aria-live="polite"></p>
+      <div id="board" class="rz-board" aria-label="Word Trace board"></div>
+      <div class="game-controls">
+        <button id="submit" class="btn" type="button">Submit</button>
+        <button id="clear" class="btn btn--ghost" type="button">Clear</button>
+      </div>
+      <div class="game-controls">
+        <button id="restart" class="btn btn--ghost" type="button">New Round</button>
+        <button id="badges2" class="btn btn--ghost" type="button">🏆 Badges</button>
+      </div>
+      <p id="hint" class="game-info__hint" aria-live="polite">Drag across neighbouring letters (or click them one by one) to spell a word of 3+ letters. Press Enter or Submit to play it. P pauses.</p>
+      <div id="found" class="rz-found" aria-live="polite"></div>
+    </main>
+  </div>
+
+  <div class="snake-toasts" id="toasts" aria-live="polite"></div>
+
+  <div class="snake-modal" id="achv-modal" hidden>
+    <div class="snake-modal__backdrop" data-close></div>
+    <div class="snake-modal__panel" role="dialog" aria-modal="true" aria-labelledby="achv-title">
+      <header class="snake-modal__head">
+        <h2 id="achv-title">🏆 Badges <small id="achv-count">0 / 0</small></h2>
+        <button class="icon-btn" type="button" data-close aria-label="Close badges">✕</button>
+      </header>
+      <div class="achv-records" id="achv-records"></div>
+      <div class="achv-grid" id="achv-grid"></div>
+    </div>
+  </div>
+
+  <script src="../../js/arcade-core.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

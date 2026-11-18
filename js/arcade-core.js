@@ -1,5 +1,5 @@
 /* ============================================================
-   Offline Arcade — shared game core
+   Fel's Offline Arcade — shared game core
    Pure vanilla JS, no dependencies, no build step.
    Works fully offline via file://
 
@@ -92,15 +92,15 @@
      Standard storage key names. One namespace per game, so
      games never collide.
 
-     keys("boggle") -> {
-       best:  (mode, size) => "boggle-best-v1-classic-4",
-       stats: "boggle-stats-v1",
-       achv:  "boggle-achv-v1",
-       sound: "boggle-sound",
-       mode:  "boggle-mode",
-       size:  "boggle-size",
-       diff:  "boggle-diff",
-       daily: "boggle-daily-v1",
+     keys("mygame") -> {
+       best:  (mode, size) => "mygame-best-v1-classic-4",
+       stats: "mygame-stats-v1",
+       achv:  "mygame-achv-v1",
+       sound: "mygame-sound",
+       mode:  "mygame-mode",
+       size:  "mygame-size",
+       diff:  "mygame-diff",
+       daily: "mygame-daily-v1",
        ...
      }
      --------------------------------------------------------- */
@@ -368,7 +368,7 @@
   }
 
   /**
-   * Play a single tone at an arbitrary pitch — used by Simon-style games.
+   * Play a single tone at an arbitrary pitch — used by sequence-memory games such as Echo.
    * freq in Hz, durationMs in milliseconds.
    */
   function tone(freq, durationMs, type, vol) {

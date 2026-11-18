@@ -1,4 +1,4 @@
-// Maze Chase — a Pac-Man-style maze game. Pure vanilla JS, fully offline.
+// Maze Chase — a classic maze-chase game. Pure vanilla JS, fully offline.
 // Eat every dot, dodge the ghosts, grab power pellets. Shared plumbing (storage,
 // audio, toasts, overlay, confetti, badges, modal, loop) comes from
 // ../../js/arcade-core.js.

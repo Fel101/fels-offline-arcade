@@ -84,6 +84,7 @@ for (const game of games) {
 
   for (const w of widths) {
     const wrapFile = path.join(tmp, `_wrap-${game}-${w}.html`);
+    const profileDir = path.join(tmp, `chrome-tia-${game}-${w}`);
     fs.writeFileSync(wrapFile, wrapper(gameUrl, w));
     let dom = "";
     try {
@@ -92,7 +93,7 @@ for (const game of games) {
         [
           "--headless=new", "--disable-gpu", "--no-first-run", "--no-default-browser-check",
           "--allow-file-access-from-files",
-          `--user-data-dir=${tmp}/chrome-tia-${game}-${w}`,
+          `--user-data-dir=${profileDir}`,
           "--hide-scrollbars", "--force-device-scale-factor=1", "--window-size=1400,1500",
           "--virtual-time-budget=6000", "--dump-dom",
           "file:///" + wrapFile.replace(/\\/g, "/"),
@@ -103,6 +104,8 @@ for (const game of games) {
       dom = (e.stdout || "").toString();
     }
     fs.rmSync(wrapFile, { force: true });
+    // Each run gets a throwaway Chrome profile; delete it so the temp folder doesn't fill up.
+    fs.rmSync(profileDir, { recursive: true, force: true, maxRetries: 4, retryDelay: 200 });
 
     const m = dom.match(/<pre id="result">([^<]*)<\/pre>/);
     if (m) {

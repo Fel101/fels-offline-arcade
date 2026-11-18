@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Four in a Row — Fel's Offline Arcade</title>
+  <meta name="description" content="Line up four discs vs the computer — 14 badges.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Four in a Row — Fel's Offline Arcade">
+  <meta property="og:description" content="Line up four discs vs the computer — 14 badges.">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Four in a Row — Fel's Offline Arcade">
+  <meta name="twitter:description" content="Line up four discs vs the computer — 14 badges.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%AE%3C/text%3E%3C/svg%3E">
+  <meta name="theme-color" content="#0e0e11">
+  <meta name="color-scheme" content="dark light">
+  <script>
+    // Apply the saved theme before first paint to avoid a flash.
+    // "system" (or anything unrecognized) leaves <html> without data-theme,
+    // so CSS falls back to prefers-color-scheme, then dark.
+    (() => {
+      try {
+        var saved = localStorage.getItem("offline-arcade:theme:v1");
+        var theme = "system";
+        if (saved) {
+          try {
+            var parsed = JSON.parse(saved);
+            if (parsed === "dark" || parsed === "light" || parsed === "kids") theme = parsed;
+          } catch (_) {
+            if (saved === "dark" || saved === "light" || saved === "kids") theme = saved;
+          }
+        }
+        if (theme !== "system") document.documentElement.dataset.theme = theme;
+      } catch (_) {
+        /* storage blocked - fall back to system default */
+      }
+    })();
+  </script>
+  <link rel="stylesheet" href="../../css/styles.css">
+  <style>
+    /* Four in a Row — arcade-style board, glossy discs and effects.
+       Scoped to .c4-board so the shared .board/.cell styles are untouched. */
+    .c4-board {
+      width: min(100%, 420px);
+      margin-inline: auto;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: clamp(5px, 1.6vw, 9px);
+      padding: clamp(10px, 2.6vw, 16px);
+      border-radius: 24px;
+      background: linear-gradient(180deg, #2f7bd6 0%, #1f5fbf 55%, #164a9c 100%);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      box-shadow:
+        0 18px 40px rgba(0, 0, 0, 0.45),
+        inset 0 2px 0 rgba(255, 255, 255, 0.35),
+        inset 0 -6px 14px rgba(0, 0, 0, 0.35);
+      overflow: hidden;
+      position: relative;
+      touch-action: manipulation;
+    }
+
+    .c4-cell {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      padding: 0;
+      border: none;
+      border-radius: 50%;
+      overflow: visible;
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      background: radial-gradient(circle at 50% 38%, #0a1430 0%, #060b1c 70%, #03060f 100%);
+      box-shadow:
+        inset 0 4px 7px rgba(0, 0, 0, 0.75),
+        inset 0 -2px 3px rgba(255, 255, 255, 0.08),
+        0 1px 0 rgba(255, 255, 255, 0.12);
+      transition: background 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
+    }
+    .c4-cell.c4-col-hover {
+      background: radial-gradient(circle at 50% 38%, #12224f 0%, #0a1330 70%, #050a1a 100%);
+      box-shadow:
+        inset 0 4px 7px rgba(0, 0, 0, 0.7),
+        inset 0 -2px 3px rgba(255, 255, 255, 0.12),
+        0 0 0 2px rgba(255, 255, 255, 0.14);
+    }
+    .c4-cell:active { transform: scale(0.95); }
+    .c4-cell:focus-visible { outline: 3px solid var(--accent-2); outline-offset: 2px; z-index: 5; }
+
+    /* Ghost disc showing where the next drop will land. */
+    .c4-cell.c4-preview::after {
+      content: "";
+      position: absolute;
+      inset: 8%;
+      border-radius: 50%;
+      opacity: 0.5;
+      pointer-events: none;
+      z-index: 2;
+    }
+    .c4-board.c4-turn-red .c4-cell.c4-preview::after {
+      background: radial-gradient(circle at 34% 28%, #ffb3a6 0%, #f4463a 55%, #b81a10 100%);
+      box-shadow: inset 0 -3px 5px rgba(0, 0, 0, 0.3), inset 0 2px 3px rgba(255, 255, 255, 0.4);
+    }
+    .c4-board.c4-turn-yellow .c4-cell.c4-preview::after {
+      background: radial-gradient(circle at 34% 28%, #fff6b0 0%, #ffd83f 55%, #c98a00 100%);
+      box-shadow: inset 0 -3px 5px rgba(0, 0, 0, 0.3), inset 0 2px 3px rgba(255, 255, 255, 0.4);
+    }
+
+    /* Discs */
+    .c4-disc {
+      position: absolute;
+      inset: 7%;
+      border-radius: 50%;
+      z-index: 3;
+      pointer-events: none;
+      box-shadow:
+        inset 0 -4px 7px rgba(0, 0, 0, 0.35),
+        inset 0 3px 4px rgba(255, 255, 255, 0.5),
+        0 3px 5px rgba(0, 0, 0, 0.45);
+    }
+    .c4-disc::after {
+      content: "";
+      position: absolute;
+      inset: 13%;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.28);
+      box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.25);
+    }
+    .c4-disc--red {
+      background: radial-gradient(circle at 34% 28%, #ffb3a6 0%, #f4463a 45%, #cf2318 78%, #9c130b 100%);
+    }
+    .c4-disc--yellow {
+      background: radial-gradient(circle at 34% 28%, #fff6b0 0%, #ffd83f 45%, #f0b400 78%, #b87c00 100%);
+    }
+
+    /* Falling-disc animation (distance set inline via --fall). */
+    .c4-disc--drop { animation: c4Drop 0.64s cubic-bezier(0.3, 0.9, 0.4, 1.15); }
+    @keyframes c4Drop {
+      0% { transform: translateY(var(--fall, -120%)); }
+      70% { transform: translateY(0); }
+      82% { transform: translateY(-12%); }
+      100% { transform: translateY(0); }
+    }
+
+    /* Pulsing ring on the winning four. */
+    .c4-cell.c4-win::before {
+      content: "";
+      position: absolute;
+      inset: 2%;
+      border-radius: 50%;
+      z-index: 4;
+      pointer-events: none;
+      box-shadow:
+        0 0 0 3px rgba(255, 255, 255, 0.95),
+        0 0 18px 5px rgba(255, 215, 80, 0.9);
+      animation: c4WinRing 1.2s ease-in-out infinite;
+      animation-delay: 0.2s;
+    }
+    @keyframes c4WinRing {
+      0%, 100% { opacity: 0.55; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.07); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .c4-disc--drop,
+      .c4-cell.c4-win::before { animation: none; }
+      .c4-cell.c4-win::before { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <div class="game-shell">
+    <header class="game-header">
+      <a class="back-btn" href="../../index.html">← Back to Games</a>
+      <h1>Four in a Row</h1>
+      <span class="game-header__spacer"></span>
+      <button class="icon-btn" id="sound-btn" type="button" aria-pressed="true" aria-label="Mute sound" title="Mute sound">
+        <span id="sound-icon" aria-hidden="true">🔊</span>
+      </button>
+      <button class="icon-btn" id="badges-btn" type="button" aria-label="Badges and achievements" title="Badges &amp; achievements">
+        <span aria-hidden="true">🏆</span><span class="icon-btn__count" id="badge-count">0</span>
+      </button>
+    </header>
+    <main class="game-area">
+      <div class="status-bar" aria-live="polite">
+        <div class="status-bar__item"><span class="status-bar__label">Turn</span><span id="turn" class="status-bar__value" style="font-size:1.1rem;">You</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Wins</span><span id="wins" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Streak</span><span id="streak" class="status-bar__value">0</span></div>
+      </div>
+      <div id="board" class="board c4-board" role="group" aria-label="Four in a Row board"></div>
+      <div class="game-controls">
+        <button id="new-game" class="btn">New Game</button>
+        <select id="ai-diff" class="btn btn--ghost" style="padding:8px 12px;" aria-label="Difficulty">
+          <option value="4">Easy</option>
+          <option value="6" selected>Medium</option>
+          <option value="8">Hard</option>
+        </select>
+        <button id="badges2" class="btn btn--ghost" type="button">🏆 Badges</button>
+      </div>
+      <p id="hint" class="game-info__hint" aria-live="polite">Click a column to drop your disc. Get four in a row to win. P pauses.</p>
+    </main>
+  </div>
+
+  <div class="snake-toasts" id="toasts" aria-live="polite"></div>
+
+  <div class="snake-modal" id="achv-modal" hidden>
+    <div class="snake-modal__backdrop" data-close></div>
+    <div class="snake-modal__panel" role="dialog" aria-modal="true" aria-labelledby="achv-title">
+      <header class="snake-modal__head">
+        <h2 id="achv-title">🏆 Badges <small id="achv-count">0 / 0</small></h2>
+        <button class="icon-btn" type="button" data-close aria-label="Close badges">✕</button>
+      </header>
+      <div class="achv-records" id="achv-records"></div>
+      <div class="achv-grid" id="achv-grid"></div>
+    </div>
+  </div>
+
+  <script src="../../js/arcade-core.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

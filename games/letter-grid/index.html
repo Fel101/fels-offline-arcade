@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Letter Grid — Fel's Offline Arcade</title>
+  <meta name="description" content="Connect adjacent letters — 4×4 and 5×5, 24 badges.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Letter Grid — Fel's Offline Arcade">
+  <meta property="og:description" content="Connect adjacent letters — 4×4 and 5×5, 24 badges.">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Letter Grid — Fel's Offline Arcade">
+  <meta name="twitter:description" content="Connect adjacent letters — 4×4 and 5×5, 24 badges.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%AE%3C/text%3E%3C/svg%3E">
+  <meta name="theme-color" content="#0e0e11">
+  <meta name="color-scheme" content="dark light">
+  <script>
+    // Apply the saved theme before first paint to avoid a flash.
+    // "system" (or anything unrecognized) leaves <html> without data-theme,
+    // so CSS falls back to prefers-color-scheme, then dark.
+    (() => {
+      try {
+        var saved = localStorage.getItem("offline-arcade:theme:v1");
+        var theme = "system";
+        if (saved) {
+          try {
+            var parsed = JSON.parse(saved);
+            if (parsed === "dark" || parsed === "light" || parsed === "kids") theme = parsed;
+          } catch (_) {
+            if (saved === "dark" || saved === "light" || saved === "kids") theme = saved;
+          }
+        }
+        if (theme !== "system") document.documentElement.dataset.theme = theme;
+      } catch (_) {
+        /* storage blocked - fall back to system default */
+      }
+    })();
+  </script>
+  <link rel="stylesheet" href="../../css/styles.css">
+</head>
+<body>
+  <div class="game-shell">
+    <header class="game-header">
+      <a class="back-btn" href="../../index.html">← Back to Games</a>
+      <h1>Letter Grid</h1>
+      <span class="game-header__spacer"></span>
+      <button class="icon-btn" id="sound-btn" type="button" aria-pressed="true" aria-label="Mute sound" title="Mute sound">
+        <span id="sound-icon" aria-hidden="true">🔊</span>
+      </button>
+      <button class="icon-btn" id="badges-btn" type="button" aria-label="Badges and achievements" title="Badges &amp; achievements">
+        <span aria-hidden="true">🏆</span><span class="icon-btn__count" id="badge-count">0</span>
+      </button>
+    </header>
+
+    <main class="game-area">
+      <div class="mode-bar" role="group" aria-label="Game mode">
+        <button class="chip mode-chip" type="button" data-mode="classic" aria-pressed="true" title="Three minutes — find as many words as you can">Classic ⏱</button>
+        <button class="chip mode-chip" type="button" data-mode="sprint" aria-pressed="false" title="A quick 90-second word sprint">Sprint ⚡</button>
+        <button class="chip mode-chip" type="button" data-mode="daily" aria-pressed="false" title="One seeded board a day — build a streak">Daily 📅</button>
+        <button class="chip mode-chip" type="button" data-mode="zen" aria-pressed="false" title="No clock, unlimited hints — just flow">Zen 🌿</button>
+      </div>
+
+      <div class="difficulty-bar" id="difficulty-bar" role="group" aria-label="Board size">
+        <button class="chip diff-chip" type="button" data-size="4" aria-pressed="true">4 × 4</button>
+        <button class="chip diff-chip" type="button" data-size="5" aria-pressed="false">5 × 5 · Big</button>
+      </div>
+
+      <div class="status-bar">
+        <div class="status-bar__item"><span class="status-bar__label">Time</span><span id="time" class="status-bar__value">0:00</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Score</span><span id="score" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Words</span><span id="words" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Longest</span><span id="longest" class="status-bar__value">—</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Hints</span><span id="hints" class="status-bar__value">3</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Best</span><span id="best" class="status-bar__value">—</span></div>
+      </div>
+
+      <div class="bg-layout">
+        <div class="bg-board-wrap" id="board-wrap">
+          <div id="board" class="bg-board" role="group" aria-label="Letter Grid board — connect adjacent letters"></div>
+          <div class="sudoku-countdown bg-countdown" id="countdown" hidden><span id="countdown-num">3</span></div>
+        </div>
+
+        <aside class="bg-side" aria-label="Words and progress">
+          <div class="bg-tray">
+            <span id="current-word" class="bg-tray__word is-empty">Drag across letters to build a word</span>
+            <div class="bg-tray__btns">
+              <button id="submit-word" class="btn" type="button" disabled>Submit</button>
+              <button id="clear-word" class="btn btn--ghost" type="button" disabled>Clear</button>
+            </div>
+          </div>
+
+          <div class="bg-progress">
+            <span id="progress-text">Found 0</span>
+            <span class="bg-progress__bar" role="progressbar" aria-label="Words found" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="progress-fill"></span></span>
+          </div>
+
+          <div id="hint-line" class="bg-hintline" aria-live="polite"></div>
+
+          <div id="found-list" class="bg-words" aria-label="Words found"></div>
+          <div id="missed-wrap" class="bg-missed" hidden>
+            <p class="bg-missed__title">Words you missed</p>
+            <div id="missed-list" class="bg-missed__list"></div>
+          </div>
+        </aside>
+      </div>
+
+      <div class="game-controls">
+        <button id="new-game" class="btn" type="button">New Board</button>
+        <button id="hint-btn" class="btn btn--ghost" type="button" title="Reveal one word (H)">💡 Hint</button>
+        <button id="pause" class="btn btn--ghost" type="button">Pause</button>
+        <button id="finish" class="btn btn--ghost" type="button" title="Finish this Zen round" hidden>Finish</button>
+        <button id="badges2" class="btn btn--ghost" type="button">🏆 Badges</button>
+      </div>
+
+      <p class="game-info__hint" id="hint">Connect adjacent letters (including diagonals) · Drag or tap · 3+ letters · Longer words score more (3–4=1, 5=2, 6=3, 7=5, 8+=11) · Backspace undoes</p>
+      <div id="live" class="visually-hidden" aria-live="polite"></div>
+    </main>
+  </div>
+
+  <div class="snake-toasts" id="toasts" aria-live="polite"></div>
+
+  <div class="snake-modal" id="achv-modal" hidden>
+    <div class="snake-modal__backdrop" data-close></div>
+    <div class="snake-modal__panel" role="dialog" aria-modal="true" aria-labelledby="achv-title">
+      <header class="snake-modal__head">
+        <h2 id="achv-title">🏆 Badges <small id="achv-count">0 / 0</small></h2>
+        <button class="icon-btn" type="button" data-close aria-label="Close badges">✕</button>
+      </header>
+      <div class="achv-records" id="achv-records"></div>
+      <div class="achv-grid" id="achv-grid"></div>
+    </div>
+  </div>
+
+  <script src="../../js/arcade-core.js"></script>
+  <script src="words.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

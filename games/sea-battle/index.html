@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sea Battle — Fel's Offline Arcade</title>
+  <meta name="description" content="Hunt and sink the enemy fleet at sea. 14 badges.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Sea Battle — Fel's Offline Arcade">
+  <meta property="og:description" content="Hunt and sink the enemy fleet at sea. 14 badges.">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Sea Battle — Fel's Offline Arcade">
+  <meta name="twitter:description" content="Hunt and sink the enemy fleet at sea. 14 badges.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%AE%3C/text%3E%3C/svg%3E">
+  <meta name="theme-color" content="#0e0e11">
+  <meta name="color-scheme" content="dark light">
+  <script>
+    // Apply the saved theme before first paint to avoid a flash.
+    // "system" (or anything unrecognized) leaves <html> without data-theme,
+    // so CSS falls back to prefers-color-scheme, then dark.
+    (() => {
+      try {
+        var saved = localStorage.getItem("offline-arcade:theme:v1");
+        var theme = "system";
+        if (saved) {
+          try {
+            var parsed = JSON.parse(saved);
+            if (parsed === "dark" || parsed === "light" || parsed === "kids") theme = parsed;
+          } catch (_) {
+            if (saved === "dark" || saved === "light" || saved === "kids") theme = saved;
+          }
+        }
+        if (theme !== "system") document.documentElement.dataset.theme = theme;
+      } catch (_) {
+        /* storage blocked - fall back to system default */
+      }
+    })();
+  </script>
+  <link rel="stylesheet" href="../../css/styles.css">
+  <style>
+    /* Sea Battle — naval console: framed sea grids, steel ships, fire and splash.
+       Scoped to this page's .bcell/.sea classes so shared styles stay untouched. */
+    .game-area { gap: 10px; }
+    .fleets { gap: clamp(14px, 3vw, 30px); }
+    .fleet { text-align: center; }
+    .fleet h2 {
+      display: inline-flex; align-items: center; gap: 6px;
+      margin: 0 0 8px; padding: 4px 12px; border-radius: 999px;
+      font-size: 0.78rem; letter-spacing: 0.14em; text-transform: uppercase;
+      color: #bfe3ff;
+      background: linear-gradient(180deg, rgba(120, 190, 255, 0.16), rgba(120, 190, 255, 0.05));
+      box-shadow: inset 0 0 0 1px rgba(120, 190, 255, 0.22);
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+    }
+    .fleet--you h2::before { content: "⚓"; }
+    .fleet--enemy h2::before { content: "🎯"; }
+    .fleet--enemy h2 {
+      color: #ffd0c2;
+      background: linear-gradient(180deg, rgba(255, 130, 100, 0.16), rgba(255, 130, 100, 0.05));
+      box-shadow: inset 0 0 0 1px rgba(255, 130, 100, 0.24);
+    }
+
+    /* Framed sea panel. */
+    .sea {
+      position: relative;
+      padding: clamp(6px, 1.6vw, 10px);
+      border-radius: 16px;
+      background:
+        radial-gradient(120% 90% at 50% 0%, rgba(90, 170, 240, 0.18), transparent 55%),
+        linear-gradient(180deg, #0b2a44 0%, #071a2c 100%);
+      border: 1px solid rgba(120, 190, 255, 0.22);
+      box-shadow:
+        0 20px 40px rgba(0, 0, 0, 0.5),
+        inset 0 2px 0 rgba(255, 255, 255, 0.08),
+        inset 0 0 0 3px rgba(0, 0, 0, 0.3);
+    }
+    .fleet--enemy .sea {
+      background:
+        radial-gradient(120% 90% at 50% 0%, rgba(255, 120, 90, 0.14), transparent 55%),
+        linear-gradient(180deg, #2a1420 0%, #140a12 100%);
+      border-color: rgba(255, 130, 100, 0.22);
+    }
+    .sea::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      pointer-events: none;
+      background-image:
+        repeating-linear-gradient(0deg, rgba(120, 200, 255, 0.05) 0 1px, transparent 1px 4px),
+        repeating-linear-gradient(90deg, rgba(120, 200, 255, 0.04) 0 1px, transparent 1px 4px);
+      opacity: 0.55;
+    }
+    .sea::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      pointer-events: none;
+      background: radial-gradient(120% 100% at 50% 50%, transparent 62%, rgba(0, 0, 0, 0.28) 100%);
+    }
+
+    /* 10x10 sea grid. */
+    .bboard {
+      --cell: clamp(18px, 4.6vw, 30px);
+      --gap: clamp(1px, 0.35vw, 3px);
+      position: relative;
+      display: grid;
+      grid-template-columns: repeat(10, var(--cell));
+      grid-auto-rows: var(--cell);
+      gap: var(--gap);
+    }
+    .bcell {
+      position: relative;
+      width: var(--cell); height: var(--cell);
+      padding: 0; border: none; border-radius: 4px;
+      display: flex; align-items: center; justify-content: center;
+      font-family: inherit; font-size: calc(var(--cell) * 0.6); font-weight: 800;
+      color: #9fe0ff;
+      background:
+        radial-gradient(circle at 30% 25%, rgba(120, 200, 255, 0.16), transparent 60%),
+        linear-gradient(180deg, #123b5c 0%, #0d2c47 100%);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.08),
+        inset 0 -1px 2px rgba(0, 0, 0, 0.35);
+      cursor: default;
+      transition: background 0.12s ease, box-shadow 0.12s ease, transform 0.12s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #enemy-board .bcell:not(:disabled) { cursor: crosshair; }
+    #enemy-board .bcell:not(:disabled):hover {
+      background:
+        radial-gradient(circle at 50% 50%, rgba(255, 130, 90, 0.32), transparent 65%),
+        linear-gradient(180deg, #1b4a70 0%, #123a5c 100%);
+      box-shadow:
+        inset 0 0 0 2px rgba(255, 140, 100, 0.8),
+        0 0 12px rgba(255, 120, 80, 0.45);
+    }
+    #enemy-board .bcell:not(:disabled):hover::before {
+      content: "";
+      position: absolute;
+      inset: 18%;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 160, 120, 0.9);
+      box-shadow: 0 0 8px rgba(255, 120, 80, 0.6), inset 0 0 6px rgba(255, 120, 80, 0.3);
+      pointer-events: none;
+      z-index: 2;
+    }
+    #enemy-board .bcell:focus-visible { outline: 2px solid var(--accent-2); outline-offset: 1px; z-index: 3; }
+
+    /* Steel hull segments with rivets. */
+    .bcell.ship {
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.24), transparent 45%),
+        linear-gradient(180deg, #93a7bc 0%, #5d7188 55%, #46586d 100%);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.5),
+        inset 0 -2px 3px rgba(0, 0, 0, 0.35),
+        0 1px 2px rgba(0, 0, 0, 0.35);
+      color: #1b2733;
+    }
+    .bcell.ship::before {
+      content: "";
+      position: absolute;
+      left: 50%; top: 50%;
+      width: 18%; height: 18%;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #e2ebf4, #8a9bb0);
+      box-shadow: 0 1px 1px rgba(0, 0, 0, 0.4);
+      opacity: 0.9;
+    }
+
+    /* Fire and splash. */
+    .bcell.hit {
+      background:
+        radial-gradient(circle at 50% 58%, rgba(255, 150, 60, 0.65) 0%, rgba(150, 40, 18, 0.92) 58%, #3a0d08 100%);
+      box-shadow:
+        inset 0 0 8px rgba(255, 210, 140, 0.85),
+        0 0 10px rgba(255, 100, 50, 0.5);
+      color: #fff3d0;
+      text-shadow: 0 1px 2px rgba(80, 10, 0, 0.9);
+      font-size: calc(var(--cell) * 0.62);
+    }
+    .bcell.hit::before {
+      content: "";
+      position: absolute;
+      inset: 12%;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 230, 180, 0.5);
+      box-shadow: inset 0 0 8px rgba(255, 120, 40, 0.7);
+      pointer-events: none;
+    }
+    .bcell.miss {
+      background:
+        radial-gradient(circle at 50% 50%, rgba(180, 230, 255, 0.26) 0%, rgba(30, 80, 120, 0.22) 55%, transparent 75%),
+        linear-gradient(180deg, #0f3352 0%, #0a2740 100%);
+      color: rgba(190, 230, 255, 0.85);
+      font-size: calc(var(--cell) * 0.85);
+    }
+    .bcell.miss::before {
+      content: "";
+      position: absolute;
+      inset: 18%;
+      border-radius: 50%;
+      border: 1px solid rgba(170, 220, 255, 0.35);
+      box-shadow: 0 0 6px rgba(140, 210, 255, 0.25);
+      pointer-events: none;
+    }
+
+    /* Charred wreckage once a ship goes down. */
+    .bcell.sunk {
+      background:
+        radial-gradient(circle at 50% 60%, rgba(255, 120, 50, 0.32) 0%, rgba(60, 20, 12, 0.95) 65%, #1a0806 100%);
+      box-shadow:
+        inset 0 0 10px rgba(0, 0, 0, 0.8),
+        0 0 6px rgba(255, 90, 30, 0.25);
+    }
+    .bcell.sunk::after {
+      content: "";
+      position: absolute;
+      left: 50%; top: 8%;
+      width: 45%; height: 45%;
+      transform: translateX(-50%);
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(130, 130, 140, 0.45), transparent 70%);
+      filter: blur(2px);
+      pointer-events: none;
+    }
+
+    /* Latest-shot feedback. */
+    .bcell.just-hit { animation: bcellHit 0.5s ease; }
+    @keyframes bcellHit {
+      0% { transform: scale(0.7); filter: brightness(2); }
+      45% { transform: scale(1.12); }
+      100% { transform: scale(1); filter: brightness(1); }
+    }
+    .bcell.just-miss { animation: bcellMiss 0.45s ease; }
+    @keyframes bcellMiss {
+      0% { transform: scale(0.6); opacity: 0.4; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .float-text {
+      position: absolute; z-index: 5; pointer-events: none;
+      font-weight: 800; font-size: clamp(0.8rem, 2.6vw, 1.05rem);
+      color: var(--accent-2);
+      text-shadow: 0 2px 6px rgba(0, 0, 0, 0.7);
+      animation: floatUp 1.1s ease forwards; transform: translate(-50%, 0);
+      white-space: nowrap;
+    }
+    @keyframes floatUp {
+      0% { opacity: 1; transform: translate(-50%, 0); }
+      100% { opacity: 0; transform: translate(-50%, -30px); }
+    }
+
+    /* Turn banner dot. */
+    #turn-label { display: inline-flex; align-items: center; gap: 8px; }
+    #turn-label::before {
+      content: "";
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #5ee0a0;
+      box-shadow: 0 0 8px #5ee0a0;
+      opacity: 0.3;
+      transition: opacity 0.2s ease;
+    }
+    #turn-label.turn-label--live::before { animation: turnPulse 1.4s ease-in-out infinite; }
+    @keyframes turnPulse {
+      0%, 100% { opacity: 0.35; transform: scale(0.9); }
+      50% { opacity: 1; transform: scale(1.15); }
+    }
+
+    /* Launch-style primary button. */
+    #start-battle {
+      background: linear-gradient(180deg, #ff9a5a, #f2542d 60%, #c73a1d);
+      color: #2a0d05;
+      box-shadow: 0 4px 0 #8f2a12, 0 10px 22px rgba(242, 84, 45, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    }
+    #start-battle:hover {
+      box-shadow: 0 6px 0 #8f2a12, 0 14px 26px rgba(242, 84, 45, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    }
+    #start-battle:active { box-shadow: 0 2px 0 #8f2a12, inset 0 1px 0 rgba(255, 255, 255, 0.5); }
+    #randomize {
+      background: linear-gradient(180deg, rgba(120, 220, 190, 0.22), rgba(60, 140, 120, 0.12));
+      color: #bff5e4;
+      box-shadow: inset 0 0 0 1px rgba(120, 220, 190, 0.3);
+    }
+
+    @media (max-width: 430px) {
+      .fleets { gap: 14px; }
+      .fleet h2 { font-size: 0.68rem; padding: 3px 10px; }
+      .sea { border-radius: 12px; padding: 5px; }
+      .game-controls { gap: 8px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .bcell { transition: none; }
+      .bcell.just-hit, .bcell.just-miss, #turn-label.turn-label--live::before { animation: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="game-shell">
+    <header class="game-header">
+      <a class="back-btn" href="../../index.html">← Back to Games</a>
+      <h1>Sea Battle</h1>
+      <span class="game-header__spacer"></span>
+      <button class="icon-btn" id="sound-btn" type="button" aria-pressed="true" aria-label="Mute sound" title="Mute sound">
+        <span id="sound-icon" aria-hidden="true">🔊</span>
+      </button>
+      <button class="icon-btn" id="badges-btn" type="button" aria-label="Badges and achievements" title="Badges &amp; achievements">
+        <span aria-hidden="true">🏆</span><span class="icon-btn__count" id="badge-count">0</span>
+      </button>
+    </header>
+    <main class="game-area">
+      <div class="status-bar" aria-live="polite">
+        <div class="status-bar__item"><span class="status-bar__label">Wins</span><span id="wins" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Streak</span><span id="streak" class="status-bar__value">0</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Your Ships</span><span id="your-ships" class="status-bar__value">5</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Enemy Ships</span><span id="enemy-ships" class="status-bar__value">5</span></div>
+      </div>
+      <p id="turn-label" class="game-info__title">Place your fleet!</p>
+      <div class="fleets">
+        <div class="fleet fleet--you">
+          <h2>Your Waters</h2>
+          <div class="sea">
+            <div id="your-board" class="bboard" aria-label="Your waters"></div>
+          </div>
+        </div>
+        <div class="fleet fleet--enemy">
+          <h2>Enemy Waters</h2>
+          <div class="sea">
+            <div id="enemy-board" class="bboard" aria-label="Enemy waters"></div>
+          </div>
+        </div>
+      </div>
+      <div class="game-controls">
+        <button id="randomize" class="btn btn--ghost">Randomize Fleet</button>
+        <button id="start-battle" class="btn">Start Battle</button>
+        <button id="badges2" class="btn btn--ghost" type="button">🏆 Badges</button>
+      </div>
+      <p class="game-info__hint">1) Randomize your fleet. 2) Press Start Battle. 3) Click Enemy Waters to fire. Hit 🔥 and sink all 5 enemy ships before the CPU sinks yours! Esc or P pauses.</p>
+    </main>
+  </div>
+
+  <div class="snake-toasts" id="toasts" aria-live="polite"></div>
+
+  <div class="snake-modal" id="achv-modal" hidden>
+    <div class="snake-modal__backdrop" data-close></div>
+    <div class="snake-modal__panel" role="dialog" aria-modal="true" aria-labelledby="achv-title">
+      <header class="snake-modal__head">
+        <h2 id="achv-title">🏆 Badges <small id="achv-count">0 / 0</small></h2>
+        <button class="icon-btn" type="button" data-close aria-label="Close badges">✕</button>
+      </header>
+      <div class="achv-records" id="achv-records"></div>
+      <div class="achv-grid" id="achv-grid"></div>
+    </div>
+  </div>
+
+  <script src="../../js/arcade-core.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

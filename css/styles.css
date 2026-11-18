@@ -1,5 +1,5 @@
 /* ============================================================
-   Offline Arcade — shared styles
+   Fel's Offline Arcade — shared styles
    Modern candy-aurora theme. Pure CSS, no dependencies.
    Works fully offline via file://
    ============================================================ */
@@ -801,7 +801,7 @@ canvas {
 }
 .overlay__box p { color: var(--muted); margin: 0 0 20px; font-size: 1.02rem; }
 
-/* Grid-based board games (Tic-Tac-Toe, Connect Four, Memory, etc.) */
+/* Grid-based board games (Tic-Tac-Toe, Four in a Row, Memory, etc.) */
 .board {
   display: grid;
   gap: 6px;
@@ -1275,7 +1275,7 @@ body.modal-open { overflow: hidden; }
   .back-btn { padding: 7px 12px; font-size: 0.82rem; }
 }
 
-/* ---------- Tetris ---------- */
+/* ---------- Block Drop ---------- */
 .tetris-layout {
   display: flex;
   gap: 18px;
@@ -2665,7 +2665,7 @@ body.modal-open { overflow: hidden; }
   .wam-hole__critter { font-size: 1.75rem; }
 }
 
-/* ---------- Simon ---------- */
+/* ---------- Echo ---------- */
 .simon-wrap {
   position: relative;
   width: min(440px, 92vw);
@@ -3038,7 +3038,7 @@ body.modal-open { overflow: hidden; }
   .ttt-cell { border-radius: 12px; }
 }
 
-/* ---------- Boggle ---------- */
+/* ---------- Letter Grid ---------- */
 .bg-layout {
   display: flex;
   gap: 20px;

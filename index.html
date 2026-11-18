@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Offline Arcade</title>
+  <title>Fel's Offline Arcade</title>
   <meta name="description" content="A free offline arcade of browser games — no internet, no ads, just play.">
   <meta property="og:type" content="website">
-  <meta property="og:title" content="Offline Arcade — 64 free browser games">
+  <meta property="og:title" content="Fel's Offline Arcade — 64 free browser games">
   <meta property="og:description" content="A self-contained, fully offline collection of 64 browser games. No server, no build step, no ads — just open index.html and play.">
   <meta name="twitter:card" content="summary">
-  <meta name="twitter:title" content="Offline Arcade — 64 free browser games">
+  <meta name="twitter:title" content="Fel's Offline Arcade — 64 free browser games">
   <meta name="twitter:description" content="64 browser games that run fully offline. No dependencies, no ads.">
   <meta name="theme-color" content="#0e0e11">
   <meta name="color-scheme" content="dark light">
@@ -42,7 +42,7 @@
   <div class="portal">
     <main>
       <section class="portal__hero">
-        <h1 class="portal__logo"><span aria-hidden="true">🎮</span> Offline Arcade</h1>
+        <h1 class="portal__logo"><span aria-hidden="true">🎮</span> Fel's Offline Arcade</h1>
         <p class="portal__tagline">A bunch of games to play — no internet, no ads, just play.</p>
       </section>
 
@@ -118,66 +118,66 @@
       // filters, and search all update automatically.
       const GAMES = [
         { name: "snake", display: "Snake", emoji: "🐍", category: "Arcade", desc: "Eat, chain combos, unlock badges — or race an AI snake.", url: "games/snake/index.html" },
-        { name: "tetris", display: "Tetris", emoji: "🧱", category: "Puzzle", desc: "Marathon, Sprint 40, or race an AI rival — combos and 24 badges.", url: "games/tetris/index.html" },
+        { name: "block-drop", display: "Block Drop", emoji: "🧱", category: "Puzzle", desc: "Marathon, Sprint 40, or race an AI rival — combos and 24 badges.", url: "games/block-drop/index.html" },
         { name: "minesweeper", display: "Minesweeper", emoji: "💣", category: "Logic", desc: "Classic, Time Attack, Daily or Zen — chording, 27 badges.", url: "games/minesweeper/index.html" },
         { name: "sudoku", display: "Sudoku", emoji: "🔢", category: "Puzzle", desc: "Classic, Time Attack, Daily or X-Sudoku — notes, hints, 28 badges.", url: "games/sudoku/index.html" },
         { name: "super-sudoku", display: "Super Sudoku", emoji: "🔢", category: "Puzzle", desc: "Five overlapping cards — solve all five.", url: "games/super-sudoku/index.html" },
         { name: "kakuro", display: "Kakuro", emoji: "🧮", category: "Puzzle", desc: "Fill each run so it matches the clue sums.", url: "games/kakuro/index.html" },
         { name: "2048", display: "2048", emoji: "🔢", category: "Puzzle", desc: "Merge tiles — 3 sizes, undo, 24 badges.", url: "games/2048/index.html" },
         { name: "memory", display: "Memory", emoji: "🧠", category: "Pattern", desc: "Flip pairs — 4 modes, 3 sizes, 24 badges.", url: "games/memory/index.html" },
-        { name: "connect-four", display: "Connect Four", emoji: "🔴", category: "Strategy", desc: "Line up four discs vs the computer — 14 badges.", url: "games/connect-four/index.html" },
+        { name: "four-in-a-row", display: "Four in a Row", emoji: "🔴", category: "Strategy", desc: "Line up four discs vs the computer — 14 badges.", url: "games/four-in-a-row/index.html" },
         { name: "gomoku", display: "Gomoku", emoji: "🔵", category: "Strategy", desc: "Five in a row vs the computer — 14 badges.", url: "games/gomoku/index.html" },
         { name: "mancala", display: "Mancala", emoji: "🪨", category: "Strategy", desc: "Sow and capture stones vs the computer — 14 badges.", url: "games/mancala/index.html" },
         { name: "farkle", display: "Farkle", emoji: "🎰", category: "Dice", desc: "Push your luck — reach 3000 in 10 turns. 14 badges.", url: "games/farkle/index.html" },
         { name: "video-poker", display: "Video Poker", emoji: "🎴", category: "Card", desc: "Jacks or Better — hold, draw, hit the target. 14 badges.", url: "games/video-poker/index.html" },
         { name: "freecell", display: "FreeCell", emoji: "♣️", category: "Card", desc: "Classic open solitaire — free cells, foundations, undo. 14 badges.", url: "games/freecell/index.html" },
         { name: "nine-mens-morris", display: "Nine Men's Morris", emoji: "⚪", category: "Strategy", desc: "Form mills, remove pieces, outthink the CPU. 14 badges.", url: "games/nine-mens-morris/index.html" },
-        { name: "space-invaders", display: "Space Invaders", emoji: "👾", category: "Arcade", desc: "Defend Earth from waves of descending aliens — 14 badges.", url: "games/space-invaders/index.html" },
+        { name: "alien-attack", display: "Alien Attack", emoji: "👾", category: "Arcade", desc: "Defend Earth from waves of descending aliens — 14 badges.", url: "games/alien-attack/index.html" },
         { name: "match-3", display: "Match 3", emoji: "💎", category: "Puzzle", desc: "Swap gems, match three, chain cascades — 14 badges.", url: "games/match-3/index.html" },
         { name: "maze-chase", display: "Maze Chase", emoji: "🟡", category: "Arcade", desc: "Eat the dots, dodge the ghosts, grab power pellets — 14 badges.", url: "games/maze-chase/index.html" },
         { name: "aim-trainer", display: "Aim Trainer", emoji: "🖱️", category: "Reflex", desc: "Click the targets fast — chase accuracy and reaction time — 14 badges.", url: "games/aim-trainer/index.html" },
-        { name: "rush-hour", display: "Rush Hour", emoji: "🚗", category: "Puzzle", desc: "Slide the cars, free the red car — 12 levels, 14 badges.", url: "games/rush-hour/index.html" },
-        { name: "kenken", display: "KenKen", emoji: "🔢", category: "Puzzle", desc: "Fill the grid, satisfy every cage — 12 puzzles, 14 badges.", url: "games/kenken/index.html" },
-        { name: "ruzzle", display: "Ruzzle", emoji: "🔤", category: "Word", desc: "Trace words across the grid before time runs out — 14 badges.", url: "games/ruzzle/index.html" },
+        { name: "traffic-jam", display: "Traffic Jam", emoji: "🚗", category: "Puzzle", desc: "Slide the cars, free the red car — 12 levels, 14 badges.", url: "games/traffic-jam/index.html" },
+        { name: "math-cages", display: "Math Cages", emoji: "🔢", category: "Puzzle", desc: "Fill the grid, satisfy every cage — 12 puzzles, 14 badges.", url: "games/math-cages/index.html" },
+        { name: "word-trace", display: "Word Trace", emoji: "🔤", category: "Word", desc: "Trace words across the grid before time runs out — 14 badges.", url: "games/word-trace/index.html" },
         { name: "go", display: "Go", emoji: "⚫", category: "Strategy", desc: "Place stones, surround territory, outplay the CPU on 9×9 — 14 badges.", url: "games/go/index.html" },
         { name: "backgammon", display: "Backgammon", emoji: "🎲", category: "Board", desc: "Race home, hit blots, bear off — classic backgammon vs the CPU — 14 badges.", url: "games/backgammon/index.html" },
         { name: "tower-defense", display: "Tower Defense", emoji: "🏰", category: "Strategy", desc: "Build towers, stop the waves, protect the base — 14 badges.", url: "games/tower-defense/index.html" },
         { name: "rune-defense", display: "Rune Defense", emoji: "🔮", category: "Strategy", desc: "Advanced tower defense — 8 rune towers, status effects, 15 waves and a boss — 14 badges.", url: "games/rune-defense/index.html" },
         { name: "hearts", display: "Hearts", emoji: "🃏", category: "Card", desc: "Dodge hearts and the queen, shoot the moon — 4-player hearts — 14 badges.", url: "games/hearts/index.html" },
         { name: "tic-tac-toe", display: "Tic-Tac-Toe", emoji: "❌", category: "Strategy", desc: "Perfect AI, 3 levels + 2-player — 24 badges.", url: "games/tic-tac-toe/index.html" },
-        { name: "pong", display: "Pong", emoji: "🏓", category: "Arcade", desc: "The classic two-paddle duel — 14 badges.", url: "games/pong/index.html" },
-        { name: "breakout", display: "Breakout", emoji: "🧨", category: "Arcade", desc: "Bounce the ball and smash every brick — 14 badges.", url: "games/breakout/index.html" },
+        { name: "paddle-ball", display: "Paddle Ball", emoji: "🏓", category: "Arcade", desc: "The classic two-paddle duel — 14 badges.", url: "games/paddle-ball/index.html" },
+        { name: "brick-breaker", display: "Brick Breaker", emoji: "🧨", category: "Arcade", desc: "Bounce the ball and smash every brick — 14 badges.", url: "games/brick-breaker/index.html" },
         { name: "whack-a-mole", display: "Whack-a-Mole", emoji: "🔨", category: "Reflex", desc: "Whack moles, chain combos — 4 modes, 24 badges.", url: "games/whack-a-mole/index.html" },
         { name: "blackjack", display: "Blackjack", emoji: "♠️", category: "Card", desc: "Get to 21 without busting — beat the dealer. 14 badges.", url: "games/blackjack/index.html" },
         { name: "chess", display: "Chess", emoji: "♟️", category: "Strategy", desc: "The classic strategy duel — vs an unbeatable-ish AI. 14 badges.", url: "games/chess/index.html" },
         { name: "solitaire", display: "Solitaire", emoji: "🃏", category: "Card", desc: "Klondike: stack the suits A→K and clear the board. 14 badges.", url: "games/solitaire/index.html" },
         { name: "minesweeper-variants", display: "Minesweeper Variants", emoji: "🚩", category: "Logic", desc: "Classic flood-fill or Saturation mode. 14 badges.", url: "games/minesweeper-variants/index.html" },
-        { name: "tron", display: "Tron", emoji: "🏍️", category: "Arcade", desc: "Light-cycle duel — leave a trail, crash last. 14 badges.", url: "games/tron/index.html" },
+        { name: "light-trails", display: "Light Trails", emoji: "🏍️", category: "Arcade", desc: "Light-trail duel — leave a trail, crash last. 14 badges.", url: "games/light-trails/index.html" },
         { name: "checkers", display: "Checkers", emoji: "🟠", category: "Strategy", desc: "Men jump, kings rule — beat the computer. 14 badges.", url: "games/checkers/index.html" },
         { name: "dominoes", display: "Dominoes", emoji: "🁫", category: "Strategy", desc: "Draw, Block or All Fives — beat the computer, 24 badges.", url: "games/dominoes/index.html" },
-        { name: "othello", display: "Othello", emoji: "⚫", category: "Strategy", desc: "Flip discs to your colour — outflank the AI. 14 badges.", url: "games/othello/index.html" },
-        { name: "battleship", display: "Battleship", emoji: "🚢", category: "Strategy", desc: "Hunt and sink the enemy fleet at sea. 14 badges.", url: "games/battleship/index.html" },
+        { name: "reversi", display: "Reversi", emoji: "⚫", category: "Strategy", desc: "Flip discs to your colour — outflank the AI. 14 badges.", url: "games/reversi/index.html" },
+        { name: "sea-battle", display: "Sea Battle", emoji: "🚢", category: "Strategy", desc: "Hunt and sink the enemy fleet at sea. 14 badges.", url: "games/sea-battle/index.html" },
         { name: "nim", display: "Nim", emoji: "🪙", category: "Strategy", desc: "Take 1–3 counters vs a perfect CPU — 14 badges.", url: "games/nim/index.html" },
         { name: "dots-and-boxes", display: "Dots & Boxes", emoji: "🔷", category: "Strategy", desc: "Draw lines, trap boxes, beat the AI. 14 badges.", url: "games/dots-and-boxes/index.html" },
         { name: "nonogram", display: "Nonogram", emoji: "🧩", category: "Logic", desc: "Solve the picture from the number clues. 14 badges.", url: "games/nonogram/index.html" },
         { name: "grand-tour", display: "Grand Tour", emoji: "🌀", category: "Logic", desc: "Draw one loop through every dot — 4 difficulties, 24 badges.", url: "games/grand-tour/index.html" },
-        { name: "word tile", display: "Word Tile", emoji: "🔤", category: "Word", desc: "Guess the 5-letter word in 6 tries — 14 badges.", url: "games/wordle/index.html" },
+        { name: "word-tile", display: "Word Tile", emoji: "🔤", category: "Word", desc: "Guess the 5-letter word in 6 tries — 14 badges.", url: "games/word-tile/index.html" },
         { name: "lights-out", display: "Lights Out", emoji: "💡", category: "Puzzle", desc: "One click toggles a cross — 3 sizes, 24 badges.", url: "games/lights-out/index.html" },
         { name: "fifteen-puzzle", display: "15 Puzzle", emoji: "🧮", category: "Puzzle", desc: "Slide into order — 3 sizes, hints, 24 badges.", url: "games/fifteen-puzzle/index.html" },
         { name: "flow", display: "Flow", emoji: "🌈", category: "Puzzle", desc: "Connect the pipes — fill every cell. 14 badges.", url: "games/flow-puzzle/index.html" },
-        { name: "simon", display: "Simon", emoji: "🎵", category: "Reflex", desc: "Repeat the sequence — 4 modes, 3 pad sets, 24 badges.", url: "games/simon/index.html" },
-        { name: "yahtzee", display: "Yahtzee", emoji: "🎲", category: "Dice", desc: "Roll, hold, and score a 13-turn game. 14 badges.", url: "games/yahtzee/index.html" },
+        { name: "echo", display: "Echo", emoji: "🎵", category: "Reflex", desc: "Repeat the sequence — 4 modes, 3 pad sets, 24 badges.", url: "games/echo/index.html" },
+        { name: "yacht-dice", display: "Yacht Dice", emoji: "🎲", category: "Dice", desc: "Roll, hold, and score a 13-turn game. 14 badges.", url: "games/yacht-dice/index.html" },
         { name: "stack", display: "Stack", emoji: "🏗️", category: "Arcade", desc: "Drop blocks onto the tower — stack high. 14 badges.", url: "games/stack/index.html" },
         { name: "flappy", display: "Flappy", emoji: "🐤", category: "Arcade", desc: "Flap through pipes in five modes — Classic, Sprint, Hard, Zen and Daily. 14 badges.", url: "games/flappy/index.html" },
-        { name: "frogger", display: "Frogger", emoji: "🐸", category: "Arcade", desc: "Dodge traffic, ride logs, fill five bays across five modes — 25 badges.", url: "games/frogger/index.html" },
+        { name: "road-hopper", display: "Road Hopper", emoji: "🐸", category: "Arcade", desc: "Dodge traffic, ride logs, fill five bays across five modes — 25 badges.", url: "games/road-hopper/index.html" },
         { name: "word-search", display: "Word Search", emoji: "🔍", category: "Word", desc: "Find the hidden words in a letter jungle. 14 badges.", url: "games/word-search/index.html" },
-        { name: "boggle", display: "Boggle", emoji: "🔡", category: "Word", desc: "Connect adjacent letters — 4×4 and 5×5, 24 badges.", url: "games/boggle/index.html" },
+        { name: "letter-grid", display: "Letter Grid", emoji: "🔡", category: "Word", desc: "Connect adjacent letters — 4×4 and 5×5, 24 badges.", url: "games/letter-grid/index.html" },
         { name: "hangman", display: "Hangman", emoji: "🪢", category: "Word", desc: "Guess the word before the drawing is done. 14 badges.", url: "games/hangman/index.html" },
         { name: "jumble", display: "Jumble", emoji: "🔀", category: "Word", desc: "Unscramble the letters using the clue. 14 badges.", url: "games/jumble/index.html" },
         { name: "word-ladder", display: "Word Ladder", emoji: "🪜", category: "Word", desc: "Change one letter at a time to reach the goal. 14 badges.", url: "games/word-ladder/index.html" },
         { name: "cryptogram", display: "Cryptogram", emoji: "🕵️", category: "Word", desc: "Decode the secret message, letter by letter. 14 badges.", url: "games/cryptogram/index.html" },
         { name: "word square", display: "Word Square", emoji: "🔠", category: "Word", desc: "Fill the grid — every row and column is a word. 14 badges.", url: "games/word-square/index.html" },
-        { name: "mastermind", display: "Mastermind", emoji: "🎯", category: "Logic", desc: "Crack the secret color code by logic — 14 badges.", url: "games/mastermind/index.html" },
+        { name: "code-breaker", display: "Code Breaker", emoji: "🎯", category: "Logic", desc: "Crack the secret color code by logic — 14 badges.", url: "games/code-breaker/index.html" },
         { name: "tower-of-hanoi", display: "Tower of Hanoi", emoji: "🗼", category: "Puzzle", desc: "Move the tower one ring at a time — 14 badges.", url: "games/tower-of-hanoi/index.html" },
         { name: "peg-solitaire", display: "Peg Solitaire", emoji: "🟢", category: "Puzzle", desc: "Jump and remove, leave one peg standing — 14 badges.", url: "games/peg-solitaire/index.html" },
         { name: "sokoban", display: "Sokoban", emoji: "📦", category: "Puzzle", desc: "Push every box onto a target — 14 badges.", url: "games/sokoban/index.html" },

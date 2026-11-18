@@ -1,4 +1,4 @@
-# Contributing to Offline Arcade
+# Contributing to Fel's Offline Arcade
 
 Thanks for your interest! This project is a collection of small, self-contained
 browser games. Adding a game or fixing a bug is meant to be straightforward — no
