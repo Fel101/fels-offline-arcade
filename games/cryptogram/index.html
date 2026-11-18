@@ -87,6 +87,62 @@
       color: var(--accent);
       cursor: default;
     }
+    .crypto-slot.correct {
+      border-color: var(--accent);
+      background: linear-gradient(180deg, #24544a, #1c423a);
+      box-shadow: 0 0 12px rgba(77, 227, 195, 0.35), inset 0 0 8px rgba(77, 227, 195, 0.25);
+    }
+    .crypto-slot.correct.locked { color: var(--accent); }
+
+    /* Plain-language rules with a worked substitution example. */
+    .crypto-guide {
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      background: linear-gradient(170deg, rgba(255,255,255,0.09), rgba(255,255,255,0.03));
+      padding: 10px 14px;
+      max-width: 760px;
+      margin: 0 auto;
+    }
+    .crypto-guide summary {
+      cursor: pointer;
+      font-weight: 800;
+      font-size: 0.95rem;
+      color: var(--accent-2);
+    }
+    .crypto-guide__body { font-size: 0.85rem; line-height: 1.5; color: var(--muted); }
+    .crypto-guide__body b { color: var(--text); }
+    .crypto-guide__body p { margin: 8px 0; }
+    .crypto-guide__body ul { margin: 6px 0; padding-left: 18px; }
+    .crypto-guide__example {
+      display: inline-flex;
+      gap: 14px;
+      margin: 6px 0;
+      font-weight: 800;
+      letter-spacing: 2px;
+      color: var(--accent);
+    }
+    .crypto-guide__example em { font-style: normal; color: var(--muted); }
+    .crypto-freq {
+      border: 1px solid var(--glass-border);
+      border-radius: 12px;
+      padding: 8px 12px;
+      max-width: 760px;
+      margin: 0 auto;
+      font-size: 0.82rem;
+    }
+    .crypto-freq summary { cursor: pointer; font-weight: 700; color: var(--accent-2); }
+    .crypto-freq__list { display: flex; flex-wrap: wrap; gap: 6px 10px; margin-top: 8px; }
+    .crypto-freq__list span {
+      border-radius: 999px;
+      padding: 2px 8px;
+      background: rgba(255,255,255,0.07);
+      font-variant-numeric: tabular-nums;
+    }
+    .crypto-freq__list b { color: var(--accent); }
+    @media (max-width: 520px) {
+      .crypto-guide, .crypto-freq { padding: 8px 10px; }
+      .crypto-guide__example { font-size: 0.85rem; gap: 8px; letter-spacing: 1px; }
+    }
     .keyboard {
       display: flex;
       flex-direction: column;
@@ -139,17 +195,39 @@
         <div class="status-bar__item"><span class="status-bar__label">Solved</span><span id="solves" class="status-bar__value">0</span></div>
         <div class="status-bar__item"><span class="status-bar__label">Time</span><span id="time" class="status-bar__value">0</span></div>
         <div class="status-bar__item"><span class="status-bar__label">Best</span><span id="best" class="status-bar__value">—</span></div>
+        <div class="status-bar__item"><span class="status-bar__label">Decoded</span><span id="decoded" class="status-bar__value">0/0</span></div>
       </div>
+
+      <details class="crypto-guide" id="guide" open>
+        <summary>How to play</summary>
+        <div class="crypto-guide__body">
+          <p>Each cipher letter stands for one real letter, and <b>the same cipher letter always means the same real letter</b>. Click any box, then type a letter — every matching cipher letter is filled in at once. Correct guesses glow green.</p>
+          <p class="crypto-guide__example"><span>WKH FDW</span><em>→</em><span>THE CAT</span></p>
+          <ul>
+            <li>A one-letter word is almost always <b>A</b> or <b>I</b>.</li>
+            <li>Look for common short words like <b>THE</b>, <b>AND</b> and <b>IS</b>.</li>
+            <li>Stuck? <b>Reveal word</b> solves a short word for you; <b>Hint</b> reveals one letter. Both lock their letters and count as hints.</li>
+            <li>Open <b>Letter frequencies</b> below to see which cipher letters appear most often — in English those are usually E, T and A.</li>
+            <li>Type A–Z or use the on-screen keyboard. Backspace clears, Esc pauses.</li>
+          </ul>
+        </div>
+      </details>
+
       <p class="game-info__hint source-line">source: <span id="source">proverb</span></p>
       <div id="board" class="crypto-board" aria-label="Cipher grid"></div>
       <div id="keyboard" class="keyboard" aria-label="Letter keyboard"></div>
+      <details class="crypto-freq" id="freq-panel">
+        <summary>🔤 Letter frequencies</summary>
+        <div id="freq" class="crypto-freq__list"></div>
+      </details>
       <div class="game-controls">
-        <button id="hint" class="btn btn--ghost">Hint</button>
+        <button id="hint" class="btn btn--ghost">💡 Hint (letter)</button>
+        <button id="reveal-word" class="btn btn--ghost" type="button" title="Reveal the shortest unsolved word">📖 Reveal word</button>
         <button id="reset" class="btn btn--ghost">Reset</button>
         <button id="new-puzzle" class="btn">New Puzzle</button>
         <button id="badges2" class="btn btn--ghost" type="button">🏆 Badges</button>
       </div>
-      <p class="game-info__hint">Click a box, then type a letter. Every matching cipher letter fills in at once. Esc pauses.</p>
+      <p class="game-info__hint">Click a box, then type a letter — every match fills in at once. Green means correct. Open “How to play” for tips.</p>
     </main>
   </div>
 

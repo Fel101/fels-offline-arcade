@@ -28,8 +28,11 @@
   const timeEl = dom.byId("time");
   const bestEl = dom.byId("best");
   const sourceEl = dom.byId("source");
+  const decodedEl = dom.byId("decoded");
+  const freqEl = dom.byId("freq");
 
   const hintBtn = dom.byId("hint");
+  const revealWordBtn = dom.byId("reveal-word");
   const resetBtn = dom.byId("reset");
   const newBtn = dom.byId("new-puzzle");
 
@@ -333,12 +336,22 @@
   }
 
   function refreshSlots() {
-    for (const { cipher: c, slot } of cells) {
+    for (const { cipher: c, plain, slot } of cells) {
+      const correct = !!mapping[c] && mapping[c] === plain;
       slot.textContent = mapping[c] || "";
       slot.classList.toggle("selected", c === selected);
       slot.classList.toggle("locked", hinted.has(c));
+      slot.classList.toggle("correct", correct);
       slot.disabled = hinted.has(c);
-      slot.setAttribute("aria-label", `Cipher ${c}${mapping[c] ? ", " + mapping[c] : ", empty"}`);
+      slot.setAttribute(
+        "aria-label",
+        `Cipher ${c}${mapping[c] ? ", " + mapping[c] : ", empty"}${correct ? ", correct" : ""}`
+      );
+    }
+    if (decodedEl) {
+      const unique = uniqueCipherLetters();
+      const done = unique.filter((c) => mapping[c] === plainOf[c]).length;
+      decodedEl.textContent = done + "/" + unique.length;
     }
   }
 
@@ -389,6 +402,58 @@
     checkAchievements();
     winCheck();
     return true;
+  }
+
+  // Reveal the whole shortest unsolved word — a genuine foothold, since a
+  // one- or two-letter word is usually the easiest place to start.
+  function revealWord() {
+    if (solved || paused) return 0;
+    const words = quote.text.split(" ");
+    const options = [];
+    for (let w = 0; w < words.length; w++) {
+      const letters = [...new Set(words[w].split("").map((p) => cipher[p]))].filter(
+        (c) => c && !hinted.has(c)
+      );
+      if (!letters.length) continue;
+      if (letters.every((c) => mapping[c] === plainOf[c])) continue;
+      options.push({ index: w, len: words[w].length, letters });
+    }
+    if (!options.length) {
+      sfx("error");
+      return 0;
+    }
+    options.sort((a, b) => a.len - b.len || a.index - b.index);
+    let changed = 0;
+    for (const c of options[0].letters) {
+      mapping[c] = plainOf[c];
+      hinted.add(c);
+      hintsThisPuzzle++;
+      stats.hints++;
+      changed++;
+    }
+    if (!changed) return 0;
+    saveStats();
+    refreshSlots();
+    sfx("hint");
+    checkAchievements();
+    winCheck();
+    return changed;
+  }
+
+  // Classic cryptogram aid: how often each cipher letter occurs.
+  function frequencies() {
+    const counts = {};
+    for (const cell of cells) counts[cell.cipher] = (counts[cell.cipher] || 0) + 1;
+    return Object.keys(counts)
+      .map((letter) => ({ letter, count: counts[letter] }))
+      .sort((a, b) => b.count - a.count || a.letter.localeCompare(b.letter));
+  }
+
+  function renderFreq() {
+    if (!freqEl) return;
+    freqEl.innerHTML = frequencies()
+      .map((f) => `<span><b>${f.letter}</b> ${f.count}</span>`)
+      .join("");
   }
 
   function reset() {
@@ -527,6 +592,7 @@
     sourceEl.textContent = quote.source;
     hideOverlay();
     renderBoard();
+    renderFreq();
     startTimer();
     updateStatus();
   }
@@ -579,6 +645,12 @@
       sfx("click");
       hint();
     });
+    if (revealWordBtn)
+      revealWordBtn.addEventListener("click", () => {
+        audio.unlock();
+        sfx("click");
+        revealWord();
+      });
     resetBtn.addEventListener("click", () => {
       audio.unlock();
       sfx("click");
@@ -677,6 +749,8 @@
     type: typeLetter,
     clearSelected,
     hint,
+    revealWord,
+    frequencies,
     reset,
     newGame,
     solve: () => {

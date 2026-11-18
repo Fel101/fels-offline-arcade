@@ -111,7 +111,7 @@ function makeEl(tag = "div", id = "") {
 }
 
 const ids = [
-  "board", "keyboard", "solves", "time", "best", "source", "hint", "reset", "new-puzzle",
+  "board", "keyboard", "solves", "time", "best", "source", "decoded", "freq", "hint", "reveal-word", "reset", "new-puzzle",
   "badges-btn", "badge-count", "badges2", "sound-btn", "sound-icon", "toasts",
   "achv-modal", "achv-grid", "achv-count", "achv-records",
 ];
@@ -585,6 +585,62 @@ function loadQuote(text, source) {
   eq(elements.get("best").textContent, "0:30", "best HUD");
   ok(storage.has("cryptogram-stats-v1"), "stats persisted");
   ok(storage.has("cryptogram-achv-v1"), "badges persisted");
+}
+
+// ---------- P. Onboarding: correctness feedback, word reveal, frequencies ----------
+{
+  const html = fs.readFileSync(dir + "index.html", "utf8");
+  ok(html.indexOf("How to play") !== -1, "the guide is present");
+  ok(html.indexOf("WKH FDW") !== -1, "the worked substitution example is present");
+  ok(html.indexOf("Letter frequencies") !== -1, "frequency help is present");
+
+  loadQuote("A FRIEND IN NEED", "test");
+  const total = T.snap().unique;
+  eq(elements.get("decoded").textContent, "0/" + total, "the decoded readout starts empty");
+
+  function slotFor(c) {
+    for (const w of elements.get("board").children) {
+      for (const cell of w.children) {
+        const slot = cell.children[1];
+        if (slot && slot.dataset.cipher === c) return slot;
+      }
+    }
+    return null;
+  }
+
+  const cA = T.snap().cipher["A"];
+  T.select(cA);
+  T.type("X");
+  eq(slotFor(cA).classList.contains("correct"), false, "a wrong guess is not marked correct");
+  eq(elements.get("decoded").textContent, "0/" + total, "a wrong guess does not raise the count");
+  T.type("A");
+  eq(slotFor(cA).classList.contains("correct"), true, "a correct guess glows green");
+  eq(elements.get("decoded").textContent, "1/" + total, "a correct guess raises the count");
+
+  // Revealing a word starts with the shortest one ("A"), then locks it.
+  loadQuote("A FRIEND IN NEED", "test");
+  const hintsBefore = T.stats.hints;
+  ok(T.revealWord() >= 1, "Reveal word reveals letters");
+  ok(T.stats.hints >= hintsBefore + 1, "revealing a word counts as hints");
+  eq(T.mapping[T.snap().cipher["A"]], "A", "the one-letter word is revealed first");
+  ok(T.hinted.includes(T.snap().cipher["A"]), "the revealed letter is locked");
+  ok(T.revealWord() >= 1, "a second word can be revealed");
+
+  // Frequency table is a real cryptogram aid.
+  const freq = T.frequencies();
+  eq(freq.length, T.snap().unique, "one frequency entry per cipher letter");
+  eq(freq.reduce((n, f) => n + f.count, 0), T.snap().cells, "counts add up to every cell");
+  ok(freq[0].count >= freq[freq.length - 1].count, "frequencies are sorted highest first");
+  ok(elements.get("freq").innerHTML.indexOf("<b>") !== -1, "the frequency panel is rendered");
+
+  // The button is wired and the aid is blocked after a solve.
+  loadQuote("HELLO WORLD", "test");
+  const h = T.stats.hints;
+  elements.get("reveal-word").dispatch("click");
+  ok(T.stats.hints > h, "Reveal word button works");
+  loadQuote("HELLO WORLD", "test");
+  eq(T.solve(), true, "the puzzle can still be solved normally");
+  eq(T.revealWord(), 0, "no word reveal after solving");
 }
 
 console.log(`${pass} passed, ${fail} failed`);
