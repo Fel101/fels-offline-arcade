@@ -3,6 +3,7 @@ const fs = require("fs");
 
 const listeners = {};
 const elements = new Map();
+let activeElement = null;
 
 function makeClassList() {
   const set = new Set();
@@ -47,7 +48,7 @@ function makeEl(tag = "div", id = "") {
       const e = Object.assign({ target: this, button: 0, preventDefault() {}, stopPropagation() {} }, ev);
       (this._listeners[t] || []).forEach((fn) => fn(e));
     },
-    focus() {},
+    focus() { activeElement = this; },
     closest() { return null; },
     querySelector() { return makeEl("span"); },
     querySelectorAll() { return []; },
@@ -70,12 +71,22 @@ function makeEl(tag = "div", id = "") {
   return el;
 }
 
+const playerArcs = [];
+global.Path2D = class {
+  moveTo() {}
+  lineTo() {}
+  quadraticCurveTo() {}
+};
+
 function makeCtx() {
   const gradient = { addColorStop() {} };
   return {
     fillStyle: "", strokeStyle: "", font: "", textAlign: "", lineCap: "",
     fillRect() {}, clearRect() {}, strokeRect() {},
-    beginPath() {}, closePath() {}, moveTo() {}, lineTo() {}, arc() {}, ellipse() {}, rect() {},
+    beginPath() {}, closePath() {}, moveTo() {}, lineTo() {}, quadraticCurveTo() {}, ellipse() {}, rect() {},
+    arc(x, y, radius, start, end) {
+      if (this.fillStyle === "#ffd94d") playerArcs.push({ start, end });
+    },
     fill() {}, stroke() {}, save() {}, restore() {}, translate() {}, rotate() {}, scale() {},
     fillText() {}, strokeText() {}, measureText: () => ({ width: 10 }),
     createLinearGradient: () => gradient, createRadialGradient: () => gradient,
@@ -90,14 +101,29 @@ const ids = [
 ];
 for (const id of ids) elements.set(id, makeEl(id === "game" ? "canvas" : "div", id));
 const canvasEl = elements.get("game");
-canvasEl.width = 380;
-canvasEl.height = 380;
+canvasEl.width = 460;
+canvasEl.height = 500;
 canvasEl.getContext = () => makeCtx();
-elements.get("achv-modal").hidden = true;
+const modalEl = elements.get("achv-modal");
+modalEl.hidden = true;
+// The real dialog has a backdrop and a separate Close button. Mirror that here
+// so focus/trap behavior is actually exercised instead of stubbed away.
+const modalBackdrop = makeEl("div", "modal-backdrop");
+modalBackdrop.setAttribute("data-close", "");
+const modalCloseBtn = makeEl("button", "modal-close");
+modalCloseBtn.setAttribute("data-close", "");
+modalEl.querySelectorAll = (sel) => {
+  if (sel === "[data-close]") return [modalBackdrop, modalCloseBtn];
+  if (sel.indexOf("button") !== -1) return [modalCloseBtn];
+  return [];
+};
+modalEl.querySelector = (sel) => modalEl.querySelectorAll(sel)[0] || makeEl("span");
+modalEl.contains = (n) => n === modalEl || n === modalBackdrop || n === modalCloseBtn;
 
 const body = makeEl("body", "body");
 global.document = {
   body,
+  get activeElement() { return activeElement; },
   documentElement: makeEl("html", "html"),
   hidden: false,
   getElementById: (id) => elements.get(id) || makeEl("div", id),
@@ -146,6 +172,9 @@ const initMs = Date.now() - t0;
 
 const T = global.window.__MAZE_CHASE;
 if (!T) { console.error("No test hook"); process.exit(1); }
+const { MAZE_W, MAZE_H } = T;
+
+const emptyDots = () => Array.from({ length: MAZE_H }, () => new Array(MAZE_W).fill(0));
 
 let pass = 0;
 let fail = 0;
@@ -174,12 +203,12 @@ function openNeighbors(r, c) {
 // ---------- A. Init ----------
 {
   const g = T.maze;
-  eq(g.length, 19, "maze is 19 rows");
-  eq(g[0].length, 19, "maze is 19 columns");
+  eq(g.length, 25, "stage is 25 rows");
+  ok(g.every((row) => row.length === 23), "every row has 23 columns");
   eq(g[0].every((x) => x === "#"), true, "top border is wall");
-  eq(g[18].every((x) => x === "#"), true, "bottom border is wall");
-  eq(T.player.r, 15, "player starts at the bottom centre");
-  eq(T.player.c, 9, "player starts in the middle column");
+  eq(g[MAZE_H - 1].every((x) => x === "#"), true, "bottom border is wall");
+  eq(T.player.r, 17, "player starts near the bottom");
+  eq(T.player.c, 11, "player starts in the middle column");
   eq(T.ghosts.length, 4, "four ghosts");
   eq(T.lives, 3, "three lives");
   eq(T.score, 0, "score zero");
@@ -199,7 +228,7 @@ function openNeighbors(r, c) {
 {
   const g = T.maze;
   let openCount = 0;
-  for (let r = 0; r < 19; r++) for (let c = 0; c < 19; c++) if (g[r][c] === ".") openCount++;
+  for (const row of g) for (const tile of row) if (tile === ".") openCount++;
 
   const seen = new Set(["1,1"]);
   const queue = [[1, 1]];
@@ -207,7 +236,7 @@ function openNeighbors(r, c) {
     const [r, c] = queue.shift();
     for (const [dr, dc] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
       const nr = r + dr, nc = c + dc;
-      if (nr >= 0 && nr < 19 && nc >= 0 && nc < 19 && g[nr][nc] === "." && !seen.has(nr + "," + nc)) {
+      if (g[nr]?.[nc] === "." && !seen.has(nr + "," + nc)) {
         seen.add(nr + "," + nc);
         queue.push([nr, nc]);
       }
@@ -238,9 +267,9 @@ function openNeighbors(r, c) {
   T.setPlayerPos(1, 1);
   const p = T.player;
   const target = openNeighbors(p.r, p.c)[0];
-  const nd = Array.from({ length: 19 }, () => new Array(19).fill(0));
+  const nd = emptyDots();
   nd[target[0]][target[1]] = 1; // the dot we will eat
-  nd[17][17] = 1; // a far-away dot so the level does not end
+  nd[MAZE_H - 2][MAZE_W - 2] = 1; // a far-away dot so the level does not end
   T.setDots(nd);
   const score0 = T.score;
   const rem0 = T.dotsRemaining;
@@ -257,8 +286,8 @@ function openNeighbors(r, c) {
   T.startGame();
   T.setGhostCooldown(9999);
   let pellet = null;
-  for (let r = 0; r < 19 && !pellet; r++)
-    for (let c = 0; c < 19; c++)
+  for (let r = 0; r < MAZE_H && !pellet; r++)
+    for (let c = 0; c < MAZE_W; c++)
       if (T.dots[r][c] === 2) { pellet = [r, c]; break; }
   ok(pellet, "a power pellet exists");
   const nbrs = openNeighbors(pellet[0], pellet[1]);
@@ -306,7 +335,7 @@ function openNeighbors(r, c) {
   T.setPlayerPos(1, 1);
   const p = T.player;
   const target = openNeighbors(p.r, p.c)[0];
-  const nd = Array.from({ length: 19 }, () => new Array(19).fill(0));
+  const nd = emptyDots();
   nd[target[0]][target[1]] = 1;
   T.setDots(nd);
   eq(T.dotsRemaining, 1, "one dot left");
@@ -403,18 +432,19 @@ function openNeighbors(r, c) {
   T.newGame();
   const g = T.maze;
   let symmetric = true;
-  for (let r = 0; r < 19; r++)
-    for (let c = 0; c < 19; c++) if (g[r][c] !== g[r][18 - c]) symmetric = false;
+  for (let r = 0; r < MAZE_H; r++)
+    for (let c = 0; c < MAZE_W; c++) if (g[r][c] !== g[r][MAZE_W - 1 - c]) symmetric = false;
   eq(symmetric, true, "the stage is left-right symmetric");
-  eq(g[9][9], " ", "a centre ghost pen exists");
-  eq(g[8][9], ".", "the pen has an exit gate");
-  eq(T.canMove(9, 0), true, "the left tunnel is open");
-  eq(T.canMove(9, 18), true, "the right tunnel is open");
-  for (const [r, c] of [[1, 1], [1, 17], [17, 1], [17, 17]])
+  eq(g[12][11], " ", "a centre ghost pen exists");
+  eq(g[11][11], "=", "the pen has an exit gate");
+  eq(T.canMove(11, 11), false, "the gate blocks the player");
+  eq(T.canMove(12, 0), true, "the left tunnel is open");
+  eq(T.canMove(12, MAZE_W - 1), true, "the right tunnel is open");
+  for (const [r, c] of [[1, 1], [1, MAZE_W - 2], [MAZE_H - 2, 1], [MAZE_H - 2, MAZE_W - 2]])
     eq(T.dots[r][c], 2, `corner power pellet at ${r},${c}`);
-  eq(T.dots[15][9], 0, "no dot under the player start");
+  eq(T.dots[T.player.r][T.player.c], 0, "no dot under the player start");
   eq(JSON.stringify(T.GHOST_DIRS), JSON.stringify([[-1, 0], [0, -1], [1, 0], [0, 1]]), "arcade direction priority");
-  eq(JSON.stringify(T.PEN_STARTS), JSON.stringify([[7, 9], [9, 9], [9, 8], [9, 10]]), "four ghosts start at the pen");
+  eq(JSON.stringify(T.PEN_STARTS), JSON.stringify([[10, 11], [12, 11], [12, 10], [12, 12]]), "four ghosts start at the pen");
   eq(T.ghosts.filter((x) => x.leaving).length, 3, "three ghosts start inside the pen");
 
   // Every ghost escapes the pen instead of oscillating in the three-cell slot.
@@ -440,8 +470,8 @@ function openNeighbors(r, c) {
   T.setGhostCooldown(9999);
   const before = T.ghosts.map((x) => x.dir);
   let pellet = null;
-  for (let r = 0; r < 19 && !pellet; r++)
-    for (let c = 0; c < 19; c++) if (T.dots[r][c] === 2) { pellet = [r, c]; break; }
+  for (let r = 0; r < MAZE_H && !pellet; r++)
+    for (let c = 0; c < MAZE_W; c++) if (T.dots[r][c] === 2) { pellet = [r, c]; break; }
   T.setPlayerPos(pellet[0], pellet[1]);
   T.eat();
   ok(T.powerTimer > 0, "eating the pellet starts power mode");
@@ -454,11 +484,225 @@ function openNeighbors(r, c) {
   T.newGame();
   T.startGame();
   T.setGhostCooldown(9999);
-  T.setPlayerPos(9, 0);
+  T.setPlayerPos(12, 0);
   T.setDir(0, -1);
   for (let i = 0; i < 7; i++) T.step();
-  eq(T.player.r, 9, "the player stays on the tunnel row");
-  eq(T.player.c, 18, "the player wraps to the far side");
+  eq(T.player.r, 12, "the player stays on the tunnel row");
+  eq(T.player.c, MAZE_W - 1, "the player wraps to the far side");
+}
+
+// The mouth follows travel in the canvas's column (x) and row (y) axes.
+{
+  for (const [key, dr, dc] of [["ArrowRight", 0, 1], ["ArrowDown", 1, 0], ["ArrowLeft", 0, -1], ["ArrowUp", -1, 0]]) {
+    T.newGame();
+    T.startGame();
+    T.setGhostCooldown(9999);
+    T.setPlayerPos(16, 11);
+    // A turn on the upper/lower pen lanes provides a valid corridor in each direction.
+    if (!T.canMove(16 + dr, 11 + dc)) T.setPlayerPos(14, 11);
+    const before = T.player;
+    keydown(key);
+    T.step();
+    eq(T.player.r, before.r + dr, `${key} moves on the row axis`);
+    eq(T.player.c, before.c + dc, `${key} moves on the column axis`);
+    T.draw();
+    const { start, end } = playerArcs.at(-1);
+    const mouth = (start + end) / 2 - Math.PI;
+    ok(Math.abs(Math.cos(mouth) - dc) < 1e-9 && Math.abs(Math.sin(mouth) - dr) < 1e-9, `${key} points the mouth along travel`);
+  }
+}
+
+// ---------- O. Badges dialog focus and simulation suspension ----------
+{
+  T.newGame();
+  T.startGame();
+  T.setGhostCooldown(9999);
+  T.setPlayerDir(0, 0);
+  T.setPowerTimer(480);
+
+  const headerBtn = elements.get("badges-btn");
+  headerBtn.focus();
+  T.openAchv();
+  eq(T.badgesOpen, true, "Badges marks the dialog open");
+  eq(activeElement, modalCloseBtn, "the Close button gets focus, not the backdrop");
+  modalEl.dispatch("keydown", { key: "Tab", shiftKey: true });
+  eq(activeElement, modalCloseBtn, "Shift+Tab stays inside the dialog");
+  modalEl.dispatch("keydown", { key: "Tab", shiftKey: false });
+  eq(activeElement, modalCloseBtn, "Tab stays inside the dialog");
+
+  // All simulation is frozen while the dialog owns input.
+  const held = { power: T.powerTimer, r: T.player.r, c: T.player.c };
+  for (let i = 0; i < 60; i++) T.tickLoop(1000 / 60);
+  T.step();
+  keydown("ArrowLeft");
+  eq(T.powerTimer, held.power, "power timer frozen while Badges is open");
+  eq(T.player.r, held.r, "player row frozen while Badges is open");
+  eq(T.player.c, held.c, "player column frozen while Badges is open");
+  eq(T.player.nextDir[0], 0, "gameplay shortcuts ignored while Badges is open");
+  eq(T.player.nextDir[1], 0, "gameplay keys do not change direction while Badges is open");
+
+  keydown("Escape");
+  eq(T.badgesOpen, false, "Escape closes the dialog");
+  eq(activeElement, headerBtn, "focus returns to the header Badges button");
+  for (let i = 0; i < 60; i++) T.tickLoop(1000 / 60);
+  ok(T.powerTimer < held.power, "play resumes after closing Badges");
+
+  // Backdrop dismissal still works.
+  T.openAchv();
+  modalBackdrop.dispatch("click");
+  eq(T.badgesOpen, false, "clicking the backdrop closes the dialog");
+
+  // Opening from the pause overlay keeps that overlay and its state intact.
+  T.setPaused(true);
+  const overlayBadges = document.querySelector(".overlay .btn");
+  overlayBadges.focus();
+  T.openAchv();
+  eq(activeElement, modalCloseBtn, "overlay action opens with focus on Close");
+  eq(T.powerTimer, T.powerTimer, "paused game stays paused behind Badges");
+  keydown("Escape");
+  eq(activeElement, overlayBadges, "focus returns to the overlay Badges action");
+  eq(T.paused, true, "the pause survives closing Badges");
+  eq(T.overlayTitle(), "Paused", "the pause overlay controls are preserved");
+  T.setPaused(false);
+
+  // The same is true from an end-of-game overlay.
+  T.endGame();
+  T.openAchv();
+  T.closeAchv();
+  eq(T.state, "over", "game-over state survives Badges");
+  eq(T.overlayTitle(), "Game Over", "game-over controls are preserved");
+}
+
+// ---------- P. Refresh-rate independent simulation ----------
+{
+  function runSecond(hz) {
+    T.newGame();
+    T.startGame();
+    T.setGhostCooldown(9999);
+    T.setPlayerDir(0, 0);
+    T.setPowerTimer(480);
+    for (let i = 0; i < hz; i++) T.tickLoop(1000 / hz);
+    return T.powerTimer;
+  }
+  const at60 = runSecond(60);
+  const at120 = runSecond(120);
+  eq(at60, 420, "one second at 60 Hz advances 60 simulation ticks");
+  eq(at120, 420, "one second at 120 Hz advances the same 60 ticks");
+  ok(T.tickCarry < T.TICK_MS, "no whole tick is left in carryover");
+
+  T.newGame();
+  T.startGame();
+  T.setPowerTimer(480);
+  T.setPaused(true);
+  for (let i = 0; i < 120; i++) T.tickLoop(1000 / 60);
+  eq(T.powerTimer, 480, "paused time never advances the simulation");
+  eq(T.tickCarry, 0, "paused frames do not bank carryover");
+}
+
+// ---------- Q. Tile-swap collisions ----------
+{
+  // Player (1,4) moves left while the ghost (1,3) moves right: they trade tiles.
+  T.newGame();
+  T.startGame();
+  T.setPlayerPos(1, 4);
+  T.setPlayerDir(0, -1);
+  T.setGhost(0, 1, 3);
+  T.setGhostDir(0, 0, 1);
+  T.setGhostCooldown(1);
+  const lives0 = T.lives;
+  T.step();
+  eq(T.lives, lives0 - 1, "a swap costs one life");
+
+  // Powered swap eats the ghost instead.
+  T.newGame();
+  T.startGame();
+  T.setPlayerPos(1, 4);
+  T.setPlayerDir(0, -1);
+  T.setGhost(0, 1, 3);
+  T.setGhostDir(0, 0, 1);
+  T.setGhostCooldown(1);
+  T.setPowerTimer(480);
+  const eaten0 = T.stats.ghosts;
+  T.step();
+  ok(T.stats.ghosts > eaten0, "a powered swap eats the ghost");
+  eq(T.lives, 3, "a powered swap costs no life");
+
+  // Ordinary same-tile collision is unchanged.
+  T.newGame();
+  T.startGame();
+  T.setPlayerPos(1, 2);
+  T.setPlayerDir(0, 0);
+  T.setGhost(0, 1, 1);
+  T.setGhostDir(0, 0, 1);
+  T.setGhostCooldown(1);
+  const lives1 = T.lives;
+  T.step();
+  eq(T.lives, lives1 - 1, "a same-tile collision still costs a life");
+
+  // Moving in the same direction past no one is safe.
+  T.newGame();
+  T.startGame();
+  T.setPlayerPos(1, 4);
+  T.setPlayerDir(0, 1);
+  T.setGhost(0, 1, 3);
+  T.setGhostDir(0, 0, 1);
+  T.setGhostCooldown(1);
+  const lives2 = T.lives;
+  T.step();
+  eq(T.lives, lives2, "moving alongside a ghost does not collide");
+
+  // The side tunnels still wrap after the collision change.
+  T.newGame();
+  T.startGame();
+  T.setGhostCooldown(9999);
+  T.setPlayerPos(12, 0);
+  T.setDir(0, -1);
+  for (let i = 0; i < 7; i++) T.step();
+  eq(T.player.c, MAZE_W - 1, "side tunnel still wraps the player");
+}
+
+// ---------- R. Shared modal helper ----------
+{
+  function makeDialog() {
+    const el = makeEl("div", "test-dialog");
+    const back = makeEl("div"); back.setAttribute("data-close", "");
+    const close = makeEl("button"); close.setAttribute("data-close", "");
+    const a = makeEl("button");
+    const b = makeEl("button");
+    el.querySelectorAll = (sel) => {
+      if (sel === "[data-close]") return [back, close];
+      if (sel.indexOf("button") !== -1) return [close, a, b];
+      return [];
+    };
+    el.querySelector = (sel) => el.querySelectorAll(sel)[0] || makeEl("span");
+    el.contains = (n) => n === el || n === back || n === close || n === a || n === b;
+    return { el, back, close, a, b };
+  }
+
+  const opener = makeEl("button");
+  opener.focus();
+  const d = makeDialog();
+  const ctl = global.window.Arcade.modal.create(d.el, {});
+  ctl.open();
+  eq(activeElement, d.close, "the helper focuses the real Close button, not the backdrop");
+  d.b.focus();
+  d.el.dispatch("keydown", { key: "Tab" });
+  eq(activeElement, d.close, "Tab wraps from the last control to the first");
+  d.close.focus();
+  d.el.dispatch("keydown", { key: "Tab", shiftKey: true });
+  eq(activeElement, d.b, "Shift+Tab wraps from the first control to the last");
+  ctl.close();
+  eq(activeElement, opener, "the helper restores the actual opener");
+
+  const elsewhere = makeEl("button");
+  opener.focus();
+  const d2 = makeDialog();
+  const ctl2 = global.window.Arcade.modal.create(d2.el, {
+    onClose: () => elsewhere.focus(),
+  });
+  ctl2.open();
+  ctl2.close();
+  eq(activeElement, elsewhere, "an explicit focus in onClose wins over opener restoration");
 }
 
 console.log(`${pass} passed, ${fail} failed`);

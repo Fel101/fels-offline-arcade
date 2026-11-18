@@ -569,5 +569,77 @@ function mateNow(level) {
   eq(C.paused, false, "and resumes the game");
 }
 
+// ---------- K. Dead positions end the game as a draw ----------
+function deadSpec(pieces, turn) {
+  return {
+    pieces,
+    turn: turn || "w",
+    state: { wK: false, wQ: false, bK: false, bQ: false, ep: null },
+  };
+}
+
+{
+  // Material classification is conservative and documented in the game.
+  C.setPosition(deadSpec({ "7,0": "wk", "0,7": "bk" }));
+  eq(C.isDeadPosition(), true, "king versus king is dead");
+  C.setPosition(deadSpec({ "7,0": "wk", "0,7": "bk", "4,4": "wb" }));
+  eq(C.isDeadPosition(), true, "king and bishop versus king is dead");
+  C.setPosition(deadSpec({ "7,0": "wk", "0,7": "bk", "4,4": "wn" }));
+  eq(C.isDeadPosition(), true, "king and knight versus king is dead");
+  C.setPosition(deadSpec({ "7,0": "wk", "0,7": "bk", "4,4": "wb", "2,2": "bb" }));
+  eq(C.isDeadPosition(), true, "same-colour bishops are dead");
+  C.setPosition(deadSpec({ "7,0": "wk", "0,7": "bk", "4,4": "wb", "2,3": "bb" }));
+  eq(C.isDeadPosition(), false, "opposite-colour bishops stay active");
+  C.setPosition(deadSpec({ "7,0": "wk", "0,7": "bk", "5,1": "wn", "4,4": "wn" }));
+  eq(C.isDeadPosition(), false, "king and two knights stay active");
+  C.setPosition(deadSpec({ "7,0": "wk", "0,7": "bk", "4,4": "wr" }));
+  eq(C.isDeadPosition(), false, "a rook keeps the position alive");
+}
+
+{
+  // The human captures the last piece, leaving king and knight.
+  C.setPosition(deadSpec({ "7,0": "wk", "0,7": "bk", "4,3": "wn", "2,4": "br" }));
+  const draws0 = C.stats.draws;
+  const cap = C.legalMoves("w").find((m) => m.fr === 4 && m.fc === 3 && m.tr === 2 && m.tc === 4);
+  ok(cap, "the knight can capture Black's last piece");
+  eq(C.click(4, 3), true, "the knight is selected");
+  eq(C.click(2, 4), true, "the capture is played");
+  eq(C.pieceAt(2, 4).t, "n", "only the knight remains");
+  eq(C.gameOver, true, "the game ends on the human's capture");
+  eq(C.stats.draws, draws0 + 1, "exactly one draw is recorded");
+  eq(C.overlayTitle(), "Dead position 🤝", "the dead-position overlay is shown");
+  eq(C.snap().status, "Dead position — draw", "the status names the dead position");
+  eq(C.click(7, 0), false, "the board is locked after the draw");
+}
+
+{
+  // The CPU captures the last piece, leaving bare kings. The white king
+  // guards every flight square, so capturing its knight is Black's only move.
+  C.setPosition(deadSpec({ "2,1": "wk", "0,0": "bk", "0,1": "wn" }, "b"));
+  const draws1 = C.stats.draws;
+  const forced = C.legalMoves("b");
+  eq(forced.length, 1, "the CPU has exactly one legal move");
+  eq(forced[0].tr, 0, "that move is the capture's row");
+  eq(forced[0].tc, 1, "that move is the capture's column");
+  eq(C.gameOver, false, "the game is still live before the CPU move");
+  eq(C.aiMove(), "draw", "the CPU's forced capture ends the game in a draw");
+  eq(C.pieceAt(0, 1).c, "b", "the CPU captured the last white piece");
+  eq(C.gameOver, true, "the game ends on the CPU's capture");
+  eq(C.stats.draws, draws1 + 1, "one draw is recorded for the CPU capture");
+  eq(C.overlayTitle(), "Dead position 🤝", "the CPU capture shows the dead-position draw");
+}
+
+{
+  // A position that could still produce mate must keep playing.
+  C.setPosition(deadSpec({ "7,0": "wk", "5,1": "wn", "4,4": "wn", "0,7": "bk" }));
+  const draws2 = C.stats.draws;
+  ok(C.legalMoves("w").length > 0, "White still has moves with two knights");
+  const mv = C.legalMoves("w")[0];
+  C.click(mv.fr, mv.fc);
+  C.click(mv.tr, mv.tc);
+  eq(C.gameOver, false, "two knights versus king does not end the game");
+  eq(C.stats.draws, draws2, "no draw is recorded for an active position");
+}
+
 console.log(`${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

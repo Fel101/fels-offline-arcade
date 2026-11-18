@@ -643,9 +643,40 @@
     aiTimer = setTimeout(aiGo, AI_DELAY);
   }
 
+  // Conservative dead-position detection (FIDE 5.2.2). Only material that can
+  // never produce mate is covered: K vs K, K+B/N vs K, and bishop-only
+  // positions where every bishop sits on one square colour. Pawns, rooks,
+  // queens and mixed minor pieces always keep the game alive.
+  function isDeadPosition(b) {
+    let kings = 0;
+    const minors = [];
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        const p = b[r] && b[r][c];
+        if (!p) continue;
+        if (p.t === "k") {
+          kings++;
+          continue;
+        }
+        if (p.t === "p" || p.t === "r" || p.t === "q") return false;
+        minors.push({ t: p.t, square: (r + c) % 2 });
+      }
+    }
+    if (kings !== 2) return false;
+    if (minors.length === 0) return true; // king versus king
+    if (minors.length === 1) return true; // one bishop or knight is not enough
+    if (minors.every((m) => m.t === "b")) {
+      // Same-coloured bishops cannot mate; differing colours leave a mate
+      // sequence theoretically possible, so those stay active.
+      return minors.every((m) => m.square === minors[0].square);
+    }
+    return false;
+  }
+
   function afterMove() {
     render();
     if (paused) return;
+    if (isDeadPosition(board)) return endOfGame("b", "dead");
     const blackMoves = legalMoves(board, "b", state);
     if (blackMoves.length === 0) {
       endOfGame("b");
@@ -670,6 +701,7 @@
     turn = "w";
     thinking = false;
     render();
+    if (isDeadPosition(board)) return endOfGame("w", "dead");
     const whiteMoves = legalMoves(board, "w", state);
     if (whiteMoves.length === 0) return endOfGame("w");
     if (inCheck(board, "w")) {
@@ -681,7 +713,7 @@
     return true;
   }
 
-  function endOfGame(loserColor) {
+  function endOfGame(loserColor, reason) {
     if (gameOver) return false;
     gameOver = true;
     thinking = false;
@@ -689,7 +721,7 @@
     selected = null;
     targets = [];
 
-    const mate = inCheck(board, loserColor);
+    const mate = reason !== "dead" && inCheck(board, loserColor);
     let result = "draw";
     let isRecord = false;
 
@@ -744,6 +776,13 @@
           { label: "Badges", ghost: true, onClick: () => openAchv() },
         ]
       );
+    } else if (reason === "dead") {
+      setStatus("Dead position — draw");
+      sfx("tick");
+      showOverlay("Dead position 🤝", "Neither side has enough material to checkmate — the game is a draw.", [
+        { label: "Play again", onClick: () => { hideOverlay(); newGame(); } },
+        { label: "Badges", ghost: true, onClick: () => openAchv() },
+      ]);
     } else {
       setStatus("Stalemate — draw");
       sfx("tick");
@@ -942,6 +981,7 @@
     click: onCellClick,
     select: onCellClick,
     legalMoves: (color) => legalMoves(board, color || turn, state),
+    isDeadPosition: (b) => isDeadPosition(b || board),
     inCheck: (color) => inCheck(board, color || turn),
     aiMove: aiGo,
     newGame,

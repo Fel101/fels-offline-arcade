@@ -210,34 +210,171 @@
   function dist(player, p) {
     return player === WHITE ? p : 25 - p;
   }
-  function blocked(p, opp) {
-    return getP(p, opp) >= 2;
+
+  // A "view" reads board state either from the live game or from a pure
+  // simulation copy. Turn legality explores continuations on a copy so that
+  // highlighting and CPU planning never touch live state, stats, sound or DOM.
+  function makeView(sim) {
+    if (!sim) {
+      return {
+        get: (p, pl) => getP(p, pl),
+        bar: (pl) => bar[pl],
+        off: (pl) => off[pl],
+      };
+    }
+    return {
+      get: (p, pl) => sim.points[p][pl === WHITE ? "w" : "b"],
+      bar: (pl) => sim.bar[pl],
+      off: (pl) => sim.off[pl],
+    };
   }
-  function allInHome(player) {
-    if (bar[player] > 0) return false;
-    if (player === WHITE) {
-      for (let p = 7; p <= 24; p++) if (getP(p, player) > 0) return false;
+  function snapshot() {
+    return {
+      points: points.map((p) => ({ w: p.w, b: p.b })),
+      bar: { 1: bar[1], 2: bar[2] },
+      off: { 1: off[1], 2: off[2] },
+    };
+  }
+  function cloneSim(sim) {
+    return {
+      points: sim.points.map((p) => ({ w: p.w, b: p.b })),
+      bar: { 1: sim.bar[1], 2: sim.bar[2] },
+      off: { 1: sim.off[1], 2: sim.off[2] },
+    };
+  }
+  function simApply(sim, player, mv) {
+    const key = player === WHITE ? "w" : "b";
+    const get = (p) => sim.points[p][key];
+    const set = (p, v) => { sim.points[p][key] = v; };
+    if (mv.from === "bar") sim.bar[player]--;
+    else set(mv.from, get(mv.from) - 1);
+
+    if (mv.to === "off") {
+      sim.off[player]++;
     } else {
-      for (let p = 1; p <= 18; p++) if (getP(p, player) > 0) return false;
+      const oppKey = player === WHITE ? "b" : "w";
+      if (mv.hit) {
+        sim.points[mv.to][oppKey]--;
+        sim.bar[other(player)]++;
+      }
+      set(mv.to, get(mv.to) + 1);
+    }
+  }
+
+  function blockedV(view, p, opp) {
+    return view.get(p, opp) >= 2;
+  }
+  function allInHomeV(view, player) {
+    if (view.bar(player) > 0) return false;
+    if (player === WHITE) {
+      for (let p = 7; p <= 24; p++) if (view.get(p, player) > 0) return false;
+    } else {
+      for (let p = 1; p <= 18; p++) if (view.get(p, player) > 0) return false;
     }
     return true;
   }
-  function maxDist(player) {
+  function maxDistV(view, player) {
     let m = 0;
     for (let p = 1; p <= 24; p++) {
-      if (getP(p, player) > 0) m = Math.max(m, dist(player, p));
+      if (view.get(p, player) > 0) m = Math.max(m, dist(player, p));
     }
     return m;
   }
-  function canBearOff(player, p, die) {
+  function canBearOffV(view, player, p, die) {
     const d = dist(player, p);
     if (d === die) return true;
-    if (die > d && d === maxDist(player)) return true;
-    return false;
+    return die > d && d === maxDistV(view, player);
   }
-  function uniqueDice() {
-    return Array.from(new Set(dice));
+  function uniqueOf(diceList) {
+    return Array.from(new Set(diceList));
   }
+
+  // Single-die movement rules, identical to before but read through a view.
+  function legalMovesV(view, player, die) {
+    const moves = [];
+    const opp = other(player);
+
+    if (view.bar(player) > 0) {
+      const entry = player === WHITE ? 25 - die : die;
+      if (entry >= 1 && entry <= 24 && !blockedV(view, entry, opp)) {
+        moves.push({ from: "bar", to: entry, die, hit: view.get(entry, opp) === 1 });
+      }
+      return moves;
+    }
+
+    const home = allInHomeV(view, player);
+    for (let p = 1; p <= 24; p++) {
+      if (view.get(p, player) === 0) continue;
+      const dest = player === WHITE ? p - die : p + die;
+      if (dest >= 1 && dest <= 24) {
+        if (!blockedV(view, dest, opp)) {
+          moves.push({ from: p, to: dest, die, hit: view.get(dest, opp) === 1 });
+        }
+      } else if (home && canBearOffV(view, player, p, die)) {
+        moves.push({ from: p, to: "off", die, hit: false });
+      }
+    }
+    return moves;
+  }
+
+  // ---------- Turn-level legality ----------
+  // A first move is only legal if it can be part of a play that uses as many
+  // dice as possible (all four for doubles). Explore every continuation on a
+  // simulation copy; the live board is never mutated here.
+  function maxRemainingPlays(sim, player, remaining) {
+    if (!remaining.length) return 0;
+    const view = makeView(sim);
+    let best = 0;
+    for (const die of uniqueOf(remaining)) {
+      for (const mv of legalMovesV(view, player, die)) {
+        const nextSim = cloneSim(sim);
+        simApply(nextSim, player, mv);
+        const rest = remaining.slice();
+        rest.splice(rest.indexOf(die), 1);
+        best = Math.max(best, 1 + maxRemainingPlays(nextSim, player, rest));
+      }
+    }
+    return best;
+  }
+
+  function legalTurnMoves(player) {
+    if (gameOver || paused || !dice.length) return [];
+    const view = makeView(null);
+    const candidates = [];
+    let bestUsed = 0;
+
+    for (const die of uniqueOf(dice)) {
+      for (const mv of legalMovesV(view, player, die)) {
+        const sim = snapshot();
+        simApply(sim, player, mv);
+        const rest = dice.slice();
+        rest.splice(rest.indexOf(die), 1);
+        const used = 1 + maxRemainingPlays(sim, player, rest);
+        candidates.push({ mv, die, used });
+        bestUsed = Math.max(bestUsed, used);
+      }
+    }
+    if (!bestUsed) return [];
+
+    let kept = candidates.filter((c) => c.used === bestUsed);
+    // When only one of two distinct dice can be played at all, the higher
+    // die is the correct one to use (standard backgammon rule).
+    if (bestUsed === 1 && uniqueOf(dice).length === 2) {
+      const high = Math.max(...dice);
+      const highMoves = kept.filter((c) => c.die === high);
+      if (highMoves.length) kept = highMoves;
+    }
+    return kept.map((c) => c.mv);
+  }
+
+  // Live-state wrappers kept for the public helpers/test hook.
+  function blocked(p, opp) { return blockedV(makeView(null), p, opp); }
+  function allInHome(player) { return allInHomeV(makeView(null), player); }
+  function maxDist(player) { return maxDistV(makeView(null), player); }
+  function canBearOff(player, p, die) { return canBearOffV(makeView(null), player, p, die); }
+  function uniqueDice() { return uniqueOf(dice); }
+  function legalMoves(player, die) { return legalMovesV(makeView(null), player, die); }
+
   function isBlotRisky(p, player) {
     const opp = other(player);
     for (let q = 1; q <= 24; q++) {
@@ -253,55 +390,22 @@
     return false;
   }
 
-  // ---------- Move generation ----------
-  function legalMoves(player, die) {
-    const moves = [];
-    const opp = other(player);
-
-    if (bar[player] > 0) {
-      const entry = player === WHITE ? 25 - die : die;
-      if (entry >= 1 && entry <= 24 && !blocked(entry, opp)) {
-        moves.push({ from: "bar", to: entry, die, hit: getP(entry, opp) === 1 });
-      }
-      return moves;
-    }
-
-    const home = allInHome(player);
-    for (let p = 1; p <= 24; p++) {
-      if (getP(p, player) === 0) continue;
-      const dest = player === WHITE ? p - die : p + die;
-      if (dest >= 1 && dest <= 24) {
-        if (!blocked(dest, opp)) {
-          moves.push({ from: p, to: dest, die, hit: getP(dest, opp) === 1 });
-        }
-      } else if (home && canBearOff(player, p, die)) {
-        moves.push({ from: p, to: "off", die, hit: false });
-      }
-    }
-    return moves;
-  }
-
   function anyMoveExists(player) {
-    for (const die of uniqueDice()) if (legalMoves(player, die).length) return true;
-    return false;
+    return legalTurnMoves(player).length > 0;
   }
 
   function hasMoveFrom(player, from) {
-    for (const die of uniqueDice()) {
-      for (const mv of legalMoves(player, die)) if (String(mv.from) === String(from)) return true;
-    }
-    return false;
+    return legalTurnMoves(player).some((mv) => String(mv.from) === String(from));
   }
 
   function findMoveTo(player, from, to) {
     const fromS = String(from);
     const toS = String(to);
-    for (const die of uniqueDice()) {
-      for (const mv of legalMoves(player, die)) {
-        if (String(mv.from) === fromS && String(mv.to) === toS) return mv;
-      }
-    }
-    return null;
+    return (
+      legalTurnMoves(player).find(
+        (mv) => String(mv.from) === fromS && String(mv.to) === toS
+      ) || null
+    );
   }
 
   // ---------- Apply ----------
@@ -396,13 +500,11 @@
   function bestMove(player) {
     let best = null;
     let bestS = -Infinity;
-    for (const die of uniqueDice()) {
-      for (const mv of legalMoves(player, die)) {
-        const s = scoreMove(player, mv);
-        if (s > bestS) {
-          bestS = s;
-          best = mv;
-        }
+    for (const mv of legalTurnMoves(player)) {
+      const s = scoreMove(player, mv);
+      if (s > bestS) {
+        bestS = s;
+        best = mv;
       }
     }
     return best;
@@ -501,10 +603,8 @@
   function computeTargets() {
     const set = new Set();
     if (selected === null || phase !== "move" || gameOver) return set;
-    for (const die of uniqueDice()) {
-      for (const mv of legalMoves(turn, die)) {
-        if (String(mv.from) === String(selected)) set.add(String(mv.to));
-      }
+    for (const mv of legalTurnMoves(turn)) {
+      if (String(mv.from) === String(selected)) set.add(String(mv.to));
     }
     return set;
   }
@@ -826,11 +926,15 @@
     maxDist,
     canBearOff,
     legalMoves,
+    legalTurnMoves,
     anyMoveExists,
     hasMoveFrom,
     findMoveTo,
     uniqueDice,
     applyMove,
+    onPointClick,
+    onBarClick,
+    onTrayClick,
     rollDice,
     roll,
     endTurn,

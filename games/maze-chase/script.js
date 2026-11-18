@@ -29,7 +29,6 @@
   const levelEl = dom.byId("level");
   const livesEl = dom.byId("lives");
   const restartBtn = dom.byId("restart");
-  const hintEl = dom.byId("hint");
 
   const badgesBtn = dom.byId("badges-btn");
   const badgeCountEl = dom.byId("badge-count");
@@ -42,11 +41,6 @@
   const achvRecordsEl = dom.byId("achv-records");
 
   // ---------- Constants ----------
-  const MAZE_W = 19;
-  const MAZE_H = 19;
-  const CELL = canvas.width / MAZE_W; // 20
-  const LOGICAL_W = canvas.width, LOGICAL_H = canvas.height;
-  window.Arcade.util.hidpiCanvas(canvas, ctx, LOGICAL_W, LOGICAL_H);
   const START_LIVES = 3;
 
   const PLAYER_TICK = 7;
@@ -54,36 +48,45 @@
   const POWER_GHOST_TICK = 13;
   const POWER_FRAMES = 480; // ~8 seconds at 60fps
   const GHOST_COLORS = ["#ff5b5b", "#ffb3d9", "#5ad1e6", "#ffb347"];
-  const HINT_DEFAULT =
-    "Arrow keys / WASD to move. Eat every dot. Power pellets let you eat ghosts for bonus points. P pauses.";
 
-  // A hand-built, left-right symmetric board: a centre ghost pen, four corner
-  // power pellets and side warp tunnels — the classic Pac-Man stage shape.
-  // "." is a dotted corridor, " " is pen floor (walkable, never dotted).
+  // Dots mark public corridors. The centre pen uses spaces and an exit gate.
   const MAZE = [
-    "###################",
-    "#........#........#",
-    "#.##.###.#.###.##.#",
-    "#.................#",
-    "#.##.#.#####.#.##.#",
-    "#....#...#...#....#",
-    "####.###.#.###.####",
-    "#......#...#......#",
-    "#.####.##.##.####.#",
-    "......##   ##......",
-    "#.####.#####.####.#",
-    "#......#...#......#",
-    "####.###.#.###.####",
-    "#....#...#...#....#",
-    "#.##.#.#####.#.##.#",
-    "#.................#",
-    "#.##.###.#.###.##.#",
-    "#........#........#",
-    "###################",
+    "#######################",
+    "#.........###.........#",
+    "#.###.###.###.###.###.#",
+    "#.###.....###.....###.#",
+    "#.###.###.###.###.###.#",
+    "#.....................#",
+    "#.#####.###.###.#####.#",
+    "#.#####.###.###.#####.#",
+    "#.......###.###.......#",
+    "####.##.###.###.##.####",
+    "####.##.........##.####",
+    "####.##.###=###.##.####",
+    "........##   ##........",
+    "####.##.#######.##.####",
+    "####.##.........##.####",
+    "####.##.###.###.##.####",
+    "#.......###.###.......#",
+    "#.#####.........#####.#",
+    "#.#####.#######.#####.#",
+    "#.........###.........#",
+    "###.#.###.###.###.#.###",
+    "#...#.###.###.###.#...#",
+    "#.###.###.###.###.###.#",
+    "#.....................#",
+    "#######################",
   ];
-  const PLAYER_START = [15, 9];
-  const PEN_STARTS = [[7, 9], [9, 9], [9, 8], [9, 10]]; // red, pink, cyan, orange
-  const SCATTER_CORNERS = [[1, 17], [1, 1], [17, 17], [17, 1]];
+  const MAZE_W = MAZE[0].length;
+  const MAZE_H = MAZE.length;
+  const CELL = canvas.width / MAZE_W;
+  const LOGICAL_W = CELL * MAZE_W, LOGICAL_H = CELL * MAZE_H;
+  window.Arcade.util.hidpiCanvas(canvas, ctx, LOGICAL_W, LOGICAL_H);
+  const PLAYER_START = [17, 11];
+  const GATE = [11, 11];
+  const TUNNEL_ROW = 12;
+  const PEN_STARTS = [[10, 11], [12, 11], [12, 10], [12, 12]]; // red, pink, cyan, orange
+  const SCATTER_CORNERS = [[1, MAZE_W - 2], [1, 1], [MAZE_H - 2, MAZE_W - 2], [MAZE_H - 2, 1]];
   // Classic alternation: scatter, chase, scatter, chase … then chase forever.
   const MODE_SCHEDULE = [7 * 60, 20 * 60, 7 * 60, 20 * 60, 5 * 60, 20 * 60, 5 * 60, Infinity];
   // Ghosts break distance ties in this order (the original arcade priority).
@@ -199,10 +202,15 @@
 
   const achvModalCtl = modalApi.create(achvModal, {
     onOpen: () => {
+      badgesOpen = true;
+      tickCarry = 0;
       renderAchvGrid();
     },
     onClose: () => {
-      if (badgesBtn.focus) badgesBtn.focus();
+      badgesOpen = false;
+      tickCarry = 0; // closing the dialog must not replay held-up time
+      // Focus is restored to the real opener by the shared modal helper, so
+      // the header button and the overlay action both return focus correctly.
     },
   });
 
@@ -238,6 +246,8 @@
   let frame;
   let state; // ready | playing | over
   let paused = false;
+  let badgesOpen = false; // the Badges dialog owns input while it is up
+  let tickCarry = 0; // leftover milliseconds for the fixed-step simulation
   let modeIndex = 0; // scatter/chase schedule position
   let modeTimer = 0;
   let scatterMode = true;
@@ -291,10 +301,12 @@
   }
 
   function inPen(g) {
-    return g.r === 9 && g.c >= 8 && g.c <= 10;
+    const tile = maze[g.r][g.c];
+    return tile === " " || tile === "=";
   }
 
   function resetPositions() {
+    tickCarry = 0;
     player.r = playerStart[0];
     player.c = playerStart[1];
     player.dir = [0, 0];
@@ -307,6 +319,8 @@
       dir: [0, 1],
       color: GHOST_COLORS[i],
       cooldown: i * 4,
+      prevR: r,
+      prevC: c,
       leaving: inPen({ r, c }),
     }));
     powerTimer = 0;
@@ -315,16 +329,12 @@
 
   // ---------- Helpers ----------
   function canMove(r, c) {
-    return r >= 0 && r < MAZE_H && c >= 0 && c < MAZE_W && maze[r][c] !== "#";
+    return maze[r]?.[c] === ".";
   }
 
-  // Side tunnels: stepping off row 9 wraps to the opposite edge.
   function canStep(r, c, dr, dc) {
-    const nr = r + dr, nc = c + dc;
-    if (nr < 0 || nr >= MAZE_H) return false;
-    if (nc < 0) return maze[r][MAZE_W - 1] !== "#";
-    if (nc >= MAZE_W) return maze[r][0] !== "#";
-    return maze[nr][nc] !== "#";
+    const [nr, nc] = advance(r, c, dr, dc);
+    return canMove(nr, nc);
   }
   function advance(r, c, dr, dc) {
     let nr = r + dr, nc = c + dc;
@@ -355,6 +365,7 @@
     level = 1;
     frame = 0;
     paused = false;
+    tickCarry = 0;
     setupBoard();
     state = "ready";
     hideOverlay();
@@ -364,6 +375,7 @@
 
   function startGame() {
     hideOverlay();
+    tickCarry = 0;
     state = "playing";
     stats.games++;
     stats.levels = Math.max(stats.levels, level);
@@ -427,6 +439,7 @@
   function endGame() {
     state = "over";
     paused = false;
+    tickCarry = 0;
     stats.bestScore = Math.max(stats.bestScore, score);
     saveStats();
     checkAchievements();
@@ -443,9 +456,6 @@
   // scatter mode. The two modes alternate on the classic schedule.
   function ghostTarget(g) {
     const idx = ghosts.indexOf(g);
-    // A ghost in the pen always heads for the gate first. Without this,
-    // greedy targeting traps the side ghosts in an endless left/right loop.
-    if (g.leaving) return [7, 9];
     if (scatterMode) return SCATTER_CORNERS[idx] || [player.r, player.c];
     if (idx === 1) {
       // Pink: ambush four cells ahead of the player.
@@ -467,6 +477,16 @@
   }
 
   function moveGhost(g) {
+    if (g.leaving) {
+      const dc = Math.sign(GATE[1] - g.c);
+      const dr = dc === 0 ? -1 : 0;
+      g.dir = [dr, dc];
+      g.r += dr;
+      g.c += dc;
+      g.leaving = inPen(g);
+      return;
+    }
+
     const rev = [-g.dir[0], -g.dir[1]];
     let options = GHOST_DIRS.filter(
       ([dr, dc]) => canStep(g.r, g.c, dr, dc) && !(dr === rev[0] && dc === rev[1])
@@ -493,13 +513,17 @@
     const [nr, nc] = advance(g.r, g.c, g.dir[0], g.dir[1]);
     g.r = nr;
     g.c = nc;
-    if (g.leaving && !inPen(g)) g.leaving = false;
   }
 
   // ---------- Update ----------
   function update() {
-    if (state !== "playing" || paused) return;
+    if (state !== "playing" || paused || badgesOpen) return;
     frame++;
+
+    // Remember where everyone stood: a player and ghost can pass straight
+    // through each other in one tick, which a final-position check misses.
+    const prevPlayerR = player.r;
+    const prevPlayerC = player.c;
 
     if (powerTimer > 0) powerTimer--;
 
@@ -533,14 +557,21 @@
     for (const g of ghosts) {
       if (g.cooldown > 0) g.cooldown--;
       if (g.cooldown <= 0) {
+        g.prevR = g.r;
+        g.prevC = g.c;
         moveGhost(g);
         g.cooldown = powerTimer > 0 ? POWER_GHOST_TICK : Math.max(5, GHOST_TICK - (level - 1));
       }
     }
 
-    // Collisions.
+    // Collisions: same tile, or the two swapped tiles during this tick (the
+    // tunnel wrap works too because the old and new cells are compared as-is).
     for (const g of ghosts) {
-      if (g.r !== player.r || g.c !== player.c) continue;
+      const sameTile = g.r === player.r && g.c === player.c;
+      const swapped =
+        g.prevR === player.r && g.prevC === player.c &&
+        prevPlayerR === g.r && prevPlayerC === g.c;
+      if (!sameTile && !swapped) continue;
       if (powerTimer > 0) {
         const pts = 200 * Math.pow(2, Math.min(ghostCombo, 3));
         score += pts;
@@ -563,32 +594,73 @@
   }
 
   // ---------- Rendering ----------
-  function draw() {
-    const W = LOGICAL_W;
-    const H = LOGICAL_H;
+  function buildWallPath() {
+    const path = new Path2D();
+    const radius = CELL * 0.28;
+    const spokes = [[0, -radius], [radius, 0], [0, radius], [-radius, 0]];
+    const isWall = (r, c) => (MAZE[r]?.[Math.min(MAZE_W - 1, Math.max(0, c))] ?? "#") === "#";
+
+    // Trace the boundary at each grid corner. Neighboring segments meet at
+    // their spokes, while a curve rounds each turn around a wall island.
+    for (let r = 0; r <= MAZE_H; r++) {
+      for (let c = 0; c <= MAZE_W; c++) {
+        const nw = isWall(r - 1, c - 1), ne = isWall(r - 1, c);
+        const sw = isWall(r, c - 1), se = isWall(r, c);
+        const x = c * CELL, y = r * CELL;
+        const edges = [nw !== ne, ne !== se, se !== sw, sw !== nw];
+
+        if (edges[2]) { path.moveTo(x, y + radius); path.lineTo(x, y + CELL - radius); }
+        if (edges[1]) { path.moveTo(x + radius, y); path.lineTo(x + CELL - radius, y); }
+
+        const turns = edges.flatMap((edge, i) => edge ? [i] : []);
+        const pairs = turns.length === 4 ? (nw ? [[0, 3], [1, 2]] : [[0, 1], [2, 3]]) : [turns];
+        for (const [from, to] of pairs) {
+          if (from === undefined) continue;
+          const [ax, ay] = spokes[from], [bx, by] = spokes[to];
+          path.moveTo(x + ax, y + ay);
+          path.quadraticCurveTo(x, y, x + bx, y + by);
+        }
+      }
+    }
+    return path;
+  }
+
+  const wallPath = buildWallPath();
+
+  function drawMaze() {
     ctx.fillStyle = "#05060c";
-    ctx.fillRect(0, 0, W, H);
+    ctx.fillRect(0, 0, LOGICAL_W, LOGICAL_H);
 
-    // Ghost pen floor — walkable, but never dotted.
-    ctx.fillStyle = "rgba(120, 170, 255, 0.12)";
-    for (let r = 0; r < MAZE_H; r++) {
-      for (let c = 0; c < MAZE_W; c++) {
-        if (maze[r][c] === " ") ctx.fillRect(c * CELL + 1, r * CELL + 1, CELL - 2, CELL - 2);
-      }
+    // A second blue outline follows the board edge and opens at the tunnels.
+    const inset = CELL * 0.25;
+    const tunnelY = TUNNEL_ROW * CELL;
+    ctx.beginPath();
+    for (const [edge, end, sign] of [[inset, tunnelY, 1], [LOGICAL_H - inset, tunnelY + CELL, -1]]) {
+      ctx.moveTo(inset, end);
+      ctx.lineTo(inset, edge + sign * CELL * 0.5);
+      ctx.quadraticCurveTo(inset, edge, inset + CELL * 0.5, edge);
+      ctx.lineTo(LOGICAL_W - inset - CELL * 0.5, edge);
+      ctx.quadraticCurveTo(LOGICAL_W - inset, edge, LOGICAL_W - inset, edge + sign * CELL * 0.5);
+      ctx.lineTo(LOGICAL_W - inset, end);
     }
 
-    // Walls: deep-blue blocks with a bright top/left lip, arcade style.
-    for (let r = 0; r < MAZE_H; r++) {
-      for (let c = 0; c < MAZE_W; c++) {
-        if (maze[r][c] !== "#") continue;
-        const x = c * CELL + 1, y = r * CELL + 1;
-        ctx.fillStyle = "#122bb8";
-        ctx.fillRect(x, y, CELL - 2, CELL - 2);
-        ctx.fillStyle = "#3a69ff";
-        ctx.fillRect(x + 2, y + 2, CELL - 6, 2);
-        ctx.fillRect(x + 2, y + 2, 2, CELL - 6);
-      }
-    }
+    ctx.lineCap = "round";
+    ctx.lineWidth = 6;
+    ctx.strokeStyle = "#102765";
+    ctx.stroke(wallPath);
+    ctx.stroke();
+    ctx.lineWidth = 2.3;
+    ctx.strokeStyle = "#628aff";
+    ctx.stroke(wallPath);
+    ctx.stroke();
+
+    const [row, col] = GATE;
+    ctx.fillStyle = "#ffb5d9";
+    ctx.fillRect(col * CELL + 1, (row + 0.5) * CELL - 1.5, CELL - 2, 3);
+  }
+
+  function draw() {
+    drawMaze();
 
     // Dots.
     const cx = (c) => c * CELL + CELL / 2;
@@ -617,18 +689,13 @@
     const px = cx(player.c);
     const py = cy(player.r);
     const pr = CELL * 0.42;
+    const [dr, dc] = player.dir;
+    const heading = Math.atan2(dr, dc);
+    const mouth = 0.29 + 0.19 * Math.sin(frame * Math.PI / 7);
     ctx.fillStyle = "#ffd94d";
     ctx.beginPath();
-    ctx.arc(px, py, pr, 0, Math.PI * 2);
-    ctx.fill();
-    // Mouth wedge.
-    const ang = Math.atan2(player.dir[1], player.dir[0]);
-    const mouth = (frame >> 2) % 2 === 0 ? 0.22 : 0.46;
-    ctx.fillStyle = "#05060c";
-    ctx.beginPath();
     ctx.moveTo(px, py);
-    ctx.lineTo(px + Math.cos(ang - mouth) * pr, py + Math.sin(ang - mouth) * pr);
-    ctx.lineTo(px + Math.cos(ang + mouth) * pr, py + Math.sin(ang + mouth) * pr);
+    ctx.arc(px, py, pr, heading + mouth, heading + 2 * Math.PI - mouth);
     ctx.closePath();
     ctx.fill();
 
@@ -662,6 +729,7 @@
   function setPaused(p) {
     if (state !== "playing" || paused === p) return;
     paused = p;
+    tickCarry = 0; // a pause must not bank time for a catch-up burst
     if (p) {
       showOverlay("Paused", "Take a breath — press P or hit Resume.", [
         { label: "Resume", onClick: () => { hideOverlay(); setPaused(false); } },
@@ -678,10 +746,10 @@
 
   // ---------- Input ----------
   function setDir(dr, dc) {
+    if (badgesOpen) return; // the dialog owns keyboard and swipe input
     if (state === "ready") startGame();
     if (state !== "playing" || paused) return;
     player.nextDir = [dr, dc];
-    if (player.dir[0] === 0 && player.dir[1] === 0) player.dir = [dr, dc];
   }
 
   function onKeyDown(e) {
@@ -754,10 +822,31 @@
   }
 
   // ---------- Loop ----------
-  const gameLoop = loopApi.create(() => {
-    update();
+  // The shared loop supplies elapsed milliseconds. Advance the simulation at
+  // a fixed 60 ticks/second so speeds and the 480-tick power duration are the
+  // same on 60 Hz, 120 Hz or any other display. Drawing stays per frame.
+  const TICK_MS = 1000 / 60;
+
+  function onFrame(dt) {
+    if (state === "playing" && !paused && !badgesOpen) {
+      tickCarry += dt;
+      let guard = 0;
+      while (tickCarry >= TICK_MS && guard++ < 12) {
+        const before = state;
+        update();
+        tickCarry = Math.max(0, tickCarry - TICK_MS); // update() may reset it
+        if (state !== before || state !== "playing" || paused || badgesOpen) {
+          tickCarry = 0;
+          break;
+        }
+      }
+    } else {
+      tickCarry = 0;
+    }
     draw();
-  });
+  }
+
+  const gameLoop = loopApi.create(onFrame);
 
   // ---------- Init ----------
   function init() {
@@ -777,6 +866,9 @@
     START_LIVES,
     PLAYER_TICK,
     POWER_FRAMES,
+    TICK_MS,
+    tickLoop: (dt) => onFrame(dt),
+    get tickCarry() { return tickCarry; },
     get maze() { return maze.map((row) => [...row]); },
     get dots() { return dots.map((row) => row.slice()); },
     get player() { return { r: player.r, c: player.c, dir: player.dir.slice(), nextDir: player.nextDir.slice() }; },
@@ -788,6 +880,7 @@
     get powerTimer() { return powerTimer; },
     get state() { return state; },
     get paused() { return paused; },
+    get badgesOpen() { return badgesOpen; },
     get scatterMode() { return scatterMode; },
     get modeIndex() { return modeIndex; },
     GHOST_DIRS,
@@ -814,7 +907,8 @@
     setLives: (n) => { lives = n; updateStatus(); },
     setLevel: (n) => { level = n; updateStatus(); },
     setPowerTimer: (n) => { powerTimer = n; },
-    setGhost: (i, r, c) => { if (ghosts[i]) { ghosts[i].r = r; ghosts[i].c = c; ghosts[i].cooldown = 9999; ghosts[i].leaving = false; } },
+    setGhost: (i, r, c) => { if (ghosts[i]) { ghosts[i].r = r; ghosts[i].c = c; ghosts[i].prevR = r; ghosts[i].prevC = c; ghosts[i].cooldown = 9999; ghosts[i].leaving = false; } },
+    setGhostDir: (i, dr, dc) => { if (ghosts[i]) ghosts[i].dir = [dr, dc]; },
     setGhostCooldown: (n) => { for (const g of ghosts) g.cooldown = n; },
     setDots: (d) => {
       dots = d.map((row) => row.slice());

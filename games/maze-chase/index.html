@@ -43,7 +43,8 @@
       display: block;
       max-width: 100%;
       height: auto;
-      border-radius: 14px;
+      border: 1px solid #243778;
+      border-radius: 12px;
       box-shadow: var(--shadow);
       touch-action: none;
     }
@@ -69,12 +70,12 @@
         <div class="status-bar__item"><span class="status-bar__label">Level</span><span id="level" class="status-bar__value">1</span></div>
         <div class="status-bar__item"><span class="status-bar__label">Lives</span><span id="lives" class="status-bar__value">3</span></div>
       </div>
-      <canvas id="game" width="380" height="380" aria-label="Maze Chase game area"></canvas>
+      <canvas id="game" width="460" height="500" aria-label="Maze Chase game area"></canvas>
       <div class="game-controls">
         <button id="restart" class="btn">Restart</button>
         <button id="badges2" class="btn btn--ghost" type="button">🏆 Badges</button>
       </div>
-      <p id="hint" class="game-info__hint" aria-live="polite">Arrow keys / WASD to move. Eat every dot and use the side tunnels. Ghosts switch between chasing you and guarding their corners — power pellets turn them vulnerable. P pauses.</p>
+      <p id="hint" class="game-info__hint">Move with arrow keys, WASD, or a swipe. Use the side tunnels and eat every dot. Power pellets let you eat ghosts. P pauses.</p>
     </main>
   </div>
 

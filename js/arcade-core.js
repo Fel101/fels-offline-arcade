@@ -797,18 +797,64 @@
     }
 
     let open = false;
+    let opener = null; // element that had focus when the dialog opened
 
     function isOpen() {
       return open;
     }
 
+    function activeEl() {
+      return typeof document !== "undefined" ? document.activeElement : null;
+    }
+
+    // The first [data-close] is usually the full-screen backdrop (a div).
+    // The real Close control is the button; fall back gracefully for other
+    // markup shapes and the lightweight test DOM.
+    function closeButton() {
+      const nodes = el.querySelectorAll ? Array.from(el.querySelectorAll("[data-close]")) : [];
+      const btn = nodes.find((n) => String(n.tagName || "").toUpperCase() === "BUTTON");
+      if (btn) return btn;
+      const panel = nodes.find((n) => !(n.classList && n.classList.contains("snake-modal__backdrop")));
+      return panel || nodes[0] || (el.querySelector ? el.querySelector("[data-close]") : null);
+    }
+
+    function tabbable() {
+      if (!el.querySelectorAll) return [];
+      const sel =
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+      return Array.from(el.querySelectorAll(sel)).filter((n) => {
+        if (n.disabled || n.hidden || n.getAttribute("aria-hidden") === "true") return false;
+        if (n.getClientRects) return n.getClientRects().length > 0;
+        return true;
+      });
+    }
+
+    // Keep Tab / Shift+Tab cycling inside the dialog while it owns input.
+    function trapFocus(e) {
+      if (!open || e.key !== "Tab") return;
+      const items = tabbable();
+      if (!items.length) {
+        if (e.preventDefault) e.preventDefault();
+        return;
+      }
+      const first = items[0];
+      const last = items[items.length - 1];
+      const active = activeEl();
+      const inside = active && el.contains ? el.contains(active) : false;
+      if (e.shiftKey ? active === first || !inside : active === last || !inside) {
+        if (e.preventDefault) e.preventDefault();
+        (e.shiftKey ? last : first).focus();
+      }
+    }
+
     function show() {
       if (open) return;
       open = true;
+      opener = activeEl();
       el.hidden = false;
       document.body.classList.add("modal-open");
       if (typeof options.onOpen === "function") options.onOpen();
-      const closeBtn = el.querySelector("[data-close]");
+      const closeBtn = closeButton();
       if (closeBtn && closeBtn.focus) closeBtn.focus();
     }
 
@@ -817,9 +863,18 @@
       open = false;
       el.hidden = true;
       document.body.classList.remove("modal-open");
+      // Let the game react first. If its callback deliberately focuses a
+      // different element, that explicit choice wins over opener restoration.
+      const beforeClose = activeEl();
       if (typeof options.onClose === "function") options.onClose();
-      const target = options.returnFocus || null;
-      if (target && target.focus) target.focus();
+      const afterClose = activeEl();
+      const moved = afterClose && afterClose !== beforeClose &&
+        !(el.contains && el.contains(afterClose));
+      if (!moved) {
+        const target = opener && opener.isConnected !== false ? opener : options.returnFocus || null;
+        if (target && target.focus) target.focus();
+      }
+      opener = null;
     }
 
     function toggle() {
@@ -830,6 +885,7 @@
     el.querySelectorAll("[data-close]").forEach((node) => {
       node.addEventListener("click", hide);
     });
+    el.addEventListener("keydown", trapFocus);
 
     return { open: show, close: hide, toggle, isOpen };
   }

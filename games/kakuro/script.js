@@ -18,9 +18,11 @@
   const cellsEl = document.getElementById("cells");
   const mistakesEl = document.getElementById("mistakes");
   const comboEl = document.getElementById("combo");
+  const comboItem = document.getElementById("combo-item");
   const hintsEl = document.getElementById("hints");
   const bestEl = document.getElementById("best");
   const hintEl = document.getElementById("hint");
+  const combinationsEl = document.getElementById("clue-combinations");
 
   const pauseBtn = document.getElementById("pause");
   const notesBtn = document.getElementById("notes-btn");
@@ -46,18 +48,54 @@
 
   // ---------- Constants ----------
   const N = 9;
+  const CLUE_PROMPT = "Select a clue to see its digit combinations.";
 
   const DIFFS = {
-    easy: { name: "Easy", target: 20, par: 600, bonus: 200 },
-    medium: { name: "Medium", target: 24, par: 900, bonus: 400 },
-    hard: { name: "Hard", target: 28, par: 1200, bonus: 700 },
-    expert: { name: "Expert", target: 31, par: 1500, bonus: 1000 },
+    easy: { name: "Easy", par: 600, bonus: 200 },
+    medium: { name: "Medium", par: 900, bonus: 400 },
+    hard: { name: "Hard", par: 1200, bonus: 700 },
+    expert: { name: "Expert", par: 1500, bonus: 1000 },
+  };
+
+  // Original puzzles verified by eliminating unsupported digits across intersecting runs.
+  // Each string contains the eight interior rows, with dots marking blocked cells.
+  const PUZZLES = {
+    easy: [
+      "......../..14..../3125..../1249..../24.1832./97..621./....514./........",
+      "...43162/...96385/....98../...27541/...38794/......52/......../........",
+      "973...../651...../.421..75/.973..19/.896..98/...91387/....2153/........",
+      "..4172../..84957./713.412./13..689./421...48/963...13/......../........",
+      "25713.../78925.../14.68.97/...37168/...4968./.....37./......../........",
+      "....45../....895./...9681./69573.../351...../..7459../..4217../..95....",
+    ],
+    medium: [
+      "978...../132...../257869../.43216../689..869/19..1728/....23../....95..",
+      ".26...../.69.3125/.38.8569/143.9846/3172..38/...4351./....19../........",
+      "...739../...312../.....729/...62154/13794.68/62987.16/....5987/....183.",
+      "......98/.....879/..256143/39184.86/57498.../....26../..2459../..5798..",
+      "69....../13....../56..64../27..89../35217.../..7396../.75.4715/.19..859",
+      "..9385../534172../978.593./....632./...138../...397../7912..../8765....",
+    ],
+    hard: [
+      "....59../....71../5123.621/7612.813/93..5789/89467.../351247../683.12..",
+      "..82..../..96..../..796.85/..571.31/19682.97/24..4678/48..3164/......43",
+      "19....15/65...738/87.798../.13924../125.12../48.35.../..62315./..71459.",
+      "13...14./243..87./495..751/..497312/...78935/.798562./.28...../.17.....",
+      ".....598/....5184/29.71263/6798..../.281..../..7689../..321674/...43821",
+      ".79864../.16785../..16..../473251../69.97638/56..9315/249...../187.....",
+    ],
+    expert: [
+      "69.12.87/24.36125/4798.539/1534..../38.763../...64213/.....942/.....421",
+      "..38917./.614723./.86..487/97.24351/64281.../891.28../72..59../....67..",
+      "...63125/...72348/53.95.59/68.81.12/89756.36/.52.76../.41..524/.13..961",
+      "..968.../683579../34.138../968...../412.28../..674312/..983754/..591.23",
+    ],
   };
 
   const MODES = {
-    classic: { name: "Classic", maxMistakes: 0, hints: 3, hint: "Fill each run with 1–9, no repeats · 3 hints · no mistake limit" },
+    classic: { name: "Classic", maxMistakes: 0, hints: 3, hint: "Use 1–9 to match each clue sum without repeats. Arrow keys move between cells. Use Check to validate your entries." },
     attack: { name: "Time Attack", maxMistakes: 3, hints: 3, hint: "3 mistakes and it's over · H for a hint · beat the clock" },
-    daily: { name: "Daily", maxMistakes: 0, hints: 3, hint: "One seeded puzzle a day — build your streak" },
+    daily: { name: "Daily", maxMistakes: 0, hints: 3, hint: "Solve today's puzzle to build your streak. Use Check to validate your entries." },
   };
 
   // "Lower is better" time badges: goal is in seconds, the stat in ms.
@@ -273,16 +311,7 @@
   }
 
   function isPlayable(r, c) {
-    return !!(state.playable && state.playable[r][c]);
-  }
-
-  function shuffle(a, rand) {
-    const r = rand || Math.random;
-    for (let i = a.length - 1; i > 0; i--) {
-      const j = Math.floor(r() * (i + 1));
-      [a[i], a[j]] = [a[j], a[i]];
-    }
-    return a;
+    return !!state.playable?.[r]?.[c];
   }
 
   function hashSeed(str) {
@@ -302,42 +331,6 @@
       t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
       return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
     };
-  }
-
-  // Standard 9x9 Sudoku solution (used only to build a valid Kakuro solution).
-  const BASE_SOLUTION = [
-    [5, 3, 4, 6, 7, 8, 9, 1, 2],
-    [6, 7, 2, 1, 9, 5, 3, 4, 8],
-    [1, 9, 8, 3, 4, 2, 5, 6, 7],
-    [8, 5, 9, 7, 6, 1, 4, 2, 3],
-    [4, 2, 6, 8, 5, 3, 7, 9, 1],
-    [7, 1, 3, 9, 2, 4, 8, 5, 6],
-    [9, 6, 1, 5, 3, 7, 2, 8, 4],
-    [2, 8, 7, 4, 1, 9, 6, 3, 5],
-    [3, 4, 5, 2, 8, 6, 1, 7, 9],
-  ];
-
-  function transformSolution(rand) {
-    const digits = shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9], rand);
-    const rows = [];
-    for (const band of shuffle([0, 1, 2], rand)) {
-      for (const r of shuffle([0, 1, 2], rand)) rows.push(band * 3 + r);
-    }
-    const cols = [];
-    for (const stack of shuffle([0, 1, 2], rand)) {
-      for (const c of shuffle([0, 1, 2], rand)) cols.push(stack * 3 + c);
-    }
-    const out = Array.from({ length: 9 }, () => new Array(9).fill(0));
-    for (let r = 0; r < 9; r++) {
-      for (let c = 0; c < 9; c++) {
-        out[r][c] = digits[BASE_SOLUTION[rows[r]][cols[c]] - 1];
-      }
-    }
-    return out;
-  }
-
-  function emptyPlayable() {
-    return Array.from({ length: N }, () => new Array(N).fill(true));
   }
 
   function findRuns(playable) {
@@ -390,6 +383,7 @@
     runs: [],
     runsAt: Array.from({ length: N }, () => Array.from({ length: N }, () => [])),
     selected: null,
+    checked: false,
     notesMode: false,
     mistakes: 0,
     hintsLeft: 3,
@@ -411,8 +405,9 @@
   let cellEls = [];
   let valEls = [];
   let notesEls = [];
-  let clueEls = [];
+  const clueEls = new Map();
   let resumeAfterModal = false;
+  let previousPuzzle = null;
   let lastTs = 0;
   let lastTimeText = "";
 
@@ -420,7 +415,7 @@
     let filled = 0;
     for (let r = 0; r < N; r++) {
       for (let c = 0; c < N; c++) {
-        if (isPlayable(r, c) && state.values[r][c] === state.solution[r][c]) filled++;
+        if (isPlayable(r, c) && state.values[r][c]) filled++;
       }
     }
     return { filled, total: state.total };
@@ -453,8 +448,12 @@
     return ["easy", "medium", "hard", "expert"].filter((d) => stats["solves" + cap(d)] > 0).length;
   }
 
+  function puzzleDifficulty() {
+    return state.mode === "daily" ? "medium" : state.diff;
+  }
+
   function bestLabel() {
-    const rec = store.json(K.best(state.mode, state.diff), null);
+    const rec = store.json(K.best(state.mode, puzzleDifficulty()), null);
     if (!rec || !rec.t) return "—";
     return formatTime(rec.t);
   }
@@ -584,7 +583,6 @@
   }
 
   // ---------- Board rendering ----------
-  // ---------- Board rendering ----------
   // A clue cell is never part of a run, so look at the playable cell that
   // starts the run it describes: below it for a down clue, right of it for
   // an across clue.
@@ -599,44 +597,70 @@
     return state.runsAt[r][cc].find((x) => x.dir === "h") || null;
   }
 
+  function digitCombinations(count, sum, used = new Set()) {
+    const combinations = [];
+    const digits = [];
+    function collect(next, left, remaining) {
+      if (left === 0) {
+        if (remaining === 0) combinations.push(digits.slice());
+        return;
+      }
+      for (let digit = next; digit <= 10 - left && digit <= remaining; digit++) {
+        if (used.has(digit)) continue;
+        digits.push(digit);
+        collect(digit + 1, left - 1, remaining - digit);
+        digits.pop();
+      }
+    }
+    collect(1, count, sum);
+    return combinations;
+  }
+
+  function makeClueButton(run) {
+    const button = document.createElement("button");
+    const across = run.dir === "h";
+    const direction = across ? "Across" : "Down";
+    const label = `${direction} ${run.sum} in ${run.cells.length} cells`;
+    button.type = "button";
+    button.className = `kakuro-clue__tri kakuro-clue__tri--${across ? "right" : "down"}`;
+    button.textContent = run.sum;
+    button.setAttribute("aria-label", label);
+    button.setAttribute("aria-controls", "clue-combinations");
+    button.addEventListener("click", () => {
+      const combinations = digitCombinations(run.cells.length, run.sum);
+      combinationsEl.textContent = `${label} · ${combinations.map((digits) => digits.join(" + ")).join(" / ")}`;
+      const [r, c] = run.cells[0];
+      selectCell(r, c, false);
+    });
+    clueEls.set(run, button);
+    return button;
+  }
+
   function buildBoard() {
     boardEl.innerHTML = "";
-    boardEl.style.gridTemplateColumns = `repeat(${N}, 1fr)`;
-    boardEl.style.gridTemplateRows = `repeat(${N}, 1fr)`;
+    combinationsEl.textContent = CLUE_PROMPT;
     cellEls = [];
     valEls = [];
     notesEls = [];
-    clueEls = [];
+    clueEls.clear();
     for (let r = 0; r < N; r++) {
       cellEls[r] = [];
       valEls[r] = [];
       notesEls[r] = [];
-      clueEls[r] = [];
       for (let c = 0; c < N; c++) {
         const wrap = document.createElement("div");
         wrap.className = "kakuro-cell";
         wrap.dataset.r = r;
         wrap.dataset.c = c;
         boardEl.appendChild(wrap);
-        clueEls[r][c] = wrap;
 
         if (!isPlayable(r, c)) {
           const clue = document.createElement("div");
           clue.className = "kakuro-clue";
           const downRun = clueRun(r, c, "v");
-          if (downRun) {
-            const t = document.createElement("span");
-            t.className = "kakuro-clue__tri kakuro-clue__tri--down";
-            t.textContent = downRun.sum;
-            clue.appendChild(t);
-          }
           const rightRun = clueRun(r, c, "h");
-          if (rightRun) {
-            const t = document.createElement("span");
-            t.className = "kakuro-clue__tri kakuro-clue__tri--right";
-            t.textContent = rightRun.sum;
-            clue.appendChild(t);
-          }
+          if (rightRun) clue.appendChild(makeClueButton(rightRun));
+          if (downRun) clue.appendChild(makeClueButton(downRun));
           if (downRun || rightRun) clue.classList.add("kakuro-clue--split");
           wrap.appendChild(clue);
           cellEls[r][c] = null;
@@ -663,6 +687,7 @@
         b.appendChild(val);
         b.appendChild(notes);
         b.addEventListener("click", () => selectCell(r, c));
+        b.addEventListener("focus", () => selectCell(r, c, false));
         wrap.appendChild(b);
         cellEls[r][c] = b;
         valEls[r][c] = val;
@@ -673,44 +698,35 @@
 
   function runComplete(run) {
     let sum = 0;
-    let full = true;
+    const used = new Set();
     for (const [r, c] of run.cells) {
-      const v = state.values[r][c];
-      if (!v) full = false;
-      else sum += v;
+      const value = state.values[r][c];
+      if (!value || used.has(value)) return false;
+      used.add(value);
+      sum += value;
     }
-    return full && sum === run.sum;
+    return sum === run.sum;
   }
 
   function runHasError(run) {
+    let remaining = run.sum;
+    const used = new Set();
     for (const [r, c] of run.cells) {
-      const v = state.values[r][c];
-      if (v && v !== state.solution[r][c]) return true;
+      const value = state.values[r][c];
+      if (!value) continue;
+      if (used.has(value)) return true;
+      used.add(value);
+      remaining -= value;
     }
-    return false;
+    return used.size > 0 && digitCombinations(run.cells.length - used.size, remaining, used).length === 0;
   }
 
-  function runConflict(r, c, v) {
-    for (const run of state.runsAt[r][c]) {
-      let sum = v;
-      for (const [rr, cc] of run.cells) {
-        if (rr === r && cc === c) continue;
-        const ov = state.values[rr][cc];
-        if (!ov) continue;
-        if (ov === v) return true;
-        sum += ov;
-      }
-      if (sum > run.sum) return true;
-    }
-    return false;
-  }
-
-  function renderCell(r, c) {
+  function renderCell(r, c, badRuns) {
     if (!isPlayable(r, c)) return;
     const el = cellEls[r][c];
     const v = state.values[r][c];
-    el.classList.toggle("error", v !== 0 && v !== state.solution[r][c]);
-    el.classList.toggle("conflict", v !== 0 && runConflict(r, c, v));
+    el.classList.toggle("error", !!maxMistakes() && v !== 0 && v !== state.solution[r][c]);
+    el.classList.toggle("conflict", v !== 0 && state.runsAt[r][c].some((run) => badRuns.has(run)));
     valEls[r][c].textContent = v || "";
 
     const notesEl = notesEls[r][c];
@@ -725,59 +741,42 @@
     el.setAttribute("aria-label", `Row ${r + 1}, column ${c + 1}${v ? ", " + v : ", empty"}`);
   }
 
-  function renderClues() {
-    for (let r = 0; r < N; r++) {
-      for (let c = 0; c < N; c++) {
-        if (isPlayable(r, c)) continue;
-        const wrap = clueEls[r][c];
-        const tris = wrap.querySelectorAll(".kakuro-clue__tri");
-        tris.forEach((tri) => {
-          const dir = tri.classList.contains("kakuro-clue__tri--down") ? "v" : "h";
-          const run = clueRun(r, c, dir);
-          if (!run) return;
-          const done = runComplete(run);
-          const bad = runHasError(run);
-          tri.classList.toggle("done", done);
-          tri.classList.toggle("bad", bad && !done);
-        });
-      }
-    }
-  }
-
   function renderAllCells() {
+    const showChecks = state.checked || !!maxMistakes() || state.won;
+    const badRuns = new Set(showChecks ? state.runs.filter(runHasError) : []);
     for (let r = 0; r < N; r++) {
-      for (let c = 0; c < N; c++) renderCell(r, c);
+      for (let c = 0; c < N; c++) renderCell(r, c, badRuns);
     }
-    renderClues();
+    for (const [run, button] of clueEls) {
+      button.classList.toggle("done", showChecks && runComplete(run));
+      button.classList.toggle("bad", badRuns.has(run));
+    }
   }
 
   function updateHighlights() {
     const sel = state.selected;
     const sv = sel ? state.values[sel.r][sel.c] : 0;
+    const selectedRuns = sel ? state.runsAt[sel.r][sel.c] : [];
     for (let r = 0; r < N; r++) {
       for (let c = 0; c < N; c++) {
         if (!isPlayable(r, c)) continue;
         const el = cellEls[r][c];
         const isSel = !!sel && r === sel.r && c === sel.c;
-        let related = false;
-        if (sel && !isSel) {
-          for (const run of state.runsAt[sel.r][sel.c]) {
-            for (const [rr, cc] of run.cells) if (rr === r && cc === c) related = true;
-          }
-        }
+        const related = !isSel && state.runsAt[r][c].some((run) => selectedRuns.includes(run));
         el.classList.toggle("selected", isSel);
         el.classList.toggle("related", related);
         el.classList.toggle("same", !!sel && sv !== 0 && state.values[r][c] === sv && !isSel);
       }
     }
+    for (const [run, button] of clueEls) button.classList.toggle("related", selectedRuns.includes(run));
   }
 
-  function selectCell(r, c) {
+  function selectCell(r, c, focus = true) {
     if (!isPlayable(r, c)) return;
     state.selected = { r, c };
     updateHighlights();
     const el = cellEls[r][c];
-    if (el) el.focus({ preventScroll: true });
+    if (focus && el) el.focus({ preventScroll: true });
   }
 
   function firstPlayable() {
@@ -791,15 +790,15 @@
       selectCell(f.r, f.c);
       return;
     }
-    let r = state.selected.r;
-    let c = state.selected.c;
-    for (let i = 0; i < N * 2; i++) {
-      r = Math.min(N - 1, Math.max(0, r + dr));
-      c = Math.min(N - 1, Math.max(0, c + dc));
+    let r = state.selected.r + dr;
+    let c = state.selected.c + dc;
+    while (r >= 0 && r < N && c >= 0 && c < N) {
       if (isPlayable(r, c)) {
         selectCell(r, c);
         return;
       }
+      r += dr;
+      c += dc;
     }
   }
 
@@ -855,6 +854,8 @@
 
     if (v === 0) {
       sfx("erase");
+    } else if (!maxMistakes()) {
+      sfx("place");
     } else if (v === state.solution[r][c]) {
       state.combo++;
       state.maxCombo = Math.max(state.maxCombo, state.combo);
@@ -1027,30 +1028,25 @@
 
   function checkBoard() {
     if (!canEdit()) return;
-    let errors = 0;
-    let empty = 0;
-    for (let r = 0; r < N; r++) {
-      for (let c = 0; c < N; c++) {
-        if (!isPlayable(r, c)) continue;
-        const v = state.values[r][c];
-        if (v === 0) empty++;
-        else if (v !== state.solution[r][c]) errors++;
-      }
-    }
-    if (errors === 0 && empty === 0) {
-      checkWin();
-      return;
-    }
-    if (errors === 0) {
-      toast.show("Looking good", `No mistakes so far — ${empty} cell${empty === 1 ? "" : "s"} to go.`, "✅");
-      sfx("click");
-    } else {
-      toast.show(`${errors} mistake${errors === 1 ? "" : "s"}`, "Those red cells don't match the solution.", "🚨");
+    if (checkWin()) return;
+    const errors = state.runs.filter(runHasError).length;
+    if (errors && !state.checked && !maxMistakes()) state.mistakes++;
+    state.checked = true;
+    renderAllCells();
+    updateHUD();
+
+    if (errors) {
+      toast.show(`${errors} ${errors === 1 ? "clue needs" : "clues need"} attention`, "Check the highlighted runs for repeats or impossible sums.", "🚨");
       sfx("error");
+    } else {
+      const empty = state.total - progress().filled;
+      toast.show("Looking good", `${empty} empty ${empty === 1 ? "cell" : "cells"}. Try the remaining clues.`, "✅");
+      sfx("click");
     }
   }
 
   function afterChange() {
+    state.checked = false;
     renderAllCells();
     updateHighlights();
     updateHUD();
@@ -1060,12 +1056,7 @@
 
   // ---------- Win / lose ----------
   function isComplete() {
-    for (let r = 0; r < N; r++) {
-      for (let c = 0; c < N; c++) {
-        if (isPlayable(r, c) && state.values[r][c] !== state.solution[r][c]) return false;
-      }
-    }
-    return true;
+    return state.runs.length > 0 && state.runs.every(runComplete);
   }
 
   function checkWin() {
@@ -1076,7 +1067,7 @@
   }
 
   function saveBest(won) {
-    const key = K.best(state.mode, state.diff);
+    const key = K.best(state.mode, puzzleDifficulty());
     const prev = store.json(key, null);
     const t = won ? Math.round(state.elapsed) : (prev && prev.t) || 0;
     store.jsonSet(key, { t, s: Math.max((prev && prev.s) || 0, state.score) });
@@ -1099,8 +1090,10 @@
     if (state.over) return;
     state.over = true;
     state.won = true;
+    renderAllCells();
 
-    const cfg = DIFFS[state.diff];
+    const diff = puzzleDifficulty();
+    const cfg = DIFFS[diff];
     const secs = Math.floor(state.elapsed / 1000);
     const timeBonus = Math.max(0, cfg.par - secs) * 5;
     let bonus = cfg.bonus + timeBonus;
@@ -1108,10 +1101,11 @@
     state.score += bonus;
 
     stats.solves++;
+    if (!maxMistakes()) stats.correctCells += Math.max(0, state.total - state.hintsUsed);
     stats.totalTime += Math.round(state.elapsed);
-    stats["solves" + cap(state.diff)]++;
+    stats["solves" + cap(diff)]++;
     if (state.mistakes === 0) stats.flawlessSolves++;
-    if (state.mistakes === 0 && (state.diff === "hard" || state.diff === "expert")) stats.flawlessHard++;
+    if (state.mistakes === 0 && (diff === "hard" || diff === "expert")) stats.flawlessHard++;
     if (state.hintsUsed === 0) {
       stats.noHintSolves++;
       stats.cleanRuns++;
@@ -1120,7 +1114,7 @@
     if (new Date().getHours() < 5) stats.nightSolves++;
     if (!stats.bestTime || state.elapsed < stats.bestTime) stats.bestTime = Math.round(state.elapsed);
 
-    const prevBest = store.json(K.best(state.mode, state.diff), null);
+    const prevBest = store.json(K.best(state.mode, diff), null);
     const prevTime = prevBest && prevBest.t ? prevBest.t : 0;
     const isRecord = !prevTime || Math.round(state.elapsed) < prevTime;
 
@@ -1219,6 +1213,7 @@
     );
     diffBar.hidden = state.mode === "daily";
     newGameBtn.disabled = state.mode === "daily";
+    comboItem.hidden = !maxMistakes();
     updateDiffUI();
     updateHint();
     updateHUD();
@@ -1235,70 +1230,54 @@
   }
 
   // ---------- Puzzle generation ----------
-  function generate(diffKey, seedStr) {
-    const cfg = DIFFS[diffKey] || DIFFS.medium;
-    const rand = seedStr ? mulberry32(hashSeed(seedStr)) : Math.random;
-    const sol = state.solution;
+  function buildPuzzle(template, variant) {
+    const source = template.split("/");
+    const solution = Array.from({ length: N }, () => new Array(N).fill(0));
 
-    let best = null;
-    for (let attempt = 0; attempt < 6; attempt++) {
-      const playable = emptyPlayable();
-      const target = cfg.target + Math.floor(rand() * 3) - 1;
-      let removed = 0;
-      let guard = 0;
-      while (removed < target && guard++ < 400) {
-        const r = Math.floor(rand() * N);
-        const c = Math.floor(rand() * N);
-        if (!playable[r][c]) continue;
-        playable[r][c] = false;
-        const runs = findRuns(playable);
-        let valid = true;
-        for (const run of runs) {
-          if (run.cells.length < 2 || run.cells.length > 9) { valid = false; break; }
-          if (sumOf(sol, run.cells) > 45) { valid = false; break; }
-        }
-        if (valid) removed++;
-        else playable[r][c] = true;
+    // Reflections and transposition preserve the crossing runs. Replacing x
+    // with 10 - x preserves distinct digits and maps each sum bijectively.
+    for (let r = 1; r < N; r++) {
+      for (let c = 1; c < N; c++) {
+        let row = variant & 1 ? N - 1 - r : r - 1;
+        let col = variant & 2 ? N - 1 - c : c - 1;
+        if (variant & 4) [row, col] = [col, row];
+        const digit = Number(source[row][col]);
+        if (digit) solution[r][c] = variant & 8 ? 10 - digit : digit;
       }
-      // Repair: any playable cell with no horizontal or vertical run is
-      // unsolvable, so turn it back into a clue cell.
-      const runs = findRuns(playable);
-      const covered = Array.from({ length: N }, () => new Array(N).fill(false));
-      for (const run of runs) for (const [r, c] of run.cells) covered[r][c] = true;
-      for (let r = 0; r < N; r++) {
-        for (let c = 0; c < N; c++) {
-          if (playable[r][c] && !covered[r][c]) {
-            playable[r][c] = false;
-            removed++;
-          }
-        }
-      }
-      let playableCells = 0;
-      for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) if (playable[r][c]) playableCells++;
-      const ok = playableCells === 81 - removed;
-      if (!best || removed > best.removed || (ok && !best.ok)) {
-        best = { playable, removed, ok };
-      }
-      if (ok && removed >= cfg.target) break;
     }
-    const built = buildClues(best.playable, sol);
-    return { playable: best.playable, runs: built.runs, runsAt: built.at };
+
+    const playable = solution.map((row) => row.map(Boolean));
+    const { runs, at } = buildClues(playable, solution);
+    return { solution, playable, runs, runsAt: at };
+  }
+
+  function generate(diffKey, seedStr, previousIndex = -1) {
+    const templates = PUZZLES[diffKey];
+    const rand = seedStr ? mulberry32(hashSeed(seedStr)) : Math.random;
+    const excludePrevious = previousIndex >= 0 && templates.length > 1;
+    let index = Math.floor(rand() * (templates.length - Number(excludePrevious)));
+    if (excludePrevious && index >= previousIndex) index++;
+    const variant = Math.floor(rand() * 16);
+    return { ...buildPuzzle(templates[index], variant), index };
   }
 
   // ---------- Game flow ----------
   function reset() {
     hideOverlay();
     const seed = state.mode === "daily" ? dateStr() : null;
-    const rand = seed ? mulberry32(hashSeed(seed)) : Math.random;
-    state.solution = transformSolution(rand);
-    const gen = generate(state.diff, seed);
+    const diff = puzzleDifficulty();
+    const prev = !seed && previousPuzzle?.diff === diff ? previousPuzzle.index : -1;
+    const gen = generate(diff, seed, prev);
+    if (!seed) previousPuzzle = { diff, index: gen.index };
 
+    state.solution = gen.solution;
     state.playable = gen.playable;
     state.runs = gen.runs;
     state.runsAt = gen.runsAt;
     state.values = Array.from({ length: N }, () => new Array(N).fill(0));
     state.notes = Array.from({ length: N }, () => Array.from({ length: N }, () => new Set()));
-    state.selected = null;
+    state.selected = firstPlayable();
+    state.checked = false;
     state.notesMode = false;
     state.mistakes = 0;
     state.hintsLeft = MODES[state.mode].hints;
@@ -1311,16 +1290,17 @@
     state.elapsed = 0;
     lastTimeText = "";
     timeEl.textContent = "0:00";
-    state.started = false;
+    state.started = !maxMistakes();
     state.paused = false;
     state.over = false;
     state.won = false;
-    state.countdown = 1500;
+    state.countdown = state.started ? 0 : 1500;
     state.total = 0;
     for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) if (state.playable[r][c]) state.total++;
 
     buildBoard();
     renderAllCells();
+    updateHighlights();
     updateModeUI();
     updateCountdown();
     pauseBtn.textContent = "Pause";
@@ -1540,7 +1520,7 @@
   // Embedded test hook (also useful for debugging in the console).
   function __ACHV_LIST__() { return achv.list(); }
   window.__K = {
-    state, stats, DIFFS, MODES,
+    state, stats, DIFFS, MODES, PUZZLES,
     unlocked: () => __ACHV_LIST__,
     snap: () => ({
       mode: state.mode, diff: state.diff,
@@ -1577,7 +1557,7 @@
       state.runsAt = runsAt;
       state.values = Array.from({ length: 9 }, () => new Array(9).fill(0));
       state.notes = Array.from({ length: 9 }, () => Array.from({ length: 9 }, () => new Set()));
-      state.selected = null; state.notesMode = false;
+      state.selected = null; state.notesMode = false; state.checked = false;
       state.mistakes = 0; state.hintsLeft = 3; state.hintsUsed = 0;
       state.combo = 0; state.maxCombo = 0; state.score = 0;
       state.history = []; state.future = [];
@@ -1588,10 +1568,10 @@
       renderAllCells(); updateHUD();
     },
     reset, setMode, setDiff, placeNumber, setCellValue, eraseCell, toggleNote,
-    undo, redo, useHint, selectCell, checkWin, win, lose, generate, transformSolution,
+    undo, redo, useHint, selectCell, checkWin, win, lose, generate, buildPuzzle,
     findRuns, sumOf, buildClues, dateStr, startPlay, checkBoard, toggleNotes, progress,
     renderAllCells, updateHUD, checkAchievements, firstPlayable, isPlayable, runComplete,
-    runHasError, runConflict, clueRun,
+    runHasError, clueRun,
   };
 
   init();

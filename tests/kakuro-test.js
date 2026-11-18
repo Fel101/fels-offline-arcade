@@ -1,6 +1,5 @@
 // Deterministic tests for games/kakuro/script.js.
 const fs = require("fs");
-const path = require("path");
 
 const listeners = {};
 const elements = new Map();
@@ -54,7 +53,7 @@ function makeEl(id, tag = "div") {
   return el;
 }
 
-const ids = ["board","countdown","countdown-num","time","cells","mistakes","combo","hints","best","hint","pause","notes-btn","hint-btn","undo-btn","redo-btn","new-game","check","badges-btn","badge-count","sound-btn","sound-icon","difficulty-bar","toasts","achv-modal","achv-grid","achv-count","achv-records","badges2"];
+const ids = ["board","countdown","countdown-num","time","cells","mistakes","combo","combo-item","hints","best","hint","clue-combinations","pause","notes-btn","hint-btn","undo-btn","redo-btn","new-game","check","badges-btn","badge-count","sound-btn","sound-icon","difficulty-bar","toasts","achv-modal","achv-grid","achv-count","achv-records","badges2"];
 for (const id of ids) elements.set(id, makeEl(id));
 elements.get("achv-modal").hidden = true;
 
@@ -114,109 +113,115 @@ function frames(n) {
   }
 }
 
-function mulberry(a) { return function () { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
-function shuffle(a, r) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
-function hashSeed(str) { let h = 2166136261 >>> 0; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
-
 function makePuzzle(seed, diff) {
-  const rand = mulberry(seed);
-  const sol = T.transformSolution(rand);
-  T.state.solution = sol;
-  return { sol, gen: T.generate(diff, "seed-" + seed) };
+  const gen = T.generate(diff, "seed-" + seed);
+  return { sol: gen.solution, gen };
 }
 
-// ---------- A. Solution validity ----------
-for (let seed = 1; seed <= 20; seed++) {
-  const sol = T.transformSolution(mulberry(seed));
-  let valid = true;
-  for (let r = 0; r < 9; r++) {
-    const row = new Set(), col = new Set();
-    for (let c = 0; c < 9; c++) { row.add(sol[r][c]); col.add(sol[c][r]); }
-    if (row.size !== 9 || col.size !== 9) valid = false;
-  }
-  ok(valid, `seed ${seed}: transformed solution is a valid Sudoku`);
-  const flat = sol.flat();
-  ok(flat.every((v) => v >= 1 && v <= 9), `seed ${seed}: all digits 1-9`);
-}
-const s1 = T.transformSolution(mulberry(1));
-const s2 = T.transformSolution(mulberry(1));
-deepEq(s1, s2, "seeded solution is deterministic");
-ok(JSON.stringify(T.transformSolution(mulberry(1))) !== JSON.stringify(T.transformSolution(mulberry(2))), "different seeds give different solutions");
-
-// ---------- B. Generation ----------
-for (const d of ["easy", "medium", "hard", "expert"]) {
-  let allRunsValid = true;
-  let anyPuzzle = false;
-  let debugInfo = null;
-  for (let seed = 1; seed <= 6; seed++) {
-    const { gen } = makePuzzle(seed, d);
-    const playable = gen.playable;
-    const runs = gen.runs;
-    for (const run of runs) {
-      if (run.cells.length < 2 || run.cells.length > 9) { allRunsValid = false; debugInfo = debugInfo || { issue: "len", run }; }
-      if (run.sum > 45) { allRunsValid = false; debugInfo = debugInfo || { issue: "sum>45", run }; }
-      const expected = T.sumOf(T.state.solution, run.cells);
-      if (run.sum !== expected) { allRunsValid = false; debugInfo = debugInfo || { issue: "sum-mismatch", run, expected }; }
+// A puzzle is solvable without guessing when repeated crossing-run
+// elimination leaves a single supported digit in every cell.
+function solveByElimination(puzzle) {
+  const candidates = puzzle.playable.map((row) => row.map((open) => open ? 0b1111111110 : 0));
+  let changed;
+  do {
+    changed = false;
+    for (const { cells, sum } of puzzle.runs) {
+      const supported = new Array(cells.length).fill(0);
+      const assignment = [];
+      function visit(index, total, used) {
+        if (index === cells.length) {
+          if (total === sum) assignment.forEach((bit, i) => { supported[i] |= bit; });
+          return;
+        }
+        const [r, c] = cells[index];
+        const available = candidates[r][c] & ~used;
+        for (let digit = 1; digit <= 9 && total + digit <= sum; digit++) {
+          const bit = 1 << digit;
+          if (available & bit) {
+            assignment[index] = bit;
+            visit(index + 1, total + digit, used | bit);
+          }
+        }
+      }
+      visit(0, 0, 0);
+      cells.forEach(([r, c], i) => {
+        if (candidates[r][c] !== supported[i]) changed = true;
+        candidates[r][c] = supported[i];
+      });
     }
-    for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++) {
-      if (playable[r][c] && gen.runsAt[r][c].length === 0) { allRunsValid = false; debugInfo = debugInfo || { issue: "uncovered", r, c }; }
-    }
-    let removed = 0;
-    for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++) if (!playable[r][c]) removed++;
-    if (removed > 0) anyPuzzle = true;
-    let playableCells = 0;
-    for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++) if (playable[r][c]) playableCells++;
-    if (playableCells !== 81 - removed) { allRunsValid = false; debugInfo = debugInfo || { issue: "count", playableCells, removed }; }
-  }
-  ok(allRunsValid, `${d}: all runs valid (length 2-9, sum matches, every cell covered) ` + JSON.stringify(debugInfo));
-  ok(anyPuzzle, `${d}: generation removes cells`);
+  } while (changed);
+  return candidates;
 }
 
-// determinism
-const gA = makePuzzle(42, "medium").gen;
-const gB = makePuzzle(42, "medium").gen;
-deepEq(gA.playable, gB.playable, "seeded generation is deterministic");
-deepEq(gA.runs.map((r) => [r.dir, r.sum, r.cells]), gB.runs.map((r) => [r.dir, r.sum, r.cells]), "runs deterministic");
+for (const [difficulty, templates] of Object.entries(T.PUZZLES)) {
+  for (const [index, template] of templates.entries()) {
+    for (const variant of [0, 15]) {
+      const puzzle = T.buildPuzzle(template, variant);
+      const { playable, solution, runs, runsAt } = puzzle;
+      const label = `${difficulty} puzzle ${index + 1}, variant ${variant}`;
+      ok(playable.every((row) => !row[0]) && playable[0].every((open) => !open), `${label} has a top and left clue margin`);
+      ok(playable.every((row, r) => row.every((open, c) => !open ||
+        (runsAt[r][c].length === 2 && runsAt[r][c][0].dir === "h" && runsAt[r][c][1].dir === "v"))),
+        `${label} gives every white cell two crossing runs`);
+      ok(runs.every(({ cells, sum }) => {
+        const values = cells.map(([r, c]) => solution[r][c]);
+        return values.length >= 2 && values.length <= 9 &&
+          values.every((v) => v >= 1 && v <= 9) && new Set(values).size === values.length &&
+          values.reduce((total, v) => total + v, 0) === sum;
+      }), `${label} has correct sums and distinct run digits`);
+      const candidates = solveByElimination(puzzle);
+      ok(playable.every((row, r) => row.every((open, c) => !open || candidates[r][c] === (1 << solution[r][c]))),
+        `${label} has a unique solution reached by elimination alone`);
+    }
+  }
+}
+const seeded = makePuzzle(42, "medium").gen;
+deepEq(seeded, makePuzzle(42, "medium").gen, "seeded generation is deterministic");
+ok(T.generate("medium", "seed-42", seeded.index).index !== seeded.index, "new puzzles can exclude the previous template");
 
 // ---------- C. Initial state ----------
 let s = T.snap();
 eq(s.mode, "classic", "starts in classic");
 eq(s.diff, "medium", "starts at medium");
-eq(s.started, false, "starts in countdown");
-ok(s.countdown > 0, "countdown is running");
+eq(s.started, true, "classic is playable immediately");
+eq(s.countdown, 0, "classic has no countdown");
 eq(s.over, false, "not over");
 eq(s.diffHidden, false, "difficulty visible");
 eq(s.newGameDisabled, false, "new puzzle enabled");
 ok(s.total > 20, "has playable cells", s.total);
 eq(s.cellsEl, `0/${s.total}`, "HUD shows 0/total cells");
 
+T.setMode("attack", true);
+eq(T.snap().started, false, "time attack starts in countdown");
 frames(60);
-eq(T.snap().started, false, "still counting after ~1s");
+eq(T.snap().started, false, "time attack is still counting after about a second");
 frames(120);
-eq(T.snap().started, true, "countdown finishes after ~3s");
+eq(T.snap().started, true, "time attack countdown finishes");
 
-// ---------- D. Correct / wrong placement ----------
+// ---------- D. Player-triggered validation ----------
 {
   const { sol, gen } = makePuzzle(7, "easy");
   T.setMode("classic", true);
   T.setPuzzle(sol, gen.playable, gen.runs, gen.runsAt);
-  const f = T.firstPlayable();
-  T.selectCell(f.r, f.c);
-  T.placeNumber(sol[f.r][f.c]);
+  const [[r0, c0], [r1, c1]] = gen.runs[0].cells;
+  const digit = sol[r0][c0];
+  T.selectCell(r0, c0);
+  T.placeNumber(digit);
+  T.selectCell(r1, c1);
+  T.placeNumber(digit);
   s = T.snap();
-  eq(s.values[f.r][f.c], sol[f.r][f.c], "correct value placed");
-  eq(s.combo, 1, "combo increments");
-  eq(s.score, 12, "first correct scores 12");
-  ok(s.stats.correctCells >= 1, "correct cell counted");
-
-  // wrong
-  let target = null;
-  for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++) if (gen.playable[r][c] && s.values[r][c] === 0) { target = { r, c }; break; }
-  T.selectCell(target.r, target.c);
-  T.placeNumber(sol[target.r][target.c] % 9 + 1);
-  s = T.snap();
-  eq(s.mistakes, 1, "wrong entry counts a mistake");
-  eq(s.combo, 0, "combo resets");
+  const button = elements.get("board").children[r1 * 9 + c1].children[0];
+  eq(s.values[r1][c1], digit, "a tentative entry stays on the board");
+  eq(s.cellsEl, `2/${s.total}`, "progress counts entered digits");
+  eq(s.mistakes, 0, "classic waits for Check to count a mistake");
+  ok(!button.classList.contains("conflict") && !button.classList.contains("error"), "classic waits for Check to flag a conflict");
+  elements.get("check").dispatch("click");
+  ok(button.classList.contains("conflict"), "Check highlights the repeated digit's run");
+  eq(T.snap().mistakes, 1, "the invalid check counts a mistake");
+  T.checkBoard();
+  eq(T.snap().mistakes, 1, "checking again without edits does not add a mistake");
+  T.placeNumber(sol[r1][c1]);
+  eq(button.classList.contains("conflict"), false, "editing clears the old Check highlights");
 }
 
 // ---------- E. Run sums + completion ----------
@@ -286,6 +291,11 @@ eq(T.snap().started, true, "countdown finishes after ~3s");
   T.setPuzzle(sol, gen.playable, gen.runs, gen.runsAt);
   let empties = [];
   for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++) if (gen.playable[r][c]) empties.push({ r, c });
+  const last = empties.at(-1);
+  T.selectCell(last.r, last.c);
+  T.placeNumber(sol[last.r][last.c]);
+  eq(T.snap().combo, 1, "time attack increments the combo immediately");
+  eq(T.snap().score, 12, "the first correct time attack entry scores 12");
   for (let i = 0; i < 3; i++) {
     const e = empties[i];
     T.selectCell(e.r, e.c);
@@ -293,6 +303,7 @@ eq(T.snap().started, true, "countdown finishes after ~3s");
   }
   s = T.snap();
   eq(s.mistakes, 3, "three mistakes counted");
+  eq(s.combo, 0, "a wrong time attack entry breaks the combo");
   eq(s.over, true, "third mistake ends");
   eq(s.overlayTitle, "Out of Mistakes", "mistake overlay", s.overlayTitle);
 }
@@ -300,6 +311,7 @@ eq(T.snap().started, true, "countdown finishes after ~3s");
 // ---------- I. Mode UI ----------
 T.setMode("daily", true);
 s = T.snap();
+const dailySolution = s.solution;
 eq(s.mode, "daily", "daily active");
 eq(s.diffHidden, true, "difficulty hidden in daily");
 eq(s.newGameDisabled, true, "new puzzle disabled in daily");
@@ -311,6 +323,9 @@ T.setMode("classic", true);
 s = T.snap();
 deepEq(s.modePressed, ["true", "false", "false"], "classic chip pressed");
 eq(s.hintsLeft, 3, "hints restored");
+T.setDiff("expert");
+T.setMode("daily", true);
+deepEq(T.snap().solution, dailySolution, "today's puzzle is independent of the previous difficulty");
 
 // ---------- J. Win ----------
 {
@@ -441,14 +456,22 @@ eq(s.hintsLeft, 3, "hints restored");
   ok(tris > 0, "clues render sum triangles", tris);
   eq(bad, 0, "every clue triangle matches the run it describes " + JSON.stringify(problems));
 
-  // No digit repeats within a run.
-  const run = gen.runs.find((x) => x.cells.length >= 2);
+  const run = gen.runs.find((x) => x.cells.length === 2);
   const [r0, c0] = run.cells[0];
   const [r1, c1] = run.cells[1];
+  const [clueR, clueC] = run.dir === "h" ? [r0, c0 - 1] : [r0 - 1, c0];
+  const clue = board.children[clueR * 9 + clueC].children[0];
+  const button = clue.children.find((node) => node.className.includes(run.dir === "h" ? "--right" : "--down"));
+  button.dispatch("click");
+  const digits = [sol[r0][c0], sol[r1][c1]].sort((a, b) => a - b);
+  ok(elements.get("clue-combinations").textContent.includes(digits.join(" + ")), "a clue shows valid digit combinations");
+  deepEq(T.snap().selected, { r: r0, c: c0 }, "selecting a clue highlights its run");
+
   const v = sol[r0][c0];
   T.state.values[r0][c0] = v;
   T.state.values[r1][c1] = v;
-  ok(T.runConflict(r1, c1, v), "duplicate digit in a run is a conflict");
+  ok(T.runHasError(run), "duplicate digit in a run is a conflict");
+  eq(T.runComplete({ ...run, sum: v * 2 }), false, "matching the sum with a duplicate cannot complete a run");
 }
 
 // ---------- N. Persistence + long run ----------

@@ -7,6 +7,7 @@
   "scripts": {
     "test": "node tests/run-all-suites.js",
     "test:layout": "node tests/check-tia.js",
+    "test:browser": "node tests/browser-smoke.js",
     "verify": "npm test && npm run test:layout"
   }
 }

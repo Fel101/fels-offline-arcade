@@ -426,6 +426,99 @@ T.newGame(false);
   eq(T.phase, "roll", "restart starts in the roll phase");
 }
 
+// ---------- S. Turn-level legality ----------
+{
+  // Higher die wins when only one of two distinct dice can be played.
+  T.setMode("2p");
+  T.setPoints([[8, 1, 0], [5, 0, 2], [1, 0, 13]]);
+  T.setBar(0, 0);
+  T.setOff(14, 0);
+  T.setDice([1, 2]);
+
+  const before = JSON.stringify(T.points) + "|" + JSON.stringify(T.stats) + "|" + T.selected;
+  const moves = T.legalTurnMoves(T.WHITE);
+  eq(JSON.stringify(T.points) + "|" + JSON.stringify(T.stats) + "|" + T.selected, before,
+    "exploring continuations does not touch live state, stats or selection");
+  ok(moves.some((m) => m.from === 8 && m.to === 6 && m.die === 2), "8->6 with the higher die is offered");
+  ok(!moves.some((m) => m.from === 8 && m.to === 7), "8->7 with the lower die is rejected");
+
+  T.onPointClick(8);
+  eq(T.selected, 8, "point 8 can be selected");
+  T.onPointClick(7);
+  eq(T.getP(8, T.WHITE), 1, "the rejected 8->7 leaves the checker at 8");
+  eq(T.getP(7, T.WHITE), 0, "the rejected 8->7 places nothing on point 7");
+  T.onPointClick(8);
+  T.onPointClick(6);
+  eq(T.getP(8, T.WHITE), 0, "the accepted 8->6 empties point 8");
+  eq(T.getP(6, T.WHITE), 1, "the checker lands on point 6");
+}
+
+{
+  // A first move must still allow the rest of the turn to be played.
+  T.setMode("2p");
+  T.setPoints([[8, 1, 0], [12, 1, 0], [5, 0, 2], [10, 0, 2], [1, 0, 11]]);
+  T.setBar(0, 0);
+  T.setOff(13, 0);
+  T.setDice([1, 2]);
+
+  const moves = T.legalTurnMoves(T.WHITE);
+  ok(!moves.some((m) => m.from === 8 && m.to === 7), "8->7 is rejected because it wastes the 2");
+  ok(moves.some((m) => m.from === 12 && m.to === 11), "12->11 is allowed");
+  ok(moves.some((m) => m.from === 8 && m.to === 6), "8->6 is allowed");
+
+  T.onPointClick(12);
+  T.onPointClick(11);
+  eq(T.getP(11, T.WHITE), 1, "12->11 is accepted through the click path");
+  eq(T.dice.join(","), "2", "the 1 die is consumed");
+  T.onPointClick(8);
+  T.onPointClick(6);
+  eq(T.getP(6, T.WHITE), 1, "8->6 follows with the remaining die");
+  eq(T.dice.length, 0, "both dice are used");
+  eq(T.turn, T.BLACK, "the turn passes when no dice remain");
+}
+
+{
+  // Doubles may be only partially usable; play as many as the position allows.
+  T.setMode("2p");
+  T.setPoints([[8, 1, 0], [7, 1, 0], [5, 0, 2], [1, 0, 13]]);
+  T.setBar(0, 0);
+  T.setOff(13, 0);
+  T.setDice([2, 2, 2, 2]);
+
+  const moves = T.legalTurnMoves(T.WHITE);
+  ok(moves.length > 0, "a partial doubles position still has a legal first move");
+  ok(moves.every((m) => m.die === 2), "doubles only offer the doubled value");
+  let guard = 0;
+  let plays = 0;
+  while (T.turn === T.WHITE && guard++ < 8) {
+    const mv = T.legalTurnMoves(T.WHITE)[0];
+    if (!mv) break;
+    T.onPointClick(mv.from);
+    T.onPointClick(mv.to);
+    plays++;
+  }
+  eq(plays, 3, "only three of the four doubles can actually be played");
+  eq(T.turn, T.BLACK, "the partial doubles turn ends when no further die can be played");
+}
+
+{
+  // The CPU is filtered through the very same turn-level legality rules.
+  T.setMode("cpu");
+  T.setPoints([[17, 0, 1], [13, 0, 1], [20, 2, 0], [15, 2, 0], [24, 11, 0]]);
+  T.setBar(0, 0);
+  T.setOff(0, 13);
+  T.setTurn(T.BLACK);
+  T.setDice([1, 2]);
+
+  const legal = T.legalTurnMoves(T.BLACK);
+  ok(!legal.some((m) => m.from === 17 && m.to === 18), "the CPU's wasteful 17->18 is rejected");
+  ok(legal.some((m) => m.from === 13 && m.to === 14), "the CPU can play 13->14");
+  ok(legal.some((m) => m.from === 17 && m.to === 19), "the CPU can play 17->19");
+  T.cpuPlayTurn();
+  eq(T.dice.length, 0, "the CPU plays both dice");
+  eq(T.turn, T.WHITE, "the CPU ends its turn");
+}
+
 console.log(`${pass} passed, ${fail} failed`);
 console.log(`  init: ${initMs}ms`);
 process.exit(fail ? 1 : 0);

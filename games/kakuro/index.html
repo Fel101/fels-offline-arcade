@@ -52,7 +52,7 @@
       </button>
     </header>
 
-    <main class="game-area">
+    <main class="game-area kakuro-game">
       <div class="mode-bar" role="group" aria-label="Game mode">
         <button class="chip mode-chip" type="button" data-mode="classic" aria-pressed="true" title="Solve the sums — three hints, no mistake limit">Classic</button>
         <button class="chip mode-chip" type="button" data-mode="attack" aria-pressed="false" title="Three mistakes and it's over">Time Attack ⏱</button>
@@ -70,7 +70,7 @@
         <div class="status-bar__item"><span class="status-bar__label">Time</span><span id="time" class="status-bar__value">0:00</span></div>
         <div class="status-bar__item"><span class="status-bar__label">Cells</span><span id="cells" class="status-bar__value">0/0</span></div>
         <div class="status-bar__item" id="mistakes-item"><span class="status-bar__label">Mistakes</span><span id="mistakes" class="status-bar__value">0</span></div>
-        <div class="status-bar__item"><span class="status-bar__label">Combo</span><span id="combo" class="status-bar__value">x0</span></div>
+        <div class="status-bar__item" id="combo-item" hidden><span class="status-bar__label">Combo</span><span id="combo" class="status-bar__value">x0</span></div>
         <div class="status-bar__item" id="hints-item"><span class="status-bar__label">Hints</span><span id="hints" class="status-bar__value">3</span></div>
         <div class="status-bar__item"><span class="status-bar__label">Best</span><span id="best" class="status-bar__value">—</span></div>
       </div>
@@ -80,6 +80,11 @@
           <div id="board" class="kakuro-board" role="group" aria-label="Kakuro board"></div>
           <div class="sudoku-countdown" id="countdown" hidden><span id="countdown-num">3</span></div>
         </div>
+      </div>
+
+      <div class="kakuro-board-actions">
+        <p class="kakuro-combinations" id="clue-combinations" role="status">Select a clue to see its digit combinations.</p>
+        <button id="check" class="btn btn--ghost" type="button">Check</button>
       </div>
 
       <div class="sudoku-pad" role="group" aria-label="Number pad">
@@ -105,11 +110,10 @@
       <div class="game-controls">
         <button id="new-game" class="btn" type="button">New Puzzle</button>
         <button id="pause" class="btn btn--ghost" type="button">Pause</button>
-        <button id="check" class="btn btn--ghost" type="button">Check</button>
         <button id="badges2" class="btn btn--ghost" type="button">🏆 Badges</button>
       </div>
 
-      <p class="game-info__hint" id="hint">Fill each run with 1–9, no repeats · grey cells show the sums · 1–9 · N notes · H hint · U undo</p>
+      <p class="game-info__hint" id="hint">Use 1–9 to match each clue sum without repeats. Arrow keys move between cells. Use Check to validate your entries.</p>
     </main>
   </div>
 
